@@ -1,0 +1,183 @@
+.TH FW-ADMIN 8 "14 Jun 2012"
+.SH NAME
+fw-admin \- Herramienta de manejo del firewall en CICA
+.SH SYNOPSIS
+\fBfw-admin {-s|-a [ipv4|ipv6|fqdn]|-as [nombreset]|-r|-i [ipv4|ipv6|fqdn|var]|-c fichero|--start {vlan|nat|core}|--stop {vlan|nat|core}|--ipset-reload|--help}\fP
+.SH DESCRIPCION
+\fBfw-admin\fP es la herramienta diseñada por y para CICA, que es el nucleo del firewall perimetral general de la red.
+Es un script escrito en \fBBash(1)\fP, que implementa controles y procedimientos para facilitar la administracion del firewall.
+.SH FUNCIONALIDADES
+Algunas características y funcionalidades que permite \fBfw-admin\fP son:
+.TP
+· Abstracción de \fBip{tables|6tables}\fP mediante el uso de variables que se sustituyen alternativamente por el valor IPv4 e IPv6. 
+Esto permite escribir una única regla y que valga para ambos protocolos.
+.TP
+· Checkeo de las variables y la sintaxis usada en las reglas. Se evitan la mayoría de errores cometidos por el administrador.
+.TP
+· Cierta transaccionalidad, que permite dejar reglas de tráfico permisivo cuando hay algun fallo en el funcionamiento de \fBfw-admin\fP y durante las operaciones.
+.TP
+· Integración con \fBipset(8)\fP, para el uso de conjuntos de datos.
+.TP
+· Facilidad de integracion en entornos de alta disponibilidad, con \fBPacemaker(8)\fP.
+.TP
+· Ahorro de miles de consultas al DNS mediante el cacheo estático de los datos del DNS en ficheros de datos (las variables).
+.SH OPCIONES
+.TP 
+\fB-s\fP
+Muestra estadisticas del firewall. Al final de la lista de estadisticas, se calcula si el firewall está o no en funcionamiento según el número de reglas en el Kernel.
+Se mostrará un mensaje de tipo "El firewall está activo.". Este mensaje es usado por otros scripts (y quizás por \fBPacemaker(8)\fP para calcular si el firewall esta
+en funcionamiento.
+.TP 
+\fB-a [ipv4|ipv6|fqdn]\fP
+Añade una variable al sistema de variables. Puede ser una IPv4, una IPv6 o un FQDN.
+Se retornará el nombre de la variable que debe usarse en los ficheros de reglas. 
+Si la variable ya estubiera guardada, se actualizará su contenido, consultando al DNS o lo que proceda.
+Esta opcion puede llamarse con o sin parámetro de entrada. En caso de llamarla sin argumentos, se mostrará un prompt interactivo.
+.TP
+\fB-as [nombreset]\fP
+Para guardar en el sistema un nombre de set. El nombre de la variable siempre será en mayúsculas.
+Como curiosidad, decir que el nombre del set se guardara como: "NOMBRE=nombre_ipv4" y "NOMBRE=nombre_ipv6" en los ficheros de datos IPv4 e IPv6 respectivamente.
+Esta opcion puede llamarse con o sin parámetro de entrada. En caso de llamarla sin argumentos, se mostrará un prompt interactivo.
+.TP
+\fB-r\fP
+Todas las variables de IPv4, IPv6 y FQDN se recargarán. Por cada variable encontrada en los ficheros datos, se volverá a ejecutar el algoritmo que calcula el 
+guardado (el de la opción \fB-a\fP).
+Es posible que se ignoren ciertas variables que hayan podido meterse a mano en los ficheros de datos, como en las lineas que se encuentre la cadena "\fB##ignorar##\fP".
+
+Ejemplo:
+.RS
+.TP
+[...]
+.TP
+R2D2=150.214.4.150 #r2d2.cica.es
+.TP
+IF_INET=eth0 ##ignorar##
+.TP
+RED_GENERAL=150.214.0.0/16 ##ignorar##
+.TP
+[...]
+.RE	
+.TP
+\fB-i [ipv4|ipv6|fqdn|var]\fP
+Usando esta opcion es posible realizar una busqueda automatizada entre datos, variables y reglas en el kernel.
+Se facilita que buscando por un nombre se muestren las reglas de \fBip{tables|6tables}\fP que contienen la IPv4|IPv6 de ese nombre, además de otros datos.
+.TP
+\fB-c fichero\fP
+Se checkearan las variables de \fBfichero\fP y si procece, la sintaxis de iptables.
+Las variables del fichero se compararan con las guardadas en los ficheros de datos y se mostrará un error por cada una que falte.
+La sintaxis de iptables se checkeará sustituyendo -A por -C en cada instrudccion de regla y valorando el resultado del código de retorno de iptables (mas info 
+en \fBiptables(8)\fP)
+Este es el mismo algoritmo que se usa con la opcion \fB--start\fP.
+.TP
+\fB--start {vlan|nat|core} [--nocheck]\fP
+Se checkea que el fichero existe en la ruta especificada en la variable \fB$CONF_DIR\fP (generalmente \fB/var/local/fw.d/rules/\fP) y que tiene permisos de ejecucion.
+Luego, se checkea su sintaxis, de manera similar a la opción \fB-c\fP.
+Si todo esta bien, se hará un \fB`source'\fP de los ficheros de vairables IPv4 y se ejecutarán las reglas. Luego un \fB`source'\fP de los ficheros de variables IPv6 
+y otra ejecución de las reglas.
+
+Antes de empezar a ejecutar las reglas descritas en los ficheros, se borraran todas, dejando una regla de tráfico permisivo. Si cuando se acaben de introducir las nuevas
+reglas, no hay ningun error, la regla de trafico permisivo es eliminada. Esta regla esta identificada con un comentario y suele poner algo asi como "regla_transaccional_fw_admin"
+para su fácil identificación en caso de error.
+
+La orden \fB--start\fP sirve como reload. Se diferencian fichero de reglas standar (vlan), ficheros de nat y el fichero core, debido a las características concretas de cada tipo de regla.
+Por ejemplo, en el fichero de core no se checkeará la sintaxis (si las variables), y por ejemplo, los ficheros de nat no se ejecutarán en IPv6.
+
+La opción \fB--nocheck\fP evade los checkeos de sintaxis y variables. Esta pensada para casos donde es necesario hacer un start rápido.
+.TP
+\fB--stop {vlan|nat|core}\fP
+Se flushean las reglas y se deja una regla permisiva de tráfico.
+.TP
+\fB--ipset-reload\fP
+Se recarga la información de \fBipset(8)\fP en el sistema. Se lee el fichero localizado en \fB$CONF_DIR\fP llamado "\fBsets\fP". No se comprueba sintaxis,
+aunque si que se checkean las variables.
+.TP
+\fB--help\fP
+Muestra la ayuda, de rápida referencia.
+
+.SH VARIABLES USADAS
+Durante todo el código de \fBfw-admin\fP se usan recurrentemente algunas variables, que pueden editarse y de las cuales algunas se detallan a continuación:
+.TP
+\fB$CONF_DIR\fP
+El directorio de las reglas de filtrado. Durante el desarrollo del firewall se ha usado \fB/var/local/fw.d/rules/\fP.
+.TP
+\fB$DATA_DIR\fP
+Directorio para los ficheros de datos. Durante el desarrollo del firewall se ha usado \fB/var/local/fw.d/data/\fP.
+.TP
+\fB$LOCK_FILE\fP
+El fichero de LOCK. Algunas opciones no permiten más de una instancia de \fBfw-admin\fP, por lo que se usa este fichero.
+
+Durante el desarrollo del firewall se ha usado \fB/var/local/fw.d/run/fw-admin.lock\fP.
+.TP
+\fBOTRAS\fP
+Algunas otras variables son:
+
+\fBVARS_IPV6="$DATA_DIR/iptables_vars_ipv6.bash"\fP el fichero de datos de variables IPv6
+
+\fBVARS_IPV4="$DATA_DIR/iptables_vars_ipv4.bash"\fP el fichero de datos de variables IPv4
+
+\fBVARS_IPSETV4="$DATA_DIR/ipset_vars_ipv4.bash"\fP el fichero de datos de nombres de sets en IPv4
+
+\fBVARS_IPSETV6="$DATA_DIR/ipset_vars_ipv6.bash"\fP el fichero de datos de nombres de sets en IPv6
+
+
+.SH ESTRUCTURA DE FICHEROS
+Ficheros importantes en el firewall:
+.TP
+\fB/etc/init.d/firewall\fR
+Usando este script, se integra definitivamente \fBfw-admin\fP como servicio en el sistema.
+.TP
+\fB/usr/local/bin/fw-admin\fR
+El binario principal de \fBfw-admin\fP. Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
+.TP
+\fB/usr/local/lib/libfw-admin\fR
+La libreria de funciones de \fBfw-admin\fP. Aqui se encuentra la mayor parte del contenido del software.
+Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
+Al principio de este fichero están declaradas todas las variables, como \fB$CONF_DIR\fP y \fB$DATA_DIR\fP, que debe ajustar para adaptar \fBfw-admin\fP a su gusto.
+.TP
+\fB$CONF_DIR/core\fR
+Se espera que exista este fichero, donde se declara el esqueleto netfilter interno del firewall. Debe tener permisos de ejecución.
+.TP
+\fB$CONF_DIR/nat\fR
+Aqui se declaran las reglas de nateo. Debe tener permisos de ejecucion.
+.TP
+\fB$CONF_DIR/vlan_x\fR
+Reglas generales del firewall, agrupadas por vlanes. Es posible cambiar el nombre y no usar "vlan_x", si no algo como "misreglas", siempre que no se use "core", "nat" y
+demás nombres que crean conflicto con los anteriores.
+.TP
+\fB$CONF_DIR/sets\fR
+Fichero de declaracion de \fBipset(8)\fP.
+
+.SH DEPENDENCIAS
+Este script necesita distintos binarios y herramientas en el sistema durante diferentes momentos de la ejecucion. 
+Si cambiaran de ruta, puede editarse el fichero \fB/usr/local/lib/libfw-admin\fP y sustituir la correspondiente variable.
+
+Se detallan algunos:
+
+.TP
+\fBIPSET="/usr/sbin/ipset"\fP binario principal de \fBipset(8)\fP.
+.TP
+\fBIPT="/sbin/iptables"\fP binario principal de \fBiptables(8)\fP.
+.TP
+\fBIP6T="/sbin/ip6tables"\fP binario principal de \fBip6tables(8)\fP.
+.TP
+\fBIPSET_CLUSTER="/usr/sbin/ipset-cluster"\fP binario principal del wrapper \fBipset-cluster(8)\fP.
+.TP
+\fBIPT_CLUSTER="/usr/sbin/iptables-cluster"\fP binario principal del wrapper \fBiptables-cluster(8)\fP.
+.TP
+\fBIP6T_CLUSTER="/usr/sbin/ip6tables-cluster"\fP binario principal del wrapper \fBip6tables-cluster(8)\fP.
+.TP
+\fBIPT_SAVE="/sbin/iptables-save"\fP binario principal de \fBiptables-save(8)\fP.
+.TP
+\fBIP6T_SAVE="/sbin/ip6tables-save"\fP binario principal de \fBip6tables-save(8)\fP.
+.TP
+\fBCONNTRACKD="/usr/sbin/conntrackd"\fP binario del demonio \fBconntrackd(8)\fP.
+.TP
+\fBCONNTRACK="/usr/sbin/conntrack"\fP binario de la herramienta \fBconntrack(8)\fP.
+.TP
+\fBDIG="/usr/bin/dig"\fP binario principal de la herramineta \fBdig(1)\fP.
+
+.SH AUTOR
+El autor original de esta herramienta y sistema fue \fBArturo Borrero Gonzalez <aborrero@cica.es>\fP.
+
+Durante el desarrollo y testeo, participaron \fBMarina Moreda Rodrigez <marina.moreda@cica.es>\fP, \fBPedro Gallego Torrecillas <pgallego@cica.es>\fP, y también 
+\fBYassine Mohamed Ahram <yahram@cica.es>\fP.
