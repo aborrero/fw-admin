@@ -727,22 +727,35 @@ obtener_informacion()
 		done
 	fi
 
+	# Si habia set coincidente, mostrar ahora las reglas para ese set
+	if [ ! -z "$lista_de_set_con_coincidencias" ]
+	then
+		mensaje "I: Reglas que hacen referencias a los sets relacionados:"
+		oldIFS=$IFS ; IFS=$' '
+		for i in $lista_de_set_con_coincidencias
+		do
+			$IPT_SAVE -c | grep "match\-set" | grep "$i"
+			$IP6T_SAVE -c | grep "match\-set" | grep "$i"
+		done
+		IFS=$oldIFS
+	fi
+
 	# Realizar la consulta a iptables
 	local consulta_iptables=`grep -i $dato_consulta $VARS_IPV4 | grep -v FICTICIA | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` #obtener valor
 	is_ipv4_valid $consulta_iptables
 	if [ $? -eq 1 ]
 	then
-		local num_reglas_ipv4_nat=`$IPT -n -L -v -t nat | grep "$consulta_iptables" | wc -l`
+		local num_reglas_ipv4_nat=`$IPT_SAVE -t nat | grep "$consulta_iptables" | wc -l`
 		if [ $num_reglas_ipv4_nat -gt 0 ]
 		then
 			mensaje "I: Reglas en IPv4 (nat): $num_reglas_ipv4_nat"
-			$IPT -n -L -v -t nat | grep $consulta_iptables && flag_datos_mostrados=true
+			$IPT_SAVE -c -t nat | grep $consulta_iptables && flag_datos_mostrados=true
 		fi
-		local num_reglas_ipv4=`$IPT -n -L -v | grep "$consulta_iptables" | wc -l`
+		local num_reglas_ipv4=`$IPT_SAVE | grep "$consulta_iptables" | wc -l`
 		if [ $num_reglas_ipv4 -gt 0 ]
 		then
 			mensaje "I: Reglas en IPv4: $num_reglas_ipv4"
-			$IPT -n -L -v | grep $consulta_iptables && flag_datos_mostrados=true
+			$IPT_SAVE -c | grep $consulta_iptables && flag_datos_mostrados=true
 		fi
 	else
 		num_reglas_ipv4=0
@@ -753,11 +766,11 @@ obtener_informacion()
 	is_ipv6_valid $consulta_iptables
 	if [ $? -eq 1 ]
 	then
-		local num_reglas_ipv6=`$IP6T -n -L -v | grep "$consulta_iptables" | wc -l`
+		local num_reglas_ipv6=`$IP6T_SAVE | grep "$consulta_iptables" | wc -l`
 		if [ $num_reglas_ipv6 -gt 0 ]
 		then
 			mensaje "I: Reglas en IPv6: $num_reglas_ipv6"
-			$IP6T -n -L -v | grep $consulta_iptables
+			$IP6T_SAVE -c | grep $consulta_iptables
 			flag_datos_mostrados=true
 		fi
 	else
@@ -1047,8 +1060,12 @@ log_vlan()
 				echo "DEBUG: no haciendo nada de logeo, porque estamos en NAT" > /dev/null
 			else
 				# No tenemos reglas de nat
-				$IPT -A $1 -j LOG --log-level debug --log-prefix "FILTER/${1}:" || log_vlan_retval=1
+
+				# No se hace log de los sets
+				grep -i set <<< $1 > /dev/null || $IPT -A $1 -j LOG --log-level debug --log-prefix "FILTER/${1}:" || log_vlan_retval=1
+				# El return se agrega siempre
 				$IPT -A $1 -j RETURN || log_vlan_retval=1
+				# Se borran las reglas transaccionales sobrantes
 				while $IPT -C $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2> /dev/null
 				do
 					$IPT -D $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2> /dev/null \
