@@ -229,7 +229,7 @@ obtener_nombre_variable()
 			if [ $? -eq 1 ]
 			then
 				# Es un fqdn de CICA, la variable no tendra el dominio
-				nombre_variable=`echo $1 | tr -d "$DOMAIN" | tr [:lower:] [:upper:] | tr '.' '_' | tr '-' '_'`
+				nombre_variable=`echo $1 | awk -F".$DOMAIN" '{print $1}'| tr [:lower:] [:upper:] | tr '.' '_' | tr '-' '_'`
 			else
 				# No es un fqdn de CICA
 				nombre_variable=`echo $1 | tr [:lower:] [:upper:] | tr '.' '_' | tr '-' '_'`
