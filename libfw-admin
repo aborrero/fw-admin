@@ -727,6 +727,7 @@ obtener_informacion()
 		done
 	fi
 
+	echo "" > $AUX_FILE
 	# Si habia set coincidente, mostrar ahora las reglas para ese set
 	if [ ! -z "$lista_de_set_con_coincidencias" ]
 	then
@@ -734,10 +735,11 @@ obtener_informacion()
 		oldIFS=$IFS ; IFS=$' '
 		for i in $lista_de_set_con_coincidencias
 		do
-			$IPT_SAVE -c | grep "match\-set" | grep "$i"
-			$IP6T_SAVE -c | grep "match\-set" | grep "$i"
+			$IPT_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE
+			$IP6T_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE
 		done
 		IFS=$oldIFS
+		cat $AUX_FILE | sort -u | uniq
 	fi
 
 	# Realizar la consulta a iptables
