@@ -582,7 +582,7 @@ estadisticas()
 	then
 		mensaje "W: Los ficheros de variables de IPSET pueden estar corruptos; el numero de variables declaradas no coinciden!"
 	fi
-	if [ $reglas_ipv4 -gt 40 ] && [ $reglas_ipv6 -gt 40 ]
+	if [ $reglas_ipv4 -gt 40 ] || [ $reglas_ipv6 -gt 40 ]
 	then
 		echo "· El firewall parece activo (Más de 40 reglas)."
 	fi
@@ -889,8 +889,8 @@ checkear_fichero()
         	        lib_progress_bar -d 2 -m 55 $cont $lineas
 			{ [[ "$palabra" =~ "IPT" ]] || [[ "$palabra" =~ "IPSET" ]] || [[ "$palabra" =~ "ip"[6]?"tables" ]] ; } && continue
 			local busqueda=`echo $palabra | tr -d '$'`
-			( grep ^$busqueda $VARS_IPV4 > /dev/null && grep ^$busqueda $VARS_IPV6 > /dev/null ) \
-			|| ( grep ^$busqueda $VARS_IPSETV4 > /dev/null && grep ^$busqueda $VARS_IPSETV6 > /dev/null ) \
+			( grep ^$busqueda= $VARS_IPV4 > /dev/null && grep ^$busqueda= $VARS_IPV6 > /dev/null ) \
+			|| ( grep ^$busqueda= $VARS_IPSETV4 > /dev/null && grep ^$busqueda= $VARS_IPSETV6 > /dev/null ) \
 			|| { mensaje "W: Revisar variable ${C_BOLD}$busqueda${C_NORMAL}" >> $AUX_FILE; flag_variables_incorrectas=1 ; }
 		done
 		IFS=$oldIFS
@@ -918,6 +918,9 @@ salida_controlada_start()
 
 start()
 {
+	# Trap de seguridad para la salida
+	trap "salida_controlada_start $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
 	local start_retval=0
 	local tiempo_inicial=`date +%s`
 
@@ -935,8 +938,6 @@ start()
 		fi
 	fi
 
-	# Trap de seguridad para la salida
-	trap "salida_controlada_start $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	# Se checkea el fichero. PUNTO DE SALIDA
 	checkear_fichero $CONF_DIR/$vlan || { mensaje "E: No se inician las reglas porque el checkeo ha fallado."; salida 1 ; }
@@ -1117,7 +1118,7 @@ ipset_reload()
 	local tiempo_inicio="`date +%s`"
 
 	# Checkear el fichero de IPSET
-	checkear_fichero $IPSET_CONF
+	checkear_fichero $IPSET_CONF || return $?
 
 	mensaje "I: Recargando ahora informacion de sets en IPv4."
 	source $VARS_IPV4 && source $VARS_IPSETV4 \
