@@ -71,7 +71,7 @@ The ideal way of working with `fw-admin` is:
 		/var/local/fw.d/rules/vlan_2
 		/var/local/fw.d/rules/vlan_3
 
-	I this example, a `core` file is used for constructing all custom chains, a `set` file is used to declare all sets and others are pure rule declaration zone.  
+	I this example, a `core` file is used for building all custom chains, a `set` file is used to declare all sets, and all others files are pure rule declaration zone.  
 
 3. Tunning global variables
 
