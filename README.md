@@ -19,7 +19,7 @@ Using `fw-admin`, you will write each rule just once. That rule will be valid fo
 
 You usally set your ruleset in this way:  
 
-`iptables -A INPUT -i $IF -s $INTERNET -d $MYSERVER -p tcp --sport 1024: --dport $SSH_PORT -j ACCEPT`  
+`$IPT -A INPUT -i $IF -s $INTERNET -d $MYSERVER -p tcp --sport 1024: --dport $SSH_PORT -j ACCEPT`  
 
 Using `fw-admin`, you will have a handy way of manage thousands of variables like `$MYSERVER`, with full support for FQDN variable declarations.
 
@@ -43,6 +43,11 @@ Also, when loading rulesets, `fw-admin` will warn you about what rule have probl
 Migrate to or from `fw-admin` it's easy, because all shell-like organization in rulesets are allways preserved.
 
 Also, `fw-admin` is just a complex bash script, so you can modify it to fit your environment or requisites.
+
+
+###Transactional-like mechanism
+
+If you want, `fw-admin` will put some permissive rules while reloading the iptables data. That rule (or rules) will be deleted when done, so network impact is strongly minimiced.
 
 
 How to implement it
