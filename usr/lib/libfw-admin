@@ -10,14 +10,6 @@
 VERSION="0.1"
 PID=$$
 THIS="`uname -n`"
-DOMAIN="cica.es"
-CONF_DIR="/var/local/fw.d/rules"
-DATA_DIR="/var/local/fw.d/data"
-VARS_IPV6="$DATA_DIR/iptables_vars_ipv6.bash"
-VARS_IPV4="$DATA_DIR/iptables_vars_ipv4.bash"
-VARS_IPSETV4="$DATA_DIR/ipset_vars_ipv4.bash"
-VARS_IPSETV6="$DATA_DIR/ipset_vars_ipv6.bash"
-IPSET_CONF="$CONF_DIR/sets"
 
 IPSET="/usr/sbin/ipset"
 IPT="/sbin/iptables"
@@ -34,7 +26,6 @@ CONNTRACKD="/usr/sbin/conntrackd"
 CONNTRACK="/usr/sbin/conntrack"
 DIG="/usr/bin/dig"
 
-LOCK_FILE="/var/local/fw.d/run/fw-admin.lock"
 AUX_FILE="`mktemp`"
 
 EJECUTABLE_LOGGER="/usr/bin/logger"
@@ -48,12 +39,20 @@ ARGS_LOGGER="-t fw-admin[$PID] --"
 
 mensaje()
 {
-	echo -e $1 | sed s/"E:"/`echo -en ${C_RED}E:${C_NORMAL}`/ | sed s/"W:"/`echo -en ${C_YELLOW}W:${C_NORMAL}`/ | sed s/"I:"/`echo -en ${C_GREENBOLD}I:${C_NORMAL}`/
+
+	if [ "$USE_COLORS" == "yes" ]
+	then
+		echo -e $1 | sed s/"E:"/`echo -en ${C_RED}E:${C_NORMAL}`/ | sed s/"W:"/`echo -en ${C_YELLOW}W:${C_NORMAL}`/ | sed s/"I:"/`echo -en ${C_GREENBOLD}I:${C_NORMAL}`/
+	else
+		echo -e $1
+	fi
+
 	# solo se logean mensajes de error y warning
-	[[ $1 =~ ^"E:" ]] || [[ $1 =~ ^"W:" ]] && $EJECUTABLE_LOGGER $ARGS_LOGGER $1
+	[ "$LOG_ERROR_MESSAGES" == "yes" ] && [[ $1 =~ ^"E:" ]] && $EJECUTABLE_LOGGER $ARGS_LOGGER $1
+	[ "$LOG_WARN_MESSAGES" == "yes" ] && [[ $1 =~ ^"W:" ]] && $EJECUTABLE_LOGGER $ARGS_LOGGER $1
 }
 
-salida()
+do_exit()
 {
 	if [ -r $LOCK_FILE ]
 	then
@@ -76,10 +75,11 @@ validar_ejecucion() # Incluye punto de salida
 		echo "${$}@${THIS}" > $LOCK_FILE 2> /dev/null
 	fi
 
-	if [ "`cat $LOCK_FILE`" != "${$}@${THIS}" ] 2> /dev/null
+	local pid=`cat $LOCK_FILE`
+	if [ "$pid" != "${$}@${THIS}" ] 2> /dev/null
 	then
-		mensaje "E: Parece que ya hay una instancia en ejecucion. Terminando..."
-		salida 1
+		mensaje "E: Parece que ya hay una instancia en ejecucion. Existe lockfile [${LOCK_FILE}] con pid [${pid}]. Terminando..."
+		do_exit 1
 	fi
 	return 0
 }
@@ -179,25 +179,24 @@ check_root()
 check_files()
 {
 	local retval=0
-	[ -x $IPT_SAVE ] || { mensaje "E: Error en permisos o no existe [$IPT_SAVE]" ; retval=1 ; }
-	[ -x $IP6T_SAVE ] || { mensaje "E: Error en permisos o no existe [$IP6T_SAVE]" ; retval=1 ; }
-	[ -w $AUX_FILE ] || { mensaje "E: Fallo al crear el fichero auxiliar [$AUX_FILE]" ; retval=1 ; }
-	[ -d $CONF_DIR ] || { mensaje "W: Error en permisos o no existe el directorio [$CONF_DIR]" ; retval=1 ; }
-	[ -x $IPSET_CONF ] || { mensaje "W: Error en permisos o no existe el fichero [$IPSET_CONF]" ; retval=1 ; }
-	[ -d $DATA_DIR ] || { mensaje "W: Error en permisos o no existe el directorio [$DATA_DIR]" ; retval=1 ; }
-	[ -w $VARS_IPV6 ] || { mensaje "W: Error en permisos o no existe el fichero [$VARS_IPV6]" ; retval=1 ; }
-	[ -w $VARS_IPV4 ] || { mensaje "W: Error en permisos o no existe el fichero [$VARS_IPV4]" ; retval=1 ; }
-	[ -w $VARS_IPSETV6 ] || { mensaje "W: Error en permisos o no existe el fichero [$VARS_IPSETV6]" ; retval=1 ; }
-	[ -w $VARS_IPSETV4 ] || { mensaje "W: Error en permisos o no existe el fichero [$VARS_IPSETV4]" ; retval=1 ; }
-	[ -d $BACKUP_DIR ] || { mensaje "W: Error en permisos o no existe el directorio [$BACKUP_DIR]" ; retval=1 ; }
-	[ -x $IPT ] || { mensaje "E: El binario [$IPT] no tiene permisos de ejecucion o no se ha encontrado." ; salida 1 ; retval=1 ; }
-	[ -x $IP6T ] || { mensaje "E: El binario [$IP6T] no tiene permisos de ejecucion o no se ha encontrado." ; salida 1 ; retval=1 ; }
-	[ -x $IPSET ] || { mensaje "E: El binario [$IPSET] no tiene permisos de ejecucion o no se ha encontrado." ; salida 1 ; retval=1 ; }
-	[ -x $IPT_CLUSTER ] || { mensaje "E: El binario [$IPT_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; salida 1 ; retval=1 ; }
-	[ -x $IP6T_CLUSTER ] || { mensaje "E: El binario [$IP6T_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; salida 1 ; retval=1 ; }
-	[ -x $IPSET_CLUSTER ] || { mensaje "E: El binario [$IPSET_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; salida 1 ; retval=1 ; }
-	[ -x $CONNTRACK ] || { mensaje "E: El binario [$CONNTRACKD] no tiene permisos de ejecucion o no se ha encontrado." ; salida 1 ; retval=1 ; }
-	[ -x $DIG ] || { mensaje "E: El binario [$DIG] no tiene permisos de ejecucion o no se ha encontrado." ; salida 1 ; retval=1 ; }
+	[ -x $IPT_SAVE ] || { mensaje "E: Error en permisos o no existe [$IPT_SAVE]" ; do_exit 1 ; }
+	[ -x $IP6T_SAVE ] || { mensaje "E: Error en permisos o no existe [$IP6T_SAVE]" ; do_exit 1 ; }
+	[ -w $AUX_FILE ] || { mensaje "E: Fallo al crear el fichero auxiliar [$AUX_FILE]" ; do_exit 1 ; }
+	[ -d $CONF_DIR ] || { mensaje "E: Error en permisos o no existe el directorio [$CONF_DIR]" ; do_exit 1 ; }
+	[ -x $IPSET_CONF ] || { mensaje "E: Error en permisos o no existe el fichero [$IPSET_CONF]" ; do_exit 1 ; }
+	[ -d $DATA_DIR ] || { mensaje "E: Error en permisos o no existe el directorio [$DATA_DIR]" ; do_exit 1 ; }
+	[ -w $VARS_IPV6 ] || { mensaje "E: Error en permisos o no existe el fichero [$VARS_IPV6]" ; do_exit 1 ; }
+	[ -w $VARS_IPV4 ] || { mensaje "E: Error en permisos o no existe el fichero [$VARS_IPV4]" ; do_exit 1 ; }
+	[ -w $VARS_IPSETV6 ] || { mensaje "E: Error en permisos o no existe el fichero [$VARS_IPSETV6]" ; do_exit 1 ; }
+	[ -w $VARS_IPSETV4 ] || { mensaje "E: Error en permisos o no existe el fichero [$VARS_IPSETV4]" ; do_exit 1 ; }
+	[ -x $IPT ] || { mensaje "E: El binario [$IPT] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IP6T ] || { mensaje "E: El binario [$IP6T] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IPSET ] || { mensaje "E: El binario [$IPSET] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IPT_CLUSTER ] || { mensaje "E: El binario [$IPT_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IP6T_CLUSTER ] || { mensaje "E: El binario [$IP6T_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IPSET_CLUSTER ] || { mensaje "E: El binario [$IPSET_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $CONNTRACK ] || { mensaje "E: El binario [$CONNTRACKD] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $DIG ] || { mensaje "E: El binario [$DIG] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
 	return $retval
 }
 
@@ -237,7 +236,7 @@ obtener_nombre_variable()
 		fi
 	else
 		mensaje "E: Se ha producido un error al calcular el nombre que debe tener la variable."
-		salida 1
+		do_exit 1
 	fi
 	return
 
@@ -249,8 +248,8 @@ get_ip_from_fqdn()
         local tipo_ip=$1
         local fqdn=$2
 
-	[ -z "$tipo_ip" ] && { mensaje "E: En la funcion get_ip_from_fqdn() (es recursiva) llamada con parametro tipo_ip vacio." ; salida 1 ; }
-	[ -z "$fqdn" ] && { mensaje "E: En la funcion get_ip_from_fqdn() (es recursiva) llamada con parametro fqdn vacio." ; salida 1 ; }
+	[ -z "$tipo_ip" ] && { mensaje "E: En la funcion get_ip_from_fqdn() (es recursiva) llamada con parametro tipo_ip vacio." ; do_exit 1 ; }
+	[ -z "$fqdn" ] && { mensaje "E: En la funcion get_ip_from_fqdn() (es recursiva) llamada con parametro fqdn vacio." ; do_exit 1 ; }
 
         local resolucion=`$DIG +short $fqdn $tipo_ip`
         is_ipv6_valid $resolucion
@@ -307,7 +306,7 @@ recargar_variables()
 agregar_variable()
 {
 	# trap de cancelacion
-	trap " echo "" && mensaje \"W: Interrumpiendo...\" && salida 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+	trap " echo "" && mensaje \"W: Interrumpiendo...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	local agregar_variable_retval=0
 	local dato_a_agregar=$1
@@ -913,7 +912,7 @@ salida_controlada_start()
 {
 	mensaje "W: Abortando el arranque. Dejando reglas permisivas."
 	flush_vlan $1
-	salida 1
+	do_exit 1
 }
 
 start()
@@ -934,13 +933,13 @@ start()
 		if [ ! -x $CONF_DIR/$vlan ]
 		then
 			mensaje "E: No se encuentra fichero de vlan/nat/core o no tiene permisos de ejecucion."
-			salida 1 # PUNTO DE SALIDA
+			do_exit 1 # PUNTO DE SALIDA
 		fi
 	fi
 
 
 	# Se checkea el fichero. PUNTO DE SALIDA
-	checkear_fichero $CONF_DIR/$vlan || { mensaje "E: No se inician las reglas porque el checkeo ha fallado."; salida 1 ; }
+	checkear_fichero $CONF_DIR/$vlan || { mensaje "E: No se inician las reglas porque el checkeo ha fallado."; do_exit 1 ; }
 
 	oldIFS=$IFS
 	IFS=$'\n'
@@ -955,9 +954,9 @@ start()
 		((cont++))
 		[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
 		eval "$linea" 2> /dev/null \
-			|| { echo "" ; mensaje "E: Al iniciar las reglas en IPv4. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; salida 1 ; } #SALIDA
-	done || { mensaje "E: Fallo general iniciando reglas en protocolo IPv4." ; flush_vlan $vlan ; salida 1 ; } # PUNTO DE SALIDA
-	log_vlan $vlan || { mensaje "E: Al agregar las reglas IPv4 de logeo para [$vlan]." ; salida 1 ; } # PUNTO DE SALIDA
+			|| { echo "" ; mensaje "E: Al iniciar las reglas en IPv4. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; do_exit 1 ; } #SALIDA
+	done || { mensaje "E: Fallo general iniciando reglas en protocolo IPv4." ; flush_vlan $vlan ; do_exit 1 ; } # PUNTO DE SALIDA
+	log_vlan $vlan || { mensaje "E: Al agregar las reglas IPv4 de logeo para [$vlan]." ; do_exit 1 ; } # PUNTO DE SALIDA
 
 	if grep -i nat <<< $vlan > /dev/null
 	then
@@ -973,9 +972,9 @@ start()
 			((cont++))
 			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
 			eval "$linea" 2> /dev/null \
-				|| { echo "" ; mensaje "E: Al iniciar las reglas en IPv6. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; salida 1 ; } #SALIDA
-		done || { mensaje "E: Fallo general iniciando reglas en protocolo IPv6." ; flush_vlan $vlan ; salida 1 ; } # PUNTO DE SALIDA
-		log_vlan $vlan || { mensaje "E: Al agregar las reglas IPv6 de logeo para [$vlan]." ; salida 1 ; } # PUNTO DE SALIDA
+				|| { echo "" ; mensaje "E: Al iniciar las reglas en IPv6. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; do_exit 1 ; } #SALIDA
+		done || { mensaje "E: Fallo general iniciando reglas en protocolo IPv6." ; flush_vlan $vlan ; do_exit 1 ; } # PUNTO DE SALIDA
+		log_vlan $vlan || { mensaje "E: Al agregar las reglas IPv6 de logeo para [$vlan]." ; do_exit 1 ; } # PUNTO DE SALIDA
 	fi
 	IFS=$oldIFS
 	local tiempo_final=`date +%s`
@@ -1133,7 +1132,7 @@ ipset_reload()
 		do
 			((cont++))
 			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
-			eval "${linea}" 2>/dev/null || { mensaje "E: Fallo al recargar sets en IPv4. Regla num (no linea) [$cont]." ; salida 1 ; }
+			eval "${linea}" 2>/dev/null || { mensaje "E: Fallo al recargar sets en IPv4. Regla num (no linea) [$cont]." ; do_exit 1 ; }
 		done
 		IFS=$oldIFS
 	fi
@@ -1150,7 +1149,7 @@ ipset_reload()
 		do
 			((cont++))
 			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
-			eval "${linea}" 2>/dev/null || { mensaje "E: Fallo al recargar sets en IPv6. Regla num (no linea) [$cont]." ; salida 1 ; }
+			eval "${linea}" 2>/dev/null || { mensaje "E: Fallo al recargar sets en IPv6. Regla num (no linea) [$cont]." ; do_exit 1 ; }
 		done
 		IFS=$oldIFS
 	fi

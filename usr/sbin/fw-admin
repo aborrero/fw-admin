@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio 2012
+# Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio 2012
+
+CONF_FILE="/etc/fw-admin.conf"
+LIB="/usr/local/lib/libfw-admin"
 
 C_RED="\E[31m"
 C_GREEN="\E[32m"
@@ -44,7 +47,7 @@ uso()
 # Programa
 ################################################################
 ################################################################
-LIB="/usr/local/lib/libfw-admin"
+source $CONF_FILE || { echo "E: Unable to load config file $CONF_FILE" >&2; exit 1 ; }
 
 if [ "$1" == "-s" ] || [ "$1" == "-a" ] || [ "$1" == "-as" ] || [ "$1" == "-r" ] || [ "$1" == "-i" ] || [ "$1" == "-c" ] || [ "$1" == "--start" ] || [ "$1" == "--stop" ] || [ "$1" == "--ipset-reload" ]
 then
@@ -58,55 +61,55 @@ case "$1" in
 	"-s" )
 		mensaje "I: Mostrando estadisticas."
 		estadisticas
-		salida $?
+		do_exit $?
 		;;
 
 	"-a" )
 		validar_ejecucion
 		mensaje "I: Agregando variable de IP o FQDN."
 		agregar_variable $2 #dato como parametro
-		salida $?
+		do_exit $?
 		;;
 	"-as" )
 		validar_ejecucion
 		mensaje "I: Agregando variable de conjunto."
 		agregar_set $2 #dato como parametro
-		salida $?
+		do_exit $?
 		;;
 	"-r" )
 		validar_ejecucion
 		mensaje "I: Recargando variables."
 		recargar_variables
-		salida $?
+		do_exit $?
 		;;
 	"-i" )
 		mensaje "I: Obteniendo informacion."
 		obtener_informacion $2 #dato como parametro
-		salida $?
+		do_exit $?
 		;;
 	"-c" )
 		checkear_fichero $2 #fichero de vlan como parametro
-		salida $?
+		do_exit $?
 		;;
 	"--start" )
 		validar_ejecucion
 		mensaje "I: Inicializando reglas de iptables [$2]."
 		[ "$3" == "--nocheck" ] && flag_no_check=1
 		start $2 #nombre de vlan como parametro
-		salida $?
+		do_exit $?
 		;;
 	"--stop" )
 		validar_ejecucion
 		mensaje "I: Parando reglas de iptables de [$2]."
 		stop $2 #nombre de vlan como parametro
-		salida $?
+		do_exit $?
 		;;
 	"--ipset-reload" )
 		validar_ejecucion
 		mensaje "I: Recargando conjuntos."
 		[ "$2" == "--nocheck" ] && flag_no_check=1
 		ipset_reload #sin parametros
-		salida $?
+		do_exit $?
 		;;
 	"--help" )
 		ayuda
