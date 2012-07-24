@@ -53,37 +53,37 @@ if [ "$1" == "-s" ] || [ "$1" == "-a" ] || [ "$1" == "-as" ] || [ "$1" == "-r" ]
 then
 	source $LIB || { echo "E: Unable to load library $LIB" >&2; exit 1 ; }
 	check_root
-	check_files || { mensaje "Terminando..." ; exit 1 ; }
+	check_files || { message "Terminando..." ; exit 1 ; }
 fi
 
 case "$1" in
 
 	"-s" )
-		mensaje "I: Mostrando estadisticas."
+		message "I: Mostrando estadisticas."
 		estadisticas
 		do_exit $?
 		;;
 
 	"-a" )
 		validar_ejecucion
-		mensaje "I: Agregando variable de IP o FQDN."
+		message "I: Agregando variable de IP o FQDN."
 		agregar_variable $2 #dato como parametro
 		do_exit $?
 		;;
 	"-as" )
 		validar_ejecucion
-		mensaje "I: Agregando variable de conjunto."
+		message "I: Agregando variable de conjunto."
 		agregar_set $2 #dato como parametro
 		do_exit $?
 		;;
 	"-r" )
 		validar_ejecucion
-		mensaje "I: Recargando variables."
+		message "I: Recargando variables."
 		recargar_variables
 		do_exit $?
 		;;
 	"-i" )
-		mensaje "I: Obteniendo informacion."
+		message "I: Obteniendo informacion."
 		obtener_informacion $2 #dato como parametro
 		do_exit $?
 		;;
@@ -93,20 +93,20 @@ case "$1" in
 		;;
 	"--start" )
 		validar_ejecucion
-		mensaje "I: Inicializando reglas de iptables [$2]."
+		message "I: Inicializando reglas de iptables [$2]."
 		[ "$3" == "--nocheck" ] && flag_no_check=1
 		start $2 #nombre de vlan como parametro
 		do_exit $?
 		;;
 	"--stop" )
 		validar_ejecucion
-		mensaje "I: Parando reglas de iptables de [$2]."
+		message "I: Parando reglas de iptables de [$2]."
 		stop $2 #nombre de vlan como parametro
 		do_exit $?
 		;;
 	"--ipset-reload" )
 		validar_ejecucion
-		mensaje "I: Recargando conjuntos."
+		message "I: Recargando conjuntos."
 		[ "$2" == "--nocheck" ] && flag_no_check=1
 		ipset_reload #sin parametros
 		do_exit $?

@@ -37,9 +37,14 @@ ARGS_LOGGER="-t fw-admin[$PID] --"
 ################################################################
 ################################################################
 
-mensaje()
+# void message(string message)
+# Esta funcion pinta un mensaje por pantalla y quizás lo guarde en un log
+message()
 {
 
+	# En el fichero /etc/fw-admin.conf puede configurarse
+	# que se muestren colores aqui o no.
+	# Se sustituiran las cadenas por la misma cadena con el código del color.
 	if [ "$USE_COLORS" == "yes" ]
 	then
 		echo -e $1 | sed s/"E:"/`echo -en ${C_RED}E:${C_NORMAL}`/ | sed s/"W:"/`echo -en ${C_YELLOW}W:${C_NORMAL}`/ | sed s/"I:"/`echo -en ${C_GREENBOLD}I:${C_NORMAL}`/
@@ -52,6 +57,8 @@ mensaje()
 	[ "$LOG_WARN_MESSAGES" == "yes" ] && [[ $1 =~ ^"W:" ]] && $EJECUTABLE_LOGGER $ARGS_LOGGER $1
 }
 
+# void do_exit(int exit_code)
+# sale del programa borrando el lockfile y el fichero auxiliar
 do_exit()
 {
 	if [ -r $LOCK_FILE ]
@@ -68,8 +75,12 @@ do_exit()
 	exit $1
 }
 
+# boolean validar_ejecucion()
+# valida que no hay dos instancias de fw-admin en operacion critica
 validar_ejecucion() # Incluye punto de salida
 {
+	# Si no existe el lock file
+	# la ejecucion es nuestra, guardar nuestro pid
 	if [ ! -r $LOCK_FILE ]
 	then
 		echo "${$}@${THIS}" > $LOCK_FILE 2> /dev/null
@@ -78,76 +89,71 @@ validar_ejecucion() # Incluye punto de salida
 	local pid=`cat $LOCK_FILE`
 	if [ "$pid" != "${$}@${THIS}" ] 2> /dev/null
 	then
-		mensaje "E: Parece que ya hay una instancia en ejecucion. Existe lockfile [${LOCK_FILE}] con pid [${pid}]. Terminando..."
+		message "E: Parece que ya hay una instancia en ejecucion. Existe lockfile [${LOCK_FILE}] con pid [${pid}]. Terminando..."
 		do_exit 1
 	fi
 	return 0
 }
 
+# boolean is_ipv4_valid(string ipv4)
+# Check if an ipv4 is a valid ipv4
 is_ipv4_valid()
 {
-	local retval=0
+	local retval=1
 	if [ ! -z $1 ]
 	then
 		egrep '^(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[0-9]{1,2})){3}$' <<< $1 > /dev/null
 		if [ $? -eq 0 ]
 		then
-			retval=1
+			retval=0
 		fi
 	fi
 	return $retval
 }
 
+# boolean is_ipv6_valid(string ipv6)
+# Check if an ipv6 is a valid ipv6
 is_ipv6_valid()
 {
-	local retval=0
+	local retval=1
 	if [ ! -z $1 ]
 	then
 		egrep -E '^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))|:)))(%.+)?\s*$' <<< $1 > /dev/null
 		if [ $? -eq 0 ]
 		then
-			retval=1
+			retval=0
 		fi
 	fi
 	return $retval
 }
 
+# boolean is_fqdn_valid(string fqdn)
+# Check if an fqdn is a valid fqdn
 is_fqdn_valid()
 {
-	local retval=0
+	local retval=1
 	if [ ! -z $1 ]
 	then
+		# resolve it to know if it's valid
 		if [ `$DIG +short $1 | wc -l` -ne 0 ] > /dev/null
 		then
-			retval=1
+			retval=0
 		fi
 	fi
 	return $retval
 }
 
+# boolean is_ip_fqdn_valid(string ip_or_fqdn)
+# Check if an address is valid (ip or fqdn)
 is_ip_fqdn_valid()
 {
-	local retval=0
+	local retval=1
 	if [ ! -z $1 ]
 	then
 		# Es posible que tengamos una ipv4, una ipv6 o un fqdn
-		is_ipv6_valid $1
-		if [ $? -eq 1 ]
-		then
-			retval=1
-		else
-			is_ipv4_valid $1
-			if [ $? -eq 1 ]
-			then
-				retval=1
-			else
-				is_fqdn_valid $1
-				if [ $? -eq 1 ]
-				then
-					retval=1
-				fi
-			fi
-		fi
+		is_ipv6_valid $1 && retval=0
+		is_ipv4_valid $1 && retval=0
+		is_fqdn_valid $1 && retval=0
 	fi
 	return $retval
 }
@@ -155,11 +161,11 @@ is_ip_fqdn_valid()
 # Funcion que valora si un fqdn es del dominio cica.es
 es_fqdn_cica_es()
 {
-	local retval=0
+	local retval=1
 	grep "$DOMAIN"$ <<< $1 > /dev/null
 	if [ $? -eq 0 ]
 	then
-		retval=1
+		retval=0
 	fi
 	return $retval
 }
@@ -169,7 +175,7 @@ check_root()
 	local retval=0
 	if [ `id -u` -ne 0 ]
 	then
-		mensaje "E: No eres root!"
+		message "E: No eres root!"
 		retval=1
 	fi
 	return $retval
@@ -179,24 +185,24 @@ check_root()
 check_files()
 {
 	local retval=0
-	[ -x $IPT_SAVE ] || { mensaje "E: Error en permisos o no existe [$IPT_SAVE]" ; do_exit 1 ; }
-	[ -x $IP6T_SAVE ] || { mensaje "E: Error en permisos o no existe [$IP6T_SAVE]" ; do_exit 1 ; }
-	[ -w $AUX_FILE ] || { mensaje "E: Fallo al crear el fichero auxiliar [$AUX_FILE]" ; do_exit 1 ; }
-	[ -d $CONF_DIR ] || { mensaje "E: Error en permisos o no existe el directorio [$CONF_DIR]" ; do_exit 1 ; }
-	[ -x $IPSET_CONF ] || { mensaje "E: Error en permisos o no existe el fichero [$IPSET_CONF]" ; do_exit 1 ; }
-	[ -d $DATA_DIR ] || { mensaje "E: Error en permisos o no existe el directorio [$DATA_DIR]" ; do_exit 1 ; }
-	[ -w $VARS_IPV6 ] || { mensaje "E: Error en permisos o no existe el fichero [$VARS_IPV6]" ; do_exit 1 ; }
-	[ -w $VARS_IPV4 ] || { mensaje "E: Error en permisos o no existe el fichero [$VARS_IPV4]" ; do_exit 1 ; }
-	[ -w $VARS_IPSETV6 ] || { mensaje "E: Error en permisos o no existe el fichero [$VARS_IPSETV6]" ; do_exit 1 ; }
-	[ -w $VARS_IPSETV4 ] || { mensaje "E: Error en permisos o no existe el fichero [$VARS_IPSETV4]" ; do_exit 1 ; }
-	[ -x $IPT ] || { mensaje "E: El binario [$IPT] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $IP6T ] || { mensaje "E: El binario [$IP6T] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $IPSET ] || { mensaje "E: El binario [$IPSET] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $IPT_CLUSTER ] || { mensaje "E: El binario [$IPT_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $IP6T_CLUSTER ] || { mensaje "E: El binario [$IP6T_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $IPSET_CLUSTER ] || { mensaje "E: El binario [$IPSET_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $CONNTRACK ] || { mensaje "E: El binario [$CONNTRACKD] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $DIG ] || { mensaje "E: El binario [$DIG] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IPT_SAVE ] || { message "E: Error en permisos o no existe [$IPT_SAVE]" ; do_exit 1 ; }
+	[ -x $IP6T_SAVE ] || { message "E: Error en permisos o no existe [$IP6T_SAVE]" ; do_exit 1 ; }
+	[ -w $AUX_FILE ] || { message "E: Fallo al crear el fichero auxiliar [$AUX_FILE]" ; do_exit 1 ; }
+	[ -d $CONF_DIR ] || { message "E: Error en permisos o no existe el directorio [$CONF_DIR]" ; do_exit 1 ; }
+	[ -x $IPSET_CONF ] || { message "E: Error en permisos o no existe el fichero [$IPSET_CONF]" ; do_exit 1 ; }
+	[ -d $DATA_DIR ] || { message "E: Error en permisos o no existe el directorio [$DATA_DIR]" ; do_exit 1 ; }
+	[ -w $VARS_IPV6 ] || { message "E: Error en permisos o no existe el fichero [$VARS_IPV6]" ; do_exit 1 ; }
+	[ -w $VARS_IPV4 ] || { message "E: Error en permisos o no existe el fichero [$VARS_IPV4]" ; do_exit 1 ; }
+	[ -w $VARS_IPSETV6 ] || { message "E: Error en permisos o no existe el fichero [$VARS_IPSETV6]" ; do_exit 1 ; }
+	[ -w $VARS_IPSETV4 ] || { message "E: Error en permisos o no existe el fichero [$VARS_IPSETV4]" ; do_exit 1 ; }
+	[ -x $IPT ] || { message "E: El binario [$IPT] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IP6T ] || { message "E: El binario [$IP6T] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IPSET ] || { message "E: El binario [$IPSET] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IPT_CLUSTER ] || { message "E: El binario [$IPT_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IP6T_CLUSTER ] || { message "E: El binario [$IP6T_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IPSET_CLUSTER ] || { message "E: El binario [$IPSET_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $CONNTRACK ] || { message "E: El binario [$CONNTRACKD] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $DIG ] || { message "E: El binario [$DIG] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
 	return $retval
 }
 
@@ -208,24 +214,12 @@ obtener_nombre_variable()
 	if [ ! -z $1 ]
 	then
 		# El parametro de entrada no esta vacio
-		is_ipv4_valid $1
-		if [ $? -eq 1 ]
-		then
-			# Es una variable ipv4
-			nombre_variable=`echo v$1 | tr '.' '_'`
-		fi
-		is_ipv6_valid $1
-		if [ $? -eq 1 ]
-		then
-			# Es una variable ipv6
-			nombre_variable=`echo v$1 | tr ':' '_'`
-		fi
-		is_fqdn_valid $1
-		if [ $? -eq 1 ]
+		is_ipv4_valid $1 && nombre_variable=`echo v$1 | tr '.' '_'`
+		is_ipv6_valid $1 && nombre_variable=`echo v$1 | tr ':' '_'`
+		if is_fqdn_valid $1
 		then
 			# Es una variable fqdn
-			es_fqdn_cica_es $1
-			if [ $? -eq 1 ]
+			if es_fqdn_cica_es $1
 			then
 				# Es un fqdn de CICA, la variable no tendra el dominio
 				nombre_variable=`echo $1 | awk -F".$DOMAIN" '{print $1}'| tr [:lower:] [:upper:] | tr '.' '_' | tr '-' '_'`
@@ -235,7 +229,7 @@ obtener_nombre_variable()
 			fi
 		fi
 	else
-		mensaje "E: Se ha producido un error al calcular el nombre que debe tener la variable."
+		message "E: Se ha producido un error al calcular el nombre que debe tener la variable."
 		do_exit 1
 	fi
 	return
@@ -248,17 +242,15 @@ get_ip_from_fqdn()
         local tipo_ip=$1
         local fqdn=$2
 
-	[ -z "$tipo_ip" ] && { mensaje "E: En la funcion get_ip_from_fqdn() (es recursiva) llamada con parametro tipo_ip vacio." ; do_exit 1 ; }
-	[ -z "$fqdn" ] && { mensaje "E: En la funcion get_ip_from_fqdn() (es recursiva) llamada con parametro fqdn vacio." ; do_exit 1 ; }
+	[ -z "$tipo_ip" ] && { message "E: En la funcion get_ip_from_fqdn() (recursiva) llamada con parametro tipo_ip vacio." ; do_exit 1 ; }
+	[ -z "$fqdn" ] && { message "E: En la funcion get_ip_from_fqdn() (recursiva) llamada con parametro fqdn vacio." ; do_exit 1 ; }
 
         local resolucion=`$DIG +short $fqdn $tipo_ip`
-        is_ipv6_valid $resolucion
-        if [ $? -eq 1 ]
+        if is_ipv6_valid $resolucion
         then
                 echo "$resolucion" #punto de salida
         else
-		is_ipv4_valid $resolucion
-		if [ $? -eq 1 ]
+		if is_ipv4_valid $resolucion
 		then
 			echo "$resolucion" #punto de salida
 		else
@@ -282,7 +274,7 @@ recargar_variables()
 	local recargar_variables_retval=0
 	echo "" > $AUX_FILE
 
-	mensaje "I: No se recargan variables que contengan \"##ignorar##\"."
+	message "I: No se recargan variables que contengan \"##ignorar##\"."
 	local lista_variables=`{ cat $VARS_IPV4 ; cat $VARS_IPV6 ; } | egrep -v "##ignorar##"\|"@"\|^[[:space:]]*# \
 		| awk -F'#' '{print $2}' | sort -u | uniq | grep -v ^$`
 	oldIFS=$IFS
@@ -296,7 +288,7 @@ recargar_variables()
 		agregar_variable $variable >> $AUX_FILE || recargar_variables_retval=1
 	done
 	IFS=$oldIFS
-	mensaje "I: Resultados:"
+	message "I: Resultados:"
 	cat $AUX_FILE
 	return $recargar_variables_retval
 }
@@ -306,7 +298,7 @@ recargar_variables()
 agregar_variable()
 {
 	# trap de cancelacion
-	trap " echo "" && mensaje \"W: Interrumpiendo...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+	trap " echo "" && message \"W: Interrumpiendo...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	local agregar_variable_retval=0
 	local dato_a_agregar=$1
@@ -324,8 +316,8 @@ agregar_variable()
 	# Validacion del dato introducido (por parametro o prompt)
 	#
 
-	( is_ipv4_valid $dato_a_agregar && is_ipv6_valid $dato_a_agregar && is_fqdn_valid $dato_a_agregar ) \
-		&& { mensaje "E: No se ha reconocido en [${dato_a_agregar}] una IP o FQDN que pueda usarse." ; agregar_variable_retval=1 ; }
+	{ is_ipv4_valid $dato_a_agregar || is_ipv6_valid $dato_a_agregar || is_fqdn_valid $dato_a_agregar ; } \
+		&& { message "E: No se ha reconocido en [${dato_a_agregar}] una IP o FQDN que pueda usarse." ; agregar_variable_retval=1 ; }
 
 
 	# Procedemos solo si se ha validado el parametro
@@ -343,25 +335,25 @@ agregar_variable()
 		if grep ^"${nombre_variable}=" $VARS_IPV4 > /dev/null 2> /dev/null && grep ^"${nombre_variable}=" $VARS_IPV6 > /dev/null 2> /dev/null
 		then
 			# La variable ya esta guardada, actualizar
-			mensaje "W: Actualizando la variable [${nombre_variable}]."
+			message "W: Actualizando la variable [${nombre_variable}]."
 		else
-			mensaje "I: El nombre de la variable es [${nombre_variable}]."
+			message "I: El nombre de la variable es [${nombre_variable}]."
 		fi
 
 		#
 		# Escribir las variables a los ficheros de datos
 		#
 		guardar_variable_en_fichero "ipv4" "$nombre_variable" "$dato_a_agregar" \
-			|| { mensaje "E: fallo al guardar la variable al fichero [${VARS_IPV4}]" ; agregar_variable_retval=1 ; }
+			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV4}]" ; agregar_variable_retval=1 ; }
 		guardar_variable_en_fichero "ipv6" "$nombre_variable" "$dato_a_agregar" \
-			|| { mensaje "E: fallo al guardar la variable al fichero [${VARS_IPV6}]" ; agregar_variable_retval=1 ; }
+			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV6}]" ; agregar_variable_retval=1 ; }
 
 		#
 		# Checkeo de que la escritura ha sido correcta
 		#
 		grep ^"${nombre_variable}=" $VARS_IPV4 > /dev/null 2> /dev/null || agregar_variable_retval=1
 		grep ^"${nombre_variable}=" $VARS_IPV6 > /dev/null 2> /dev/null || agregar_variable_retval=1
-		[ $agregar_variable_retval -ne 0 ] &&  mensaje "E: No se pudo guardar la variable [${nombre_variable}]."
+		[ $agregar_variable_retval -ne 0 ] &&  message "E: No se pudo guardar la variable [${nombre_variable}]."
 	fi
 	return $agregar_variable_retval
 
@@ -387,7 +379,7 @@ agregar_set()
 	dato_a_agregar=`tr [:lower:] [:upper:] <<< $dato_a_agregar`
 	# No debe existir
 	( grep -i "${dato_a_agregar}_ipv4" $VARS_IPSETV4 > /dev/null && grep -i "${dato_a_agregar}_ipv6" $VARS_IPSETV6 > /dev/null ) \
-		&& { mensaje "E: La variable ya existe." ; agregar_set_retval=1 ; }
+		&& { message "E: La variable ya existe." ; agregar_set_retval=1 ; }
 
 	# Procedemos solo si se ha validado el parametro
 	if [ $agregar_set_retval -eq 0 ]
@@ -396,9 +388,9 @@ agregar_set()
 		# Escribir las variables a los ficheros de datos
 		#
 		echo "$dato_a_agregar=`tr [:upper:] [:lower:] <<< $dato_a_agregar`_ipv4" >> $VARS_IPSETV4 \
-				|| { mensaje "E: Fallo al escribir la variable en [$VARS_IPSETV4]" ; agregar_set_retval=1 ; }
+				|| { message "E: Fallo al escribir la variable en [$VARS_IPSETV4]" ; agregar_set_retval=1 ; }
 		echo "$dato_a_agregar=`tr [:upper:] [:lower:] <<< $dato_a_agregar`_ipv6" >> $VARS_IPSETV6 \
-				|| { mensaje "E: Fallo al escribir la variable en [$VARS_IPSETV6]" ; agregar_set_retval=1 ; }
+				|| { message "E: Fallo al escribir la variable en [$VARS_IPSETV6]" ; agregar_set_retval=1 ; }
 
 		echo "Los datos guardados: "
 		grep ^"${dato_a_agregar}=" $DATA_DIR/* 2>/dev/null
@@ -441,24 +433,22 @@ guardar_variable_en_fichero()
 	# Punto de salida
 	if [ $guardar_variable_en_fichero_retval -ne 0 ]
 	then
-		mensaje "E: Fallo al llamar a la funcion [guardar_variable_en_fichero()] Parametros de entrada invalidos."
+		message "E: Fallo al llamar a la funcion [guardar_variable_en_fichero()] Parametros de entrada invalidos."
 		return $guardar_variable_en_fichero_retval
 	fi
 
 	# Borrando posible dato anterior
 	if grep ^"${nombre_variable}=" $fichero_trabajo > /dev/null
 	then
-		# Los datos no se mantienen bien en la variable, asi que se sustituyen los \n por @
 		local datos=`grep -v ^"${nombre_variable}=" $fichero_trabajo | grep -v ^$`
 		echo "$datos" > $fichero_trabajo
-		[ $? -ne 0 ] && { mensaje "E: Fallo al borrar el dato anterior en la actualizacion. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+		[ $? -ne 0 ] && { message "E: Fallo al borrar el dato anterior en la actualizacion. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 	fi
 
 	[ $guardar_variable_en_fichero_retval -ne 0 ] && return $guardar_variable_en_fichero_retval # punto de retorno
 
 	# Como guardar los datos si estamos trabajando con un FQDN
-	is_fqdn_valid $dato_a_agregar
-	if [ $? -eq 1 ]
+	if is_fqdn_valid $dato_a_agregar
 	then
 		case "$ip" in
 			"ipv4" )
@@ -474,52 +464,50 @@ guardar_variable_en_fichero()
 		then
 			# No hay resolucion DNS para este registro
 			echo "${nombre_variable}=\$FICTICIA #$dato_a_agregar" >> $fichero_trabajo
-			[ $? -ne 0 ] && { mensaje "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+			[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 		else
 			# Hay resolucion DNS para el registro
 			if [ `echo "$resolucion" | wc -l` -gt 1 ]
 			then
 				# Resolucion compleja de este registro
 				echo "${nombre_variable}=${dato_a_agregar} #$dato_a_agregar" >> $fichero_trabajo
-				[ $? -ne 0 ] && { mensaje "E: Fallo al agregar dato [${dato_a_agregar}] de resolucion compleja a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+				[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] de resolucion compleja a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 			else
 				# Resolucion normal de este registro
 				echo "${nombre_variable}=$resolucion #$dato_a_agregar" >> $fichero_trabajo
-				[ $? -ne 0 ] && { mensaje "E: Fallo al agregar dato [${dato_a_agregar}] de resolucion normal a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+				[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] de resolucion normal a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 			fi
 		fi
 	else # dato de IP cruda (v4 o v6)
 		# Como guardar los datos si estamos trabajando con una IPv6
-		is_ipv6_valid $dato_a_agregar
-		if [ $? -eq 1 ]
+		if is_ipv6_valid $dato_a_agregar
 		then
 			case "$ip" in
 				"ipv4" )
 					echo "${nombre_variable}=\$FICTICIA #$dato_a_agregar" >> $fichero_trabajo
-					[ $? -ne 0 ] && { mensaje "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+					[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 					;;
 				"ipv6" )
 					echo "${nombre_variable}=${dato_a_agregar} #$dato_a_agregar" >> $fichero_trabajo
-					[ $? -ne 0 ] && { mensaje "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+					[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 					;;
 			esac
 		else
 			# Como guardar los datos si estamos trabajando con una IPv4
-			is_ipv4_valid $dato_a_agregar
-			if [ $? -eq 1 ]
+			if is_ipv4_valid $dato_a_agregar
 			then
 				case "$ip" in
 					"ipv4" )
 						echo "${nombre_variable}=${dato_a_agregar} #$dato_a_agregar" >> $fichero_trabajo
-						[ $? -ne 0 ] && { mensaje "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+						[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 						;;
 					"ipv6" )
 						echo "${nombre_variable}=\$FICTICIA #$dato_a_agregar" >> $fichero_trabajo
-						[ $? -ne 0 ] && { mensaje "E: Fallo al borrar el dato anterior en la actualizacion. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+						[ $? -ne 0 ] && { message "E: Fallo al borrar el dato anterior en la actualizacion. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 						;;
 				esac
 			else
-				mensaje "E: Funcion [guardar_datos_a_ficheros()] mal llamada: El dato no se ha detectado como valido."
+				message "E: Funcion [guardar_datos_a_ficheros()] mal llamada: El dato no se ha detectado como valido."
 				guardar_variable_en_fichero_retval=1
 			fi
 		fi
@@ -562,7 +550,7 @@ estadisticas()
 	echo "· Hash de las reglas del kernel: `( { $IPT_SAVE ; $IP6T_SAVE ; } | grep ^"-" | md5sum ) || echo error! `"
 	echo " "
 	echo "Estadisticas de Conntrackd: --------------------------------"
-	$CONNTRACKD -s 2> /dev/null || mensaje "E: Al consultar las estadisticas de conntrackd."
+	$CONNTRACKD -s 2> /dev/null || message "E: Al consultar las estadisticas de conntrackd."
 
 	echo "Estadisticas varias: ---------------------------------------"
 	local vars_ipv4=`grep \= $VARS_IPV4 | wc -l`
@@ -571,7 +559,7 @@ estadisticas()
 	echo "· Numero de variables IPv6 declaradas: $vars_ipv6 [$VARS_IPV6]"
 	if [ $vars_ipv4 -ne $vars_ipv6 ]
 	then
-		mensaje "W: Los ficheros de IPs o FQDNs pueden estar corruptos; el numero de variables declaradas no coinciden!"
+		message "W: Los ficheros de IPs o FQDNs pueden estar corruptos; el numero de variables declaradas no coinciden!"
 	fi
 	local vars_ipset_ipv4=`grep \= $VARS_IPSETV4 | wc -l`
 	local vars_ipset_ipv6=`grep \= $VARS_IPSETV6 | wc -l`
@@ -579,7 +567,7 @@ estadisticas()
 	echo "· Numero de variables IPSET IPv6 declaradas: $vars_ipset_ipv6 [$VARS_IPSETV6]"
 	if [ $vars_ipset_ipv4 -ne $vars_ipset_ipv6 ]
 	then
-		mensaje "W: Los ficheros de variables de IPSET pueden estar corruptos; el numero de variables declaradas no coinciden!"
+		message "W: Los ficheros de variables de IPSET pueden estar corruptos; el numero de variables declaradas no coinciden!"
 	fi
 	if [ $reglas_ipv4 -gt 40 ] || [ $reglas_ipv6 -gt 40 ]
 	then
@@ -601,7 +589,7 @@ buscar_en_fichero()
 	then
 		grep "$dato" $VARS_IPV4 | while read linea # Se recorren cada una de las lineas que pudiera devolver el grep
 		do
-			# Si cambias este mensaje debes cambiar la funcion obtener_informacion()
+			# Si cambias este message debes cambiar la funcion obtener_informacion()
 			echo -e "Dato relacionado en ${C_BOLD}$VARS_IPV4${C_NORMAL} de la forma: ${C_BOLD} $linea ${C_NORMAL}" >> $2
 		done
 		grep "$dato" $VARS_IPV6 | while read linea # Se recorren cada una de las lineas que pudiera devolver el grep
@@ -722,7 +710,7 @@ obtener_informacion()
 		flag_datos_mostrados=true
 		cat $AUX_FILE | sort -u | while read linea
 		do
-			mensaje "$linea"
+			message "$linea"
 		done
 	fi
 
@@ -730,7 +718,7 @@ obtener_informacion()
 	# Si habia set coincidente, mostrar ahora las reglas para ese set
 	if [ ! -z "$lista_de_set_con_coincidencias" ]
 	then
-		mensaje "I: Reglas que hacen referencias a los sets relacionados:"
+		message "I: Reglas que hacen referencias a los sets relacionados:"
 		oldIFS=$IFS ; IFS=$' '
 		for i in $lista_de_set_con_coincidencias
 		do
@@ -744,19 +732,18 @@ obtener_informacion()
 
 	# Realizar la consulta a iptables
 	local consulta_iptables=`grep -i $dato_consulta $VARS_IPV4 | grep -v FICTICIA | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` #obtener valor
-	is_ipv4_valid $consulta_iptables
-	if [ $? -eq 1 ]
+	if is_ipv4_valid $consulta_iptables
 	then
 		local num_reglas_ipv4_nat=`$IPT_SAVE -t nat | grep "$consulta_iptables" | wc -l`
 		if [ $num_reglas_ipv4_nat -gt 0 ]
 		then
-			mensaje "I: Reglas en IPv4 (nat): $num_reglas_ipv4_nat"
+			message "I: Reglas en IPv4 (nat): $num_reglas_ipv4_nat"
 			$IPT_SAVE -c -t nat | grep $consulta_iptables && flag_datos_mostrados=true
 		fi
 		local num_reglas_ipv4=`$IPT_SAVE | grep "$consulta_iptables" | wc -l`
 		if [ $num_reglas_ipv4 -gt 0 ]
 		then
-			mensaje "I: Reglas en IPv4: $num_reglas_ipv4"
+			message "I: Reglas en IPv4: $num_reglas_ipv4"
 			$IPT_SAVE -c | grep $consulta_iptables && flag_datos_mostrados=true
 		fi
 	else
@@ -765,13 +752,12 @@ obtener_informacion()
 	fi
 	# Volvemos a realizar la consulta a iptables, en este caso buscando nateo
 	consulta_iptables=`grep $dato_consulta $VARS_IPV6 | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` #obtener valor
-	is_ipv6_valid $consulta_iptables
-	if [ $? -eq 1 ]
+	if is_ipv6_valid $consulta_iptables
 	then
 		local num_reglas_ipv6=`$IP6T_SAVE | grep "$consulta_iptables" | wc -l`
 		if [ $num_reglas_ipv6 -gt 0 ]
 		then
-			mensaje "I: Reglas en IPv6: $num_reglas_ipv6"
+			message "I: Reglas en IPv6: $num_reglas_ipv6"
 			$IP6T_SAVE -c | grep $consulta_iptables
 			flag_datos_mostrados=true
 		fi
@@ -782,12 +768,12 @@ obtener_informacion()
 	total_reglas=$((num_reglas_ipv4_nat + total_reglas))
 	total_reglas=$(( total_reglas + num_reglas_ipv4 ))
 	total_reglas=$(( total_reglas + num_reglas_ipv6 ))
-	mensaje "I: Se han encontrado un total de ${C_BOLD}${total_reglas}${C_NORMAL} reglas coincidentes."
+	message "I: Se han encontrado un total de ${C_BOLD}${total_reglas}${C_NORMAL} reglas coincidentes."
 
 
 	if [ "$flag_datos_mostrados" != "true" ]
 	then
-		mensaje "W: No se ha encontrado ninguna informacion relacionada."
+		message "W: No se ha encontrado ninguna informacion relacionada."
 	else
 		obtener_informacion_retval=0
 	fi
@@ -807,15 +793,15 @@ checkear_sintaxis_iptables()
 	# punto de salida
 	if [ ! -r $fichero ]
 	then
-		mensaje "E: No se ha recibido un nombre de fichero correcto en la funcion checkear_sintaxis_iptables(). Terminando..."
+		message "E: No se ha recibido un nombre de fichero correcto en la funcion checkear_sintaxis_iptables(). Terminando..."
 		return 1
 	fi
 
 	oldIFS=$IFS
 	IFS=$'\n'
-	mensaje "I: Checkeando la sintaxis de iptables de [$fichero]:"
+	message "I: Checkeando la sintaxis de iptables de [$fichero]:"
 	source $VARS_IPV4 && source $VARS_IPSETV4 && { IPT=$IPT_LOCAL ; IPSET=$IPSET_LOCAL ; } \
-	|| { mensaje "E: fallo al leer los ficheros de datos IPv4." ; return 1 ; } # punto de salida
+	|| { message "E: fallo al leer los ficheros de datos IPv4." ; return 1 ; } # punto de salida
 	local lineas=`grep -v ^[[:space:]]*# $fichero | grep " -A " | grep -v ^$ | wc -l` # para la barra de progreso
 	local cont=0 # para la barra de progreso
 	for linea in `cat $fichero | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$ | egrep -v ^$\|"IPSET" | grep " -A "`
@@ -827,7 +813,7 @@ checkear_sintaxis_iptables()
 		eval "$ejec 2> /dev/null"
 		if [ $? -eq 2 ]
 		then
-			mensaje "E: La regla de la linea \"`awk -F' ' '{print $1}' <<< $linea`\" parece tener fallos de sintaxis en IPv4." >> $AUX_FILE
+			message "E: La regla de la linea \"`awk -F' ' '{print $1}' <<< $linea`\" parece tener fallos de sintaxis en IPv4." >> $AUX_FILE
 			checkear_sintaxis_iptables_retval=1
 		fi
 	done
@@ -837,10 +823,10 @@ checkear_sintaxis_iptables()
 	then
 		echo "DEBUG: No se checkea sintaxis en IPv6 porque es NAT." > /dev/null
 	else
-		mensaje "I: Checkeando la sintaxis de ip6tables de [$fichero]:"
+		message "I: Checkeando la sintaxis de ip6tables de [$fichero]:"
 		local cont=0 #  para la barra de progreso
 		source $VARS_IPV6 && source $VARS_IPSETV6 && { IPT=$IP6T_LOCAL ; IPSET=$IPSET_LOCAL ; } \
-		|| { mensaje "E: fallo al leer los ficheros de datos IPv6." ; return 1 ; } #punto  de salida
+		|| { message "E: fallo al leer los ficheros de datos IPv6." ; return 1 ; } #punto  de salida
 		for linea in `cat $fichero | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$ | egrep -v ^$\|"IPSET" | grep " -A "`
 		do
 			((cont++))
@@ -850,7 +836,7 @@ checkear_sintaxis_iptables()
 			eval "$ejec 2> /dev/null"
 			if [ $? -eq 2 ]
 			then
-				mensaje "E: La regla de la linea \"`awk -F' ' '{print $1}' <<< $linea`\" parece tener fallos de sintaxis en IPv6." >> $AUX_FILE
+				message "E: La regla de la linea \"`awk -F' ' '{print $1}' <<< $linea`\" parece tener fallos de sintaxis en IPv6." >> $AUX_FILE
 				checkear_sintaxis_iptables_retval=1
 			fi
 		done
@@ -864,7 +850,7 @@ checkear_sintaxis_iptables()
 # y comprueba que su asignacion es correcta
 checkear_fichero()
 {
-	[ ! -z "$flag_no_check" ] && [ $flag_no_check -eq 1 ] && { mensaje "W: No check [$1]." ; return 0 ; }
+	[ ! -z "$flag_no_check" ] && [ $flag_no_check -eq 1 ] && { message "W: No check [$1]." ; return 0 ; }
 
 	local retval=0
 	local flag_variables_incorrectas=0
@@ -874,7 +860,7 @@ checkear_fichero()
 
 	if [ -e $fichero ]
 	then
-		mensaje "I: Checkeando variables del fichero [$fichero]"
+		message "I: Checkeando variables del fichero [$fichero]"
 
 		# algunos calculos antes del for
 		oldIFS=$IFS
@@ -888,9 +874,9 @@ checkear_fichero()
         	        lib_progress_bar -d 2 -m 55 $cont $lineas
 			{ [[ "$palabra" =~ "IPT" ]] || [[ "$palabra" =~ "IPSET" ]] || [[ "$palabra" =~ "ip"[6]?"tables" ]] ; } && continue
 			local busqueda=`echo $palabra | tr -d '$'`
-			( grep ^$busqueda= $VARS_IPV4 > /dev/null && grep ^$busqueda= $VARS_IPV6 > /dev/null ) \
-			|| ( grep ^$busqueda= $VARS_IPSETV4 > /dev/null && grep ^$busqueda= $VARS_IPSETV6 > /dev/null ) \
-			|| { mensaje "W: Revisar variable ${C_BOLD}$busqueda${C_NORMAL}" >> $AUX_FILE; flag_variables_incorrectas=1 ; }
+			{ grep ^$busqueda= $VARS_IPV4 > /dev/null && grep ^$busqueda= $VARS_IPV6 > /dev/null ; } \
+				|| { grep ^$busqueda= $VARS_IPSETV4 > /dev/null && grep ^$busqueda= $VARS_IPSETV6 > /dev/null ; } \
+				|| { message "W: Revisar variable ${C_BOLD}$busqueda${C_NORMAL}" >> $AUX_FILE; flag_variables_incorrectas=1 ; }
 		done
 		IFS=$oldIFS
 
@@ -899,9 +885,9 @@ checkear_fichero()
 		[ $flag_variables_incorrectas -ne 0 ] && return 1 #punto de retorno
 
 		# no se checkea la sintaxis de ficheros core ni set
-		egrep -i "core"$\|"sets"$ <<< $fichero > /dev/null || checkear_sintaxis_iptables $fichero || flag_iptables_incorrectas=$?
+		egrep -i ^"core"$\|^"sets"$ <<< $fichero > /dev/null || checkear_sintaxis_iptables $fichero || flag_iptables_incorrectas=$?
 	else
-		mensaje "E: No se ha encontrado el fichero o no tiene permisos de lectura."
+		message "E: No se ha encontrado el fichero o no tiene permisos de lectura."
 		retval=1
 	fi
 	[ "$flag_variables_incorrectas" -ne 0 ] || [ "$flag_iptables_incorrectas" -ne 0 ] && retval=1
@@ -910,7 +896,8 @@ checkear_fichero()
 
 salida_controlada_start()
 {
-	mensaje "W: Abortando el arranque. Dejando reglas permisivas."
+	echo ""
+	message "W: Abortando el arranque. Dejando reglas permisivas."
 	flush_vlan $1
 	do_exit 1
 }
@@ -926,20 +913,20 @@ start()
 	# Comprobar que hemos recibido parametro de entrada
 	if [ -z "$1" ]
 	then
-		mensaje "E: Es necesario especificar un nombre vlan/nat/core (el nombre que debe tener el fichero en $CONF_DIR)"
+		message "E: Es necesario especificar un nombre vlan/nat/core (el nombre que debe tener el fichero en $CONF_DIR)"
 		start_retval=1
 	else
 		local vlan=$1
 		if [ ! -x $CONF_DIR/$vlan ]
 		then
-			mensaje "E: No se encuentra fichero de vlan/nat/core o no tiene permisos de ejecucion."
+			message "E: No se encuentra fichero de vlan/nat/core o no tiene permisos de ejecucion."
 			do_exit 1 # PUNTO DE SALIDA
 		fi
 	fi
 
 
 	# Se checkea el fichero. PUNTO DE SALIDA
-	checkear_fichero $CONF_DIR/$vlan || { mensaje "E: No se inician las reglas porque el checkeo ha fallado."; do_exit 1 ; }
+	checkear_fichero $CONF_DIR/$vlan || { message "E: No se inician las reglas porque el checkeo ha fallado."; do_exit 1 ; }
 
 	oldIFS=$IFS
 	IFS=$'\n'
@@ -947,16 +934,16 @@ start()
 	IPT=$IPT
 	local lineas=`grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^$ | wc -l`
 	local cont=0
-	mensaje "I: Iniciando reglas en protocolo IPv4:"
+	message "I: Iniciando reglas en protocolo IPv4:"
 	flush_vlan $vlan && source $VARS_IPV4 && source $VARS_IPSETV4 \
 	&& for linea in `grep -v ^[[:space:]]*# $CONF_DIR/$vlan`
 	do
 		((cont++))
 		[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
 		eval "$linea" 2> /dev/null \
-			|| { echo "" ; mensaje "E: Al iniciar las reglas en IPv4. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; do_exit 1 ; } #SALIDA
-	done || { mensaje "E: Fallo general iniciando reglas en protocolo IPv4." ; flush_vlan $vlan ; do_exit 1 ; } # PUNTO DE SALIDA
-	log_vlan $vlan || { mensaje "E: Al agregar las reglas IPv4 de logeo para [$vlan]." ; do_exit 1 ; } # PUNTO DE SALIDA
+			|| { echo "" ; message "E: Al iniciar las reglas en IPv4. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; do_exit 1 ; } #SALIDA
+	done || { message "E: Fallo general iniciando reglas en protocolo IPv4." ; flush_vlan $vlan ; do_exit 1 ; } # PUNTO DE SALIDA
+	log_vlan $vlan || { message "E: Al agregar las reglas IPv4 de logeo para [$vlan]." ; do_exit 1 ; } # PUNTO DE SALIDA
 
 	if grep -i nat <<< $vlan > /dev/null
 	then
@@ -965,20 +952,20 @@ start()
 		# Iniciando reglas en IPv6
 		IPT=$IP6T
 		local cont=0
-		mensaje "I: Iniciando reglas en protocolo IPv6:"
+		message "I: Iniciando reglas en protocolo IPv6:"
 		source $VARS_IPV6 && source $VARS_IPSETV6 \
 		&& for linea in ` grep -v ^[[:space:]]*# $CONF_DIR/$vlan`
 		do
 			((cont++))
 			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
 			eval "$linea" 2> /dev/null \
-				|| { echo "" ; mensaje "E: Al iniciar las reglas en IPv6. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; do_exit 1 ; } #SALIDA
-		done || { mensaje "E: Fallo general iniciando reglas en protocolo IPv6." ; flush_vlan $vlan ; do_exit 1 ; } # PUNTO DE SALIDA
-		log_vlan $vlan || { mensaje "E: Al agregar las reglas IPv6 de logeo para [$vlan]." ; do_exit 1 ; } # PUNTO DE SALIDA
+				|| { echo "" ; message "E: Al iniciar las reglas en IPv6. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; do_exit 1 ; } #SALIDA
+		done || { message "E: Fallo general iniciando reglas en protocolo IPv6." ; flush_vlan $vlan ; do_exit 1 ; } # PUNTO DE SALIDA
+		log_vlan $vlan || { message "E: Al agregar las reglas IPv6 de logeo para [$vlan]." ; do_exit 1 ; } # PUNTO DE SALIDA
 	fi
 	IFS=$oldIFS
 	local tiempo_final=`date +%s`
-	mensaje "I: Tiempo total de arranque de ${vlan}: `expr $tiempo_final - $tiempo_inicial` segundos."
+	message "I: Tiempo total de arranque de ${vlan}: `expr $tiempo_final - $tiempo_inicial` segundos."
 
 	return $start_retval
 }
@@ -989,7 +976,7 @@ flush_vlan()
 	# Recibe como parametro una vlan o nat
 	if [ ! -z "$1" ]
 	then
-		if grep -i core <<< $1 > /dev/null
+		if grep -i ^"core" <<< $1 > /dev/null
 		then
 			# Estamos en el fichero core
 			$IPT_CLUSTER -P INPUT ACCEPT
@@ -1045,17 +1032,17 @@ log_vlan()
 			while $IPT -C FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2> /dev/null
 			do
 				$IPT -D FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2> /dev/null \
-					|| mensaje "W: Al eliminar reglas transaccionales durante la operación de core (forward)."
+					|| message "W: Al eliminar reglas transaccionales durante la operación de core (forward)."
 			done
 			while $IPT -C INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2> /dev/null
 			do
 				$IPT -D INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2> /dev/null \
-					|| mensaje "W: Al eliminar reglas transaccionales durante la operación de core (input)."
+					|| message "W: Al eliminar reglas transaccionales durante la operación de core (input)."
 			done
 			while $IPT -C OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2> /dev/null
 			do
 				$IPT -D OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2> /dev/null \
-					|| mensaje "W: Al eliminar reglas transaccionales durante la operación de core (output)."
+					|| message "W: Al eliminar reglas transaccionales durante la operación de core (output)."
 			done
 		else
 			if grep -i nat <<< $1 > /dev/null
@@ -1073,7 +1060,7 @@ log_vlan()
 				while $IPT -C $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2> /dev/null
 				do
 					$IPT -D $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2> /dev/null \
-						|| mensaje "W: Al eliminar reglas transaccionales durante la operación de $1."
+						|| message "W: Al eliminar reglas transaccionales durante la operación de $1."
 				done
 			fi
 		fi
@@ -1090,20 +1077,20 @@ stop()
         # Comprobar que hemos recibido parametro de entrada
         if [ -z "$1" ]
         then
-                mensaje "E: Es necesario especificar un nombre de vlan/nat/core (el nombre que debe tener el fichero en $CONF_DIR)"
+                message "E: Es necesario especificar un nombre de vlan/nat/core (el nombre que debe tener el fichero en $CONF_DIR)"
                 stop_retval=1
         else
                 local vlan=$1
                 if [ ! -x $CONF_DIR/$vlan ]
                 then
-                        mensaje "E: No se encuentra fichero de vlan/nat/core o no tiene permisos de ejecucion."
+                        message "E: No se encuentra fichero de vlan/nat/core o no tiene permisos de ejecucion."
                         stop_retval=1
                 fi
         fi
 
 	if [ $stop_retval -eq 0 ]
 	then
-		flush_vlan $vlan || mensaje "W: Fallo al flushear las reglas de la vlan/nat/core"
+		flush_vlan $vlan || message "W: Fallo al flushear las reglas de la vlan/nat/core"
 	fi
 
 	return $stop_retval
@@ -1119,9 +1106,9 @@ ipset_reload()
 	# Checkear el fichero de IPSET
 	checkear_fichero $IPSET_CONF || return $?
 
-	mensaje "I: Recargando ahora informacion de sets en IPv4."
+	message "I: Recargando ahora informacion de sets en IPv4."
 	source $VARS_IPV4 && source $VARS_IPSETV4 \
-		|| { mensaje "E: No se cargan los ficheros de datos en IPv4 de IPSET." ; ipset_reload_retval=1 ; }
+		|| { message "E: No se cargan los ficheros de datos en IPv4 de IPSET." ; ipset_reload_retval=1 ; }
 	if [ $ipset_reload_retval -eq 0 ]
 	then
 		local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^$ | wc -l` #total de lineas ejecutables
@@ -1132,13 +1119,13 @@ ipset_reload()
 		do
 			((cont++))
 			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
-			eval "${linea}" 2>/dev/null || { mensaje "E: Fallo al recargar sets en IPv4. Regla num (no linea) [$cont]." ; do_exit 1 ; }
+			eval "${linea}" 2>/dev/null || { message "E: Fallo al recargar sets en IPv4. Regla num (no linea) [$cont]." ; do_exit 1 ; }
 		done
 		IFS=$oldIFS
 	fi
-	mensaje "I: Recargando ahora informacion de sets en IPv6."
+	message "I: Recargando ahora informacion de sets en IPv6."
 	source $VARS_IPV6 && source $VARS_IPSETV6 \
-		|| { mensaje "E: No se cargan los ficheros de datos en IPv6 de IPSET." ; ipset_reload_retval=1 ; }
+		|| { message "E: No se cargan los ficheros de datos en IPv6 de IPSET." ; ipset_reload_retval=1 ; }
 	if [ $ipset_reload_retval -eq 0 ]
 	then
 		local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^$ | wc -l` #total de lineas ejecutables
@@ -1149,13 +1136,13 @@ ipset_reload()
 		do
 			((cont++))
 			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
-			eval "${linea}" 2>/dev/null || { mensaje "E: Fallo al recargar sets en IPv6. Regla num (no linea) [$cont]." ; do_exit 1 ; }
+			eval "${linea}" 2>/dev/null || { message "E: Fallo al recargar sets en IPv6. Regla num (no linea) [$cont]." ; do_exit 1 ; }
 		done
 		IFS=$oldIFS
 	fi
 
         local tiempo_final="`date +%s`"
-        mensaje "I: Tiempo total de recarga de sets: `expr $tiempo_final - $tiempo_inicio` segundos."
+        message "I: Tiempo total de recarga de sets: `expr $tiempo_final - $tiempo_inicio` segundos."
 
 	return $ipset_reload_retval
 }
