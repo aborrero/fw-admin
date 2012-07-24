@@ -1,0 +1,170 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          firewall
+# Required-Start:    $remote_fs $network
+# Required-Stop:     $remote_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: iptables-based firewall
+# Description:       this init.d script starts/stops de system firewall
+### END INIT INFO
+
+#
+# Author: Arturo Borrero <aborrero@cica.es>
+#
+
+# Script return values:
+#
+# In case of success (at start, stop):	0
+# In case of failure (at start, stop):	1
+# In case of script misscontrol:	2
+# In case of status -> stopped:		3
+# In case of status -> started:		0
+# In case of bad arguments: 		4
+
+
+# Required files (default path)
+#
+# Main bin:			/usr/sbin/fw-admin
+# Logger:			/usr/bin/logger
+# Conf file:			/etc/fw-admin.conf
+
+MAIN_BIN="/usr/sbin/fw-admin"
+PID=$$
+LOGGER_BIN="/usr/bin/logger"
+ARGS_LOGGER="-t firewall[$PID] --"
+CONF_FILE="/etc/fw-admin.conf"
+START_TIMEOUT=15
+
+C_RED="\E[31m"
+C_GREEN="\E[32m"
+C_YELLOW="\E[33m"
+C_BLUE="\E[34m"
+C_REDBOLD="\E[1;31m"
+C_GREENBOLD="\E[1;32m"
+C_YELLOWBOLD="\E[1;33m"
+C_BLUEBOLD="\E[1;33m"
+C_NORMAL="\E[0m"
+C_BOLD="\E[1m"
+
+
+# Some functions
+#
+
+mensaje()
+{
+	echo -e $1 | sed s/"E:"/`echo -en ${C_RED}E:${C_NORMAL}`/ | sed s/"W:"/`echo -en ${C_YELLOW}W:${C_NORMAL}`/
+	$LOGGER_BIN $ARGS_LOGGER $1
+}
+
+check_required_files()
+{
+	[ ! -x $MAIN_BIN ] && { echo "E: Binary not found: $MAIN_BIN" >&2 ; return 1 ; }
+	[ ! -x $LOGGER_BIN ] && { echo "E: Binary not found: $LOGGER_BIN" >&2 ; return 1 ; }
+	[ ! -r $CONF_FILE ] && { echo "E: Config file not found: $CONF_FILE" >&2 ; return 1 ; }
+	return 0
+}
+is_running()
+{
+	$MAIN_BIN -s | tail | grep -i "el firewall parece activo" > /dev/null 2> /dev/null
+	if [ $? -ne 0 ]
+	then
+		return 3 #parado
+	else
+		return 0 #activo
+	fi
+}
+kill_all()
+{
+	for i in `ps aux | grep "$MAIN_BIN --start" | grep -v grep | awk -F' ' '{print $2}'`
+	do
+		[ ! -z "$i" ] && kill $1
+	done
+}
+start()
+{
+	is_running
+	if [ $? -ne 0 ]
+	then
+		# Example:
+		#$MAIN_BIN --start core --nocheck >/dev/null 2>/dev/null \
+		#	&& $MAIN_BIN --ipset-reload --nocheck >/dev/null 2>/dev/null \
+		#	&& $MAIN_BIN --start nat --nocheck >/dev/null 2>/dev/null \
+		#	&& $MAIN_BIN --start sets_rules --nocheck >/dev/null 2>/dev/null \
+		#	&& $MAIN_BIN --start vlan_10 --nocheck >/dev/null 2>/dev/null \
+		#	&& $MAIN_BIN --start vlan_18 --nocheck >/dev/null 2>/dev/null \
+		#	&& $MAIN_BIN --start vlan_54 --nocheck >/dev/null 2>/dev/null &
+
+		# esperando timeout de arranque
+		local cont=0
+		while [ $cont -lt $START_TIMEOUT ]
+		do
+			((cont++))
+			if is_running
+			then
+				return 0
+			else
+				sleep 1
+				continue
+			fi
+		done
+		return 1
+	fi
+	return 0
+}
+stop()
+{
+	if is_running
+	then
+		kill_all
+		$MAIN_BIN --stop sets_rules || exit $?
+		$MAIN_BIN --stop vlan_54 || exit $?
+		$MAIN_BIN --stop vlan_18 || exit $?
+		$MAIN_BIN --stop vlan_10 || exit $?
+		$MAIN_BIN --stop nat || exit $?
+		$MAIN_BIN --stop core || exit $?
+	fi
+	return 0
+}
+
+check_required_files || exit 2
+
+case "$1" in
+
+	start)
+		is_running ; rc=$?
+		if [ $rc -ne 0 ]
+		then
+			start
+		else
+			mensaje "I: Already started."
+		fi
+		exit $?
+		;;
+	restart)
+		stop
+		start
+		exit $?
+		;;
+	stop)
+		stop
+		exit $?
+		;;
+	status)
+		is_running ; rc=$?
+		if [ $rc -eq 0 ]
+		then
+			mensaje "I: Firewall parece activo."
+		else
+			mensaje "I: Firewall parece parado."
+		fi
+		exit $rc
+		;;
+
+	*)
+		echo -e "${C_BOLD}Usage${C_NORMAL}: {start|stop|restart|status}"
+		exit 4
+		;;
+esac
+exit 1
