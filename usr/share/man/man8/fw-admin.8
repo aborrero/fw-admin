@@ -1,16 +1,34 @@
-.TH FW-ADMIN 8 "14 Jun 2012"
+.TH FW-ADMIN 8 "24 Jul 2012"
 .SH NAME
-fw-admin \- Herramienta de manejo del firewall en CICA
+fw-admin \- Tool for managing an iptables-based firewall.
 .SH SYNOPSIS
-\fBfw-admin {-s|-a [ipv4|ipv6|fqdn]|-as [nombreset]|-r|-i [ipv4|ipv6|fqdn|var]|-c fichero|--start {vlan|nat|core}|--stop {vlan|nat|core}|--ipset-reload|--help}\fP
+\fBfw-admin -s\fP
+
+\fBfw-admin -a\fP [\fIipv4|ipv6|fqdn\fP]
+
+\fBfw-admin -as\fP [\fInombreset\fP]
+
+\fBfw-admin -r\fP
+
+\fBfw-admin -i\fP [\fIipv4|ipv6|fqdn|var\fP]
+
+\fBfw-admin -c\fP \fIfichero\fP
+
+\fBfw-admin --start\fP {\fIvlan|nat|core\fP} [--nocheck]
+
+\fBfw-admin --stop\fP {\fIvlan|nat|core\fP}
+
+\fBfw-admin --ipset-reload\fP [--nocheck]
+
+\fBfw-admin --help\fP
 .SH DESCRIPCION
-\fBfw-admin\fP es la herramienta diseñada por y para CICA, que es el nucleo del firewall perimetral general de la red.
+\fBfw-admin\fP es una herramienta diseñada por y para CICA, que es el nucleo del firewall perimetral general de la red.
 Es un script escrito en \fBBash(1)\fP, que implementa controles y procedimientos para facilitar la administracion del firewall.
 .SH FUNCIONALIDADES
 Algunas características y funcionalidades que permite \fBfw-admin\fP son:
 .TP
 · Abstracción de \fBip{tables|6tables}\fP mediante el uso de variables que se sustituyen alternativamente por el valor IPv4 e IPv6. 
-Esto permite escribir una única regla y que valga para ambos protocolos.
+Esto permite escribir una única regla y que valga para ambos protocolos (doble stack).
 .TP
 · Checkeo de las variables y la sintaxis usada en las reglas. Se evitan la mayoría de errores cometidos por el administrador.
 .TP
@@ -21,27 +39,36 @@ Esto permite escribir una única regla y que valga para ambos protocolos.
 · Facilidad de integracion en entornos de alta disponibilidad, con \fBPacemaker(8)\fP.
 .TP
 · Ahorro de miles de consultas al DNS mediante el cacheo estático de los datos del DNS en ficheros de datos (las variables).
+.TP
+· Preparado para trabajar en entornos de grandes rulesets. Se ha diseñado para soportar entornos lentos con cientos de miles de variables y reglas.
 .SH OPCIONES
 .TP 
 \fB-s\fP
 Muestra estadisticas del firewall. Al final de la lista de estadisticas, se calcula si el firewall está o no en funcionamiento según el número de reglas en el Kernel.
 Se mostrará un mensaje de tipo "El firewall está activo.". Este mensaje es usado por otros scripts (y quizás por \fBPacemaker(8)\fP para calcular si el firewall esta
-en funcionamiento.
+en funcionamiento en un nodo o máquina.
 .TP 
 \fB-a [ipv4|ipv6|fqdn]\fP
 Añade una variable al sistema de variables. Puede ser una IPv4, una IPv6 o un FQDN.
 Se retornará el nombre de la variable que debe usarse en los ficheros de reglas. 
 Si la variable ya estubiera guardada, se actualizará su contenido, consultando al DNS o lo que proceda.
 Esta opcion puede llamarse con o sin parámetro de entrada. En caso de llamarla sin argumentos, se mostrará un prompt interactivo.
+
+En caso de usar un FQDN, si este pertenece a \fBDOMAIN\fP (véase \fB/etc/fw-admin.conf\fP más abajo), el nombre de variable que se retornará no contendrá el dominio.
+
 .TP
 \fB-as [nombreset]\fP
-Para guardar en el sistema un nombre de set. El nombre de la variable siempre será en mayúsculas.
+Para guardar en el sistema un nombre de set. Es necesario llamar con distinto nombre a un set con datos IPv4 y a un set con datos IPv6. 
+
+El nombre de variable resultante siempre será en mayúsculas.
+
 Como curiosidad, decir que el nombre del set se guardara como: "NOMBRE=nombre_ipv4" y "NOMBRE=nombre_ipv6" en los ficheros de datos IPv4 e IPv6 respectivamente.
+
 Esta opcion puede llamarse con o sin parámetro de entrada. En caso de llamarla sin argumentos, se mostrará un prompt interactivo.
 .TP
 \fB-r\fP
 Todas las variables de IPv4, IPv6 y FQDN se recargarán. Por cada variable encontrada en los ficheros datos, se volverá a ejecutar el algoritmo que calcula el 
-guardado (el de la opción \fB-a\fP).
+guardado (el algoritmo de la opción \fB-a\fP).
 Es posible que se ignoren ciertas variables que hayan podido meterse a mano en los ficheros de datos, como en las lineas que se encuentre la cadena "\fB##ignorar##\fP".
 
 Ejemplo:
@@ -63,11 +90,14 @@ Usando esta opcion es posible realizar una busqueda automatizada entre datos, va
 Se facilita que buscando por un nombre se muestren las reglas de \fBip{tables|6tables}\fP que contienen la IPv4|IPv6 de ese nombre, además de otros datos.
 .TP
 \fB-c fichero\fP
-Se checkearan las variables de \fBfichero\fP y si procece, la sintaxis de iptables.
-Las variables del fichero se compararan con las guardadas en los ficheros de datos y se mostrará un error por cada una que falte.
+Se checkearan las variables de \fBfichero\fP y, si procece, la sintaxis de iptables.
+Las variables del fichero se compararan con las guardadas en los ficheros de datos y se mostrará un mensaje por cada una que falte.
+
 La sintaxis de iptables se checkeará sustituyendo -A por -C en cada instrudccion de regla y valorando el resultado del código de retorno de iptables (mas info 
-en \fBiptables(8)\fP)
-Este es el mismo algoritmo que se usa con la opcion \fB--start\fP.
+en \fBiptables(8)\fP).
+La opción \fB-A\fP es la más común a la hora de añadir reglas de \fBiptables(8)\fP y por esto se ha implementado así.
+
+Este es el mismo algoritmo que se usa como paso previo de checkeo al usar la opcion \fB--start\fP.
 .TP
 \fB--start {vlan|nat|core} [--nocheck]\fP
 Se checkea que el fichero existe en la ruta especificada en la variable \fB$CONF_DIR\fP (generalmente \fB/var/local/fw.d/rules/\fP) y que tiene permisos de ejecucion.
@@ -90,24 +120,48 @@ Se flushean las reglas y se deja una regla permisiva de tráfico.
 \fB--ipset-reload\fP
 Se recarga la información de \fBipset(8)\fP en el sistema. Se lee el fichero localizado en \fB$CONF_DIR\fP llamado "\fBsets\fP". No se comprueba sintaxis,
 aunque si que se checkean las variables.
+
+La opción \fB--nocheck\fP evade los checkeos de variables. Esta pensada para casos donde es necesaria una operación rápida.
 .TP
 \fB--help\fP
 Muestra la ayuda, de rápida referencia.
 
-.SH VARIABLES USADAS
+.SH CONFIGURACIÓN
+El fichero principal de configuración es \fB/etc/fw-admin.conf\fP.
+
 Durante todo el código de \fBfw-admin\fP se usan recurrentemente algunas variables, que pueden editarse y de las cuales algunas se detallan a continuación:
 .TP
+\fB$DOMAIN\fP
+El dominio principal sobre el que estamos trabajando. Por ejemplo, en CICA se usará: \fBDOMAIN="cica.es"\fP.
+.TP
+\fB$WORKING_DIR\fP
+Directorio principal de trabajo. Se recomienda algo como: \fBWORKING_DIR="/var/local/fw.d"\fP.
+.TP
 \fB$CONF_DIR\fP
-El directorio de las reglas de filtrado. Durante el desarrollo del firewall se ha usado \fB/var/local/fw.d/rules/\fP.
+El directorio de las reglas de filtrado. Se recomienda: \fBCONF_DIR="$WORKING_DIR/rules"\fP.
 .TP
 \fB$DATA_DIR\fP
-Directorio para los ficheros de datos. Durante el desarrollo del firewall se ha usado \fB/var/local/fw.d/data/\fP.
+Directorio para los ficheros de datos. Se recomienda: \fBDATA_DIR="$WORKING_DIR/data"\fP.
 .TP
 \fB$LOCK_FILE\fP
 El fichero de LOCK. Algunas opciones no permiten más de una instancia de \fBfw-admin\fP, por lo que se usa este fichero.
 
-Durante el desarrollo del firewall se ha usado \fB/var/local/fw.d/run/fw-admin.lock\fP.
+Se recomienda: \fBLOCK_FILE="$WORKING_DIR/fw-admin.lock"\fP.
 .TP
+\fB$USE_COLORS\fP
+Si \fBfw-admin\fP debe o no mostrar colores en su salida a stdout. Los valores son {yes|no}.
+.TP
+\fB$LOG_ERROR_MESSAGES\fP
+Usando esta opción, todos los mensajes de error que se produzcan se logearan usando \fBlogger(1)\fP. Los valores son {yes|no}.
+.TP
+\fB$LOG_WARN_MESSAGES\fP
+Usando esta opción, todos los mensajes de warning que se produzcan se logearan usando \fBlogger(1)\fP. Los valores son {yes|no}.
+.TP
+\fB$RULES_FILES\fP
+Una lista separada por espacios de los ficheros de reglas, por orden de ejecucion.
+
+Por ejemplo: \fBRULES_FILES="core sets sets_rules nat vlan_10 vlan_18 vlan_54"\fP 
+.TP 
 \fBOTRAS\fP
 Algunas otras variables son:
 
@@ -120,19 +174,24 @@ Algunas otras variables son:
 \fBVARS_IPSETV6="$DATA_DIR/ipset_vars_ipv6.bash"\fP el fichero de datos de nombres de sets en IPv6
 
 
+Nótese que estos ficheros son \fInecesarios\fP para el funcionamiento de \fBfw-admin\fP.
+
 .SH ESTRUCTURA DE FICHEROS
 Ficheros importantes en el firewall:
+.TP
+\fB/etc/fw-admin.conf\fR
+Fichero principal de configuración.
 .TP
 \fB/etc/init.d/firewall\fR
 Usando este script, se integra definitivamente \fBfw-admin\fP como servicio en el sistema.
 .TP
-\fB/usr/local/bin/fw-admin\fR
+\fB/usr/sbin/fw-admin\fR
 El binario principal de \fBfw-admin\fP. Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
 .TP
-\fB/usr/local/lib/libfw-admin\fR
+\fB/usr/lib/libfw-admin\fR
 La libreria de funciones de \fBfw-admin\fP. Aqui se encuentra la mayor parte del contenido del software.
 Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
-Al principio de este fichero están declaradas todas las variables, como \fB$CONF_DIR\fP y \fB$DATA_DIR\fP, que debe ajustar para adaptar \fBfw-admin\fP a su gusto.
+Al principio de este fichero están declaradas todas las variables que no están declaradas en \fB/etc/fw-admin.conf\fP.
 .TP
 \fB$CONF_DIR/core\fR
 Se espera que exista este fichero, donde se declara el esqueleto netfilter interno del firewall. Debe tener permisos de ejecución.
@@ -176,8 +235,12 @@ Se detallan algunos:
 .TP
 \fBDIG="/usr/bin/dig"\fP binario principal de la herramineta \fBdig(1)\fP.
 
-.SH AUTOR
-El autor original de esta herramienta y sistema fue \fBArturo Borrero Gonzalez <aborrero@cica.es>\fP.
+.SH AUTOR, BUGS, COMENTARIOS Y CÓDIGO
+El código del sistema \fBfw-admin\fP es público y puede encontrarse en \fBhttps://github.com/aborrero/fw-admin\fP.
+
+Debe visitar ese sitio para reportar bugs y hacer comentarios.
+
+El autor original de esta herramienta y sistema (y página de manual) fue \fBArturo Borrero Gonzalez <aborrero@cica.es>\fP.
 
 Durante el desarrollo y testeo, participaron \fBMarina Moreda Rodrigez <marina.moreda@cica.es>\fP, \fBPedro Gallego Torrecillas <pgallego@cica.es>\fP, y también 
 \fBYassine Mohamed Ahram <yahram@cica.es>\fP.
