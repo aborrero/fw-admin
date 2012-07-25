@@ -317,7 +317,7 @@ agregar_variable()
 	#
 
 	{ is_ipv4_valid $dato_a_agregar || is_ipv6_valid $dato_a_agregar || is_fqdn_valid $dato_a_agregar ; } \
-		&& { message "E: No se ha reconocido en [${dato_a_agregar}] una IP o FQDN que pueda usarse." ; agregar_variable_retval=1 ; }
+		|| { message "E: No se ha reconocido en [${dato_a_agregar}] una IP o FQDN que pueda usarse." ; agregar_variable_retval=1 ; }
 
 
 	# Procedemos solo si se ha validado el parametro
