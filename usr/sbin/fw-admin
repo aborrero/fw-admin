@@ -3,7 +3,7 @@
 # Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio 2012
 
 CONF_FILE="/etc/fw-admin.conf"
-LIB="/usr/local/lib/libfw-admin"
+LIB="/usr/lib/libfw-admin"
 
 C_RED="\E[31m"
 C_GREEN="\E[32m"
