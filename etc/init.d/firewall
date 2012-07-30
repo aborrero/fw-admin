@@ -142,7 +142,7 @@ case "$1" in
 		fi
 		exit $?
 		;;
-	restart)
+	restart|force-reload)
 		stop
 		start
 		exit $?
@@ -163,7 +163,7 @@ case "$1" in
 		;;
 
 	*)
-		echo -e "${C_BOLD}Usage${C_NORMAL}: {start|stop|restart|status}"
+		echo -e "${C_BOLD}Usage${C_NORMAL}: {start|stop|restart|force-reload|status}"
 		exit 4
 		;;
 esac
