@@ -47,11 +47,11 @@ uso()
 # Programa
 ################################################################
 ################################################################
-source $CONF_FILE || { echo "E: Unable to load config file $CONF_FILE" >&2; exit 1 ; }
+source $CONF_FILE 2>/dev/null || { echo "E: Unable to load config file $CONF_FILE" >&2; exit 1 ; }
 
 if [ "$1" == "-s" ] || [ "$1" == "-a" ] || [ "$1" == "-as" ] || [ "$1" == "-r" ] || [ "$1" == "-i" ] || [ "$1" == "-c" ] || [ "$1" == "--start" ] || [ "$1" == "--stop" ] || [ "$1" == "--ipset-reload" ]
 then
-	source $LIB || { echo "E: Unable to load library $LIB" >&2; exit 1 ; }
+	source $LIB 2>/dev/null || { echo "E: Unable to load library $LIB" >&2; exit 1 ; }
 	check_root
 	check_files || { message "Terminando..." ; exit 1 ; }
 fi

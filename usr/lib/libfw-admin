@@ -285,7 +285,8 @@ recargar_variables()
 	do
 		((cont++))
 		lib_progress_bar -d 2 -m 55 $cont $total
-		agregar_variable $variable >> $AUX_FILE || recargar_variables_retval=1
+		# Solo se mostraran luego los mensajes de error
+		agregar_variable $variable | grep ^E: >> $AUX_FILE || recargar_variables_retval=1
 	done
 	IFS=$oldIFS
 	message "I: Resultados:"
@@ -520,16 +521,16 @@ estadisticas()
 {
 	local retval=0
 	echo "Estadisticas sobre ipset: ----------------------------------"
-	local total_sets="`$IPSET -L -n | wc -l`"
+	local total_sets="`$IPSET -L -n 2>/dev/null | wc -l`"
 	echo "· Numero de sets en el kernel: $total_sets"
-	local sets_usados="`$IPSET list | grep \"References: \" | grep -v \"References: 0\" | wc -l`"
+	local sets_usados="`$IPSET list 2>/dev/null | grep \"References: \" | grep -v \"References: 0\" | wc -l`"
 	echo "· Numero de sets usados en el kernel: $sets_usados"
 	local sets_no_usados=`$IPSET list | grep "References: 0" | wc -l`
 	echo "· Numero de sets no usados en el kernel: $sets_no_usados"
 	echo " "
 	echo "Estadisticas sobre iptables: -------------------------------"
-	local reglas_ipv4=`$IPT -L | grep -v "Chain" | grep -v "prot" | grep -v ^$ | wc -l`
-	local reglas_ipv6=`$IP6T -L | grep -v "Chain" | grep -v "prot" | grep -v ^$ | wc -l`
+	local reglas_ipv4=`$IPT_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l`
+	local reglas_ipv6=`$IP6T_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l`
 	echo "· Numero de reglas IPv4: $reglas_ipv4"
 	echo "· Numero de reglas IPv6: $reglas_ipv6"
 	echo "· Total de reglas: `expr $reglas_ipv4 + $reglas_ipv6`"
@@ -788,6 +789,12 @@ checkear_sintaxis_iptables()
 	local checkear_sintaxis_iptables_retval=0
 	local fichero=$1
 
+	if [[ "$fichero" =~ ^"core"$ ]] || [[ "$fichero" =~ /"core"$ ]] || [[ "$fichero" =~ ^"sets"$ ]] || [[ "$fichero" =~ /"sets"$ ]]
+	then
+		# no se hace checkeo de sintaxis
+		return 0
+	fi
+
 	echo "" > $AUX_FILE
 
 	# punto de salida
@@ -884,8 +891,7 @@ checkear_fichero()
 
 		[ $flag_variables_incorrectas -ne 0 ] && return 1 #punto de retorno
 
-		# no se checkea la sintaxis de ficheros core ni set
-		egrep -i ^"core"$\|^"sets"$ <<< $fichero > /dev/null || checkear_sintaxis_iptables $fichero || flag_iptables_incorrectas=$?
+		checkear_sintaxis_iptables $fichero || flag_iptables_incorrectas=$?
 	else
 		message "E: No se ha encontrado el fichero o no tiene permisos de lectura."
 		retval=1
