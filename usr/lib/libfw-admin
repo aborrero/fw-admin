@@ -985,38 +985,38 @@ flush_vlan()
 		if grep -i ^"core" <<< $1 > /dev/null
 		then
 			# Estamos en el fichero core
-			$IPT_CLUSTER -P INPUT ACCEPT
-			$IPT_CLUSTER -P OUTPUT ACCEPT
-			$IPT_CLUSTER -P FORWARD ACCEPT
-			$IPT_CLUSTER -F || flush_vlan_retval=1
-			$IPT_CLUSTER -X || flush_vlan_retval=1
-			$IPT_CLUSTER -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT || flush_vlan_retval=1
-			$IPT_CLUSTER -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT || flush_vlan_retval=1
-			$IPT_CLUSTER -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT || flush_vlan_retval=1
+			$IPT_CLUSTER -P INPUT ACCEPT 2>/dev/null
+			$IPT_CLUSTER -P OUTPUT ACCEPT 2>/dev/null
+			$IPT_CLUSTER -P FORWARD ACCEPT 2>/dev/null
+			$IPT_CLUSTER -F 2>/dev/null || flush_vlan_retval=1
+			$IPT_CLUSTER -X 2>/dev/null || flush_vlan_retval=1
+			$IPT_CLUSTER -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+			$IPT_CLUSTER -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+			$IPT_CLUSTER -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 
-			$IP6T_CLUSTER -P INPUT ACCEPT
-			$IP6T_CLUSTER -P OUTPUT ACCEPT
-			$IP6T_CLUSTER -P FORWARD ACCEPT
-			$IP6T_CLUSTER -F || flush_vlan_retval=1
-			$IP6T_CLUSTER -X || flush_vlan_retval=1
-			$IP6T_CLUSTER -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT || flush_vlan_retval=1
-			$IP6T_CLUSTER -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT || flush_vlan_retval=1
-			$IP6T_CLUSTER -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT || flush_vlan_retval=1
+			$IP6T_CLUSTER -P INPUT ACCEPT 2>/dev/null
+			$IP6T_CLUSTER -P OUTPUT ACCEPT 2>/dev/null
+			$IP6T_CLUSTER -P FORWARD ACCEPT 2>/dev/null
+			$IP6T_CLUSTER -F 2>/dev/null || flush_vlan_retval=1
+			$IP6T_CLUSTER -X 2>/dev/null || flush_vlan_retval=1
+			$IP6T_CLUSTER -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+			$IP6T_CLUSTER -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+			$IP6T_CLUSTER -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 
 			# Eliminamos sets
-			$IPSET_CLUSTER flush || flush_vlan_retval=1
-			$IPSET_CLUSTER x || flush_vlan_retval=1
+			$IPSET_CLUSTER flush 2>/dev/null || flush_vlan_retval=1
+			$IPSET_CLUSTER x 2>/dev/null || flush_vlan_retval=1
 		else
 			if grep -i nat <<< $1 > /dev/null
 			then
 				# Tenemos reglas de nat
-				$IPT_CLUSTER -F -t $1 || flush_vlan_retval=1
+				$IPT_CLUSTER -F -t $1 2>/dev/null || flush_vlan_retval=1
 			else
 				# No tenemos reglas de nat
-				$IPT_CLUSTER -F $1 || flush_vlan_retval=1
-				$IPT_CLUSTER -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT || flush_vlan_retval=1
-				$IP6T_CLUSTER -F $1 || flush_vlan_retval=1
-				$IP6T_CLUSTER -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT || flush_vlan_retval=1
+				$IPT_CLUSTER -F $1 2>/dev/null || flush_vlan_retval=1
+				$IPT_CLUSTER -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IP6T_CLUSTER -F $1 2>/dev/null || flush_vlan_retval=1
+				$IP6T_CLUSTER -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 			fi
 		fi
 	else
@@ -1076,7 +1076,7 @@ log_vlan()
 				# No tenemos reglas de nat
 
 				# No se hace log de los sets
-				grep -i set <<< $1 > /dev/null || $IPT -A $1 -j LOG --log-level debug --log-prefix "FILTER/${1}:" || log_vlan_retval=1
+				grep -i set <<< $1 > /dev/null || $IPT -A $1 -j LOG --log-level debug --log-prefix "FILTER/${1}:" 2>/dev/null || log_vlan_retval=1
 				# El return se agrega siempre
 				$IPT -A $1 -j RETURN || log_vlan_retval=1
 
