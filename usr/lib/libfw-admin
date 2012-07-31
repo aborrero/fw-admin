@@ -1147,7 +1147,7 @@ ipset_reload()
 		do
 			((cont++))
 			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
-			eval "${linea}" 2>/dev/null || { message "E: Fallo al recargar sets en IPv4. Regla num (no linea) [$cont]." ; do_exit 1 ; }
+			eval "${linea} 2>/dev/null" || { message "E: Fallo al recargar sets en IPv4. Regla num (no linea) [$cont]." ; do_exit 1 ; }
 		done
 		IFS=$oldIFS
 	fi
@@ -1164,7 +1164,7 @@ ipset_reload()
 		do
 			((cont++))
 			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
-			eval "${linea}" 2>/dev/null || { message "E: Fallo al recargar sets en IPv6. Regla num (no linea) [$cont]." ; do_exit 1 ; }
+			eval "${linea} 2>/dev/null" || { message "E: Fallo al recargar sets en IPv6. Regla num (no linea) [$cont]." ; do_exit 1 ; }
 		done
 		IFS=$oldIFS
 	fi
