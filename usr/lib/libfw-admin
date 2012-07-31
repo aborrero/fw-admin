@@ -286,7 +286,7 @@ recargar_variables()
 		((cont++))
 		lib_progress_bar -d 2 -m 55 $cont $total
 		# Solo se mostraran luego los mensajes de error
-		agregar_variable $variable | grep ^E: >> $AUX_FILE || recargar_variables_retval=1
+		agregar_variable $variable | grep E: >> $AUX_FILE || recargar_variables_retval=1
 	done
 	IFS=$oldIFS
 	message "I: Resultados:"
