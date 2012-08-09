@@ -522,22 +522,22 @@ estadisticas()
 	local retval=0
 	echo "Estadisticas sobre ipset: ----------------------------------"
 	local total_sets="`$IPSET -L -n 2>/dev/null | wc -l`"
-	echo "· Numero de sets en el kernel: $total_sets"
+	echo "· Sets en el kernel: $total_sets"
 	local sets_usados="`$IPSET list 2>/dev/null | grep \"References: \" | grep -v \"References: 0\" | wc -l`"
-	echo "· Numero de sets usados en el kernel: $sets_usados"
+	echo "· Sets usados en el kernel: $sets_usados"
 	local sets_no_usados=`$IPSET list | grep "References: 0" | wc -l`
-	echo "· Numero de sets no usados en el kernel: $sets_no_usados"
+	echo "· Sets no usados en el kernel: $sets_no_usados"
 	echo " "
 	echo "Estadisticas sobre iptables: -------------------------------"
 	local reglas_ipv4=`$IPT_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l`
 	local reglas_ipv6=`$IP6T_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l`
-	echo "· Numero de reglas IPv4: $reglas_ipv4"
-	echo "· Numero de reglas IPv6: $reglas_ipv6"
+	echo "· Reglas IPv4: $reglas_ipv4"
+	echo "· Reglas IPv6: $reglas_ipv6"
 	echo "· Total de reglas: `expr $reglas_ipv4 + $reglas_ipv6`"
 	local reglas_no_usadas_ipv4=`$IPT -L -n -v | egrep -v "Chain"\|"pkts bytes" | grep -v ^$ | grep ^[[:space:]]*0 | wc -l`
 	local reglas_no_usadas_ipv6=`$IP6T -L -n -v | egrep -v "Chain"\|"pkts bytes" | grep -v ^$ | grep ^[[:space:]]*0 | wc -l`
-	echo "· Reglas actualmente no usadas en IPv4: $reglas_no_usadas_ipv4"
-	echo "· Reglas actualmente no usadas en IPv6: $reglas_no_usadas_ipv6"
+	echo "· Reglas no usadas en IPv4: $reglas_no_usadas_ipv4"
+	echo "· Reglas no usadas en IPv6: $reglas_no_usadas_ipv6"
 	echo "· Uso y politica en IPv4:"
 	$IPT -n -L -v | grep policy | while read linea
 	do
@@ -556,16 +556,16 @@ estadisticas()
 	echo "Estadisticas varias: ---------------------------------------"
 	local vars_ipv4=`grep \= $VARS_IPV4 | wc -l`
 	local vars_ipv6=`grep \= $VARS_IPV6 | wc -l`
-	echo "· Numero de variables IPv4 declaradas: $vars_ipv4 [$VARS_IPV4]"
-	echo "· Numero de variables IPv6 declaradas: $vars_ipv6 [$VARS_IPV6]"
+	echo "· Variables IPv4 declaradas: $vars_ipv4 [$VARS_IPV4]"
+	echo "· Variables IPv6 declaradas: $vars_ipv6 [$VARS_IPV6]"
 	if [ $vars_ipv4 -ne $vars_ipv6 ]
 	then
 		message "W: Los ficheros de IPs o FQDNs pueden estar corruptos; el numero de variables declaradas no coinciden!"
 	fi
 	local vars_ipset_ipv4=`grep \= $VARS_IPSETV4 | wc -l`
 	local vars_ipset_ipv6=`grep \= $VARS_IPSETV6 | wc -l`
-	echo "· Numero de variables IPSET IPv4 declaradas: $vars_ipset_ipv4 [$VARS_IPSETV4]"
-	echo "· Numero de variables IPSET IPv6 declaradas: $vars_ipset_ipv6 [$VARS_IPSETV6]"
+	echo "· Variables IPSET IPv4 declaradas: $vars_ipset_ipv4 [$VARS_IPSETV4]"
+	echo "· Variables IPSET IPv6 declaradas: $vars_ipset_ipv6 [$VARS_IPSETV6]"
 	if [ $vars_ipset_ipv4 -ne $vars_ipset_ipv6 ]
 	then
 		message "W: Los ficheros de variables de IPSET pueden estar corruptos; el numero de variables declaradas no coinciden!"
