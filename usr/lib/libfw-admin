@@ -556,16 +556,16 @@ estadisticas()
 	echo "Estadisticas varias: ---------------------------------------"
 	local vars_ipv4=`grep \= $VARS_IPV4 | wc -l`
 	local vars_ipv6=`grep \= $VARS_IPV6 | wc -l`
-	echo "· Variables IPv4 declaradas: $vars_ipv4 [$VARS_IPV4]"
-	echo "· Variables IPv6 declaradas: $vars_ipv6 [$VARS_IPV6]"
+	echo "· Variables IPv4 declaradas: $vars_ipv4"
+	echo "· Variables IPv6 declaradas: $vars_ipv6"
 	if [ $vars_ipv4 -ne $vars_ipv6 ]
 	then
 		message "W: Los ficheros de IPs o FQDNs pueden estar corruptos; el numero de variables declaradas no coinciden!"
 	fi
 	local vars_ipset_ipv4=`grep \= $VARS_IPSETV4 | wc -l`
 	local vars_ipset_ipv6=`grep \= $VARS_IPSETV6 | wc -l`
-	echo "· Variables IPSET IPv4 declaradas: $vars_ipset_ipv4 [$VARS_IPSETV4]"
-	echo "· Variables IPSET IPv6 declaradas: $vars_ipset_ipv6 [$VARS_IPSETV6]"
+	echo "· Variables IPSET IPv4 declaradas: $vars_ipset_ipv4"
+	echo "· Variables IPSET IPv6 declaradas: $vars_ipset_ipv6"
 	if [ $vars_ipset_ipv4 -ne $vars_ipset_ipv6 ]
 	then
 		message "W: Los ficheros de variables de IPSET pueden estar corruptos; el numero de variables declaradas no coinciden!"
