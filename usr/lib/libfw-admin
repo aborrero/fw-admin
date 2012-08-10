@@ -938,11 +938,11 @@ start()
 	IFS=$'\n'
 	# Iniciando reglas en IPv4
 	IPT=$IPT
-	local lineas=`grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^$ | wc -l`
+	local lineas=`grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$ | wc -l`
 	local cont=0
 	message "I: Iniciando reglas en protocolo IPv4:"
 	flush_vlan $vlan && source $VARS_IPV4 && source $VARS_IPSETV4 \
-	&& for linea in `grep -v ^[[:space:]]*# $CONF_DIR/$vlan`
+	&& for linea in `grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$`
 	do
 		((cont++))
 		[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
