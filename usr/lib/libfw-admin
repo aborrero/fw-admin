@@ -185,23 +185,23 @@ check_root()
 check_files()
 {
 	local retval=0
-	[ -x $IPT_SAVE ] || { message "E: Error en permisos o no existe [$IPT_SAVE]" ; do_exit 1 ; }
-	[ -x $IP6T_SAVE ] || { message "E: Error en permisos o no existe [$IP6T_SAVE]" ; do_exit 1 ; }
+	[ -x $IPT_SAVE ] || { message "E: Incapaz de acceder a [$IPT_SAVE]" ; do_exit 1 ; }
+	[ -x $IP6T_SAVE ] || { message "E: Incapaz de acceder a [$IP6T_SAVE]" ; do_exit 1 ; }
 	[ -w $AUX_FILE ] || { message "E: Fallo al crear el fichero auxiliar [$AUX_FILE]" ; do_exit 1 ; }
-	[ -d $CONF_DIR ] || { message "E: Error en permisos o no existe el directorio [$CONF_DIR]" ; do_exit 1 ; }
-	[ -x $IPSET_CONF ] || { message "E: Error en permisos o no existe el fichero [$IPSET_CONF]" ; do_exit 1 ; }
-	[ -d $DATA_DIR ] || { message "E: Error en permisos o no existe el directorio [$DATA_DIR]" ; do_exit 1 ; }
-	[ -w $VARS_IPV6 ] || { message "E: Error en permisos o no existe el fichero [$VARS_IPV6]" ; do_exit 1 ; }
-	[ -w $VARS_IPV4 ] || { message "E: Error en permisos o no existe el fichero [$VARS_IPV4]" ; do_exit 1 ; }
-	[ -w $VARS_IPSETV6 ] || { message "E: Error en permisos o no existe el fichero [$VARS_IPSETV6]" ; do_exit 1 ; }
-	[ -w $VARS_IPSETV4 ] || { message "E: Error en permisos o no existe el fichero [$VARS_IPSETV4]" ; do_exit 1 ; }
+	[ -d $CONF_DIR ] || { message "E: Incapaz de acceder al directorio [$CONF_DIR]" ; do_exit 1 ; }
+	[ -x $IPSET_CONF ] || { message "E: Incapaz de acceder al fichero [$IPSET_CONF]" ; do_exit 1 ; }
+	[ -d $DATA_DIR ] || { message "E: Incapaz de acceder al directorio [$DATA_DIR]" ; do_exit 1 ; }
+	[ -w $VARS_IPV6 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPV6]" ; do_exit 1 ; }
+	[ -w $VARS_IPV4 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPV4]" ; do_exit 1 ; }
+	[ -w $VARS_IPSETV6 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPSETV6]" ; do_exit 1 ; }
+	[ -w $VARS_IPSETV4 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPSETV4]" ; do_exit 1 ; }
 	[ -x $IPT ] || { message "E: El binario [$IPT] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
 	[ -x $IP6T ] || { message "E: El binario [$IP6T] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
 	[ -x $IPSET ] || { message "E: El binario [$IPSET] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
 	[ -x $IPT_CLUSTER ] || { message "E: El binario [$IPT_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
 	[ -x $IP6T_CLUSTER ] || { message "E: El binario [$IP6T_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
 	[ -x $IPSET_CLUSTER ] || { message "E: El binario [$IPSET_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $CONNTRACK ] || { message "E: El binario [$CONNTRACKD] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $CONNTRACKD ] || { message "E: El binario [$CONNTRACKD] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
 	[ -x $DIG ] || { message "E: El binario [$DIG] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
 	return $retval
 }
@@ -520,59 +520,70 @@ guardar_variable_en_fichero()
 estadisticas()
 {
 	local retval=0
-	echo "Estadisticas sobre ipset: ----------------------------------"
-	local total_sets="`$IPSET -L -n 2>/dev/null | wc -l`"
-	echo "· Sets en el kernel: $total_sets"
-	local sets_usados="`$IPSET list 2>/dev/null | grep \"References: \" | grep -v \"References: 0\" | wc -l`"
-	echo "· Sets usados en el kernel: $sets_usados"
-	local sets_no_usados=`$IPSET list | grep "References: 0" | wc -l`
-	echo "· Sets no usados en el kernel: $sets_no_usados"
-	echo " "
-	echo "Estadisticas sobre iptables: -------------------------------"
+
+	# Info iptables
+	echo "### Información sobre iptables"
 	local reglas_ipv4=`$IPT_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l`
 	local reglas_ipv6=`$IP6T_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l`
-	echo "· Reglas IPv4: $reglas_ipv4"
-	echo "· Reglas IPv6: $reglas_ipv6"
-	echo "· Total de reglas: `expr $reglas_ipv4 + $reglas_ipv6`"
-	local reglas_no_usadas_ipv4=`$IPT -L -n -v | egrep -v "Chain"\|"pkts bytes" | grep -v ^$ | grep ^[[:space:]]*0 | wc -l`
-	local reglas_no_usadas_ipv6=`$IP6T -L -n -v | egrep -v "Chain"\|"pkts bytes" | grep -v ^$ | grep ^[[:space:]]*0 | wc -l`
-	echo "· Reglas no usadas en IPv4: $reglas_no_usadas_ipv4"
-	echo "· Reglas no usadas en IPv6: $reglas_no_usadas_ipv6"
-	echo "· Uso y politica en IPv4:"
-	$IPT -n -L -v | grep policy | while read linea
+	echo " Reglas IPv4: $reglas_ipv4"
+	echo " Reglas IPv6: $reglas_ipv6"
+	echo " Total de reglas: `expr $reglas_ipv4 + $reglas_ipv6`"
+	local reglas_no_usadas_ipv4=`$IPT -L -n -v 2>/dev/null | egrep -v "Chain"\|"pkts bytes" | grep -v ^$ | grep ^[[:space:]]*0 | wc -l`
+	local reglas_no_usadas_ipv6=`$IP6T -L -n -v 2>/dev/null | egrep -v "Chain"\|"pkts bytes" | grep -v ^$ | grep ^[[:space:]]*0 | wc -l`
+	echo " Reglas no usadas en IPv4: $reglas_no_usadas_ipv4"
+	echo " Reglas no usadas en IPv6: $reglas_no_usadas_ipv6"
+	echo " Uso y politica en IPv4:"
+	$IPT -n -L -v 2>/dev/null | grep policy | while read linea
 	do
 		echo -e "\t$linea"
 	done
-	echo "· Uso y politica en IPv6:"
-	$IP6T -n -L -v | grep policy | while read linea
+	echo " Uso y politica en IPv6:"
+	$IP6T -n -L -v 2>/dev/null | grep policy | while read linea
 	do
 		echo -e "\t$linea"
 	done
-	echo "· Hash de las reglas del kernel: `( { $IPT_SAVE ; $IP6T_SAVE ; } | grep ^"-" | md5sum ) || echo error! `"
-	echo " "
-	echo "Estadisticas de Conntrackd: --------------------------------"
-	$CONNTRACKD -s 2> /dev/null || message "E: Al consultar las estadisticas de conntrackd."
+	echo " Hash de las reglas del kernel: `( { $IPT_SAVE 2>/dev/null ; $IP6T_SAVE 2>/dev/null; } | grep ^"-" | md5sum | awk -F' ' '{print $1}' ) || echo error! `"
+	echo ""
 
-	echo "Estadisticas varias: ---------------------------------------"
-	local vars_ipv4=`grep \= $VARS_IPV4 | wc -l`
-	local vars_ipv6=`grep \= $VARS_IPV6 | wc -l`
-	echo "· Variables IPv4 declaradas: $vars_ipv4"
-	echo "· Variables IPv6 declaradas: $vars_ipv6"
+	# Info ipset
+	echo "### Información sobre ipset"
+	local total_sets="`$IPSET -L -n 2>/dev/null | wc -l`"
+	echo " Sets en el kernel: $total_sets"
+	local sets_usados="`$IPSET list 2>/dev/null | grep \"References: \" | grep -v \"References: 0\" | wc -l`"
+	echo " Sets usados en el kernel: $sets_usados"
+	local sets_no_usados=`$IPSET list 2>/dev/null | grep "References: 0" | wc -l`
+	echo " Sets no usados en el kernel: $sets_no_usados"
+	echo ""
+
+	# Info conntrackd
+	echo "### Estadisticas de Conntrackd"
+	$CONNTRACKD -s 2> /dev/null | while read linea
+	do
+		echo -n " " ; echo "$linea"
+	done || message "E: Al consultar las estadisticas de conntrackd."
+
+	# Info variables
+	echo "### Otras estaditisticas"
+	local vars_ipv4=`grep \= $VARS_IPV4 2>/dev/null | wc -l`
+	local vars_ipv6=`grep \= $VARS_IPV6 2>/dev/null | wc -l`
+	echo " Variables IPv4 declaradas: $vars_ipv4"
+	echo " Variables IPv6 declaradas: $vars_ipv6"
 	if [ $vars_ipv4 -ne $vars_ipv6 ]
 	then
-		message "W: Los ficheros de IPs o FQDNs pueden estar corruptos; el numero de variables declaradas no coinciden!"
+		message " W: Los ficheros de IPs o FQDNs pueden estar corruptos; el numero de variables declaradas no coinciden!"
 	fi
-	local vars_ipset_ipv4=`grep \= $VARS_IPSETV4 | wc -l`
-	local vars_ipset_ipv6=`grep \= $VARS_IPSETV6 | wc -l`
-	echo "· Variables IPSET IPv4 declaradas: $vars_ipset_ipv4"
-	echo "· Variables IPSET IPv6 declaradas: $vars_ipset_ipv6"
+	local vars_ipset_ipv4=`grep \= $VARS_IPSETV4 2>/dev/null | wc -l`
+	local vars_ipset_ipv6=`grep \= $VARS_IPSETV6 2>/dev/null | wc -l`
+	echo " Variables IPSET IPv4 declaradas: $vars_ipset_ipv4"
+	echo " Variables IPSET IPv6 declaradas: $vars_ipset_ipv6"
 	if [ $vars_ipset_ipv4 -ne $vars_ipset_ipv6 ]
 	then
-		message "W: Los ficheros de variables de IPSET pueden estar corruptos; el numero de variables declaradas no coinciden!"
+		message " W: Los ficheros de variables de IPSET pueden estar corruptos; el numero de variables declaradas no coinciden!"
 	fi
-	if [ $reglas_ipv4 -gt 40 ] || [ $reglas_ipv6 -gt 40 ]
+	[[ $MINIMAL_AMOUNT_OF_RULES =~ ^[0-9]+$ ]] || $MINIMAL_AMOUNT_OF_RULES=40
+	if [ $reglas_ipv4 -gt $MINIMAL_AMOUNT_OF_RULES ] || [ $reglas_ipv6 -gt $MINIMAL_AMOUNT_OF_RULES ]
 	then
-		echo "· El firewall parece activo (Más de 40 reglas)."
+		echo " El firewall parece activo (Más de $MINIMAL_AMOUNT_OF_RULES reglas)."
 	fi
 	return $retval
 

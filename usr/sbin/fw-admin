@@ -59,7 +59,6 @@ fi
 case "$1" in
 
 	"-s" )
-		message "I: Mostrando estadisticas."
 		estadisticas
 		do_exit $?
 		;;
