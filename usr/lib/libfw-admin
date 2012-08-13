@@ -261,7 +261,7 @@ get_ip_from_fqdn()
 	                        local resolucion2="$resolucion2 $(get_ip_from_fqdn $tipo_ip $linea)"
 	                done
 			IFS=$oldIFS
-	                local resolucion3=`echo "$resolucion2" | tr [[:space:]] '\n' | grep -v ^$ | sort -u | uniq`
+	                local resolucion3=`echo "$resolucion2" | tr [[:space:]] '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq`
 	                echo "$resolucion3" #punto de salida
 		fi
         fi
@@ -276,7 +276,7 @@ recargar_variables()
 
 	message "I: No se recargan variables que contengan \"##ignorar##\"."
 	local lista_variables=`{ cat $VARS_IPV4 ; cat $VARS_IPV6 ; } | egrep -v "##ignorar##"\|"@"\|^[[:space:]]*# \
-		| awk -F'#' '{print $2}' | sort -u | uniq | grep -v ^$`
+		| awk -F'#' '{print $2}' | sort -u | uniq | grep -v ^[[:space:]]*$`
 	oldIFS=$IFS
         IFS=$' \t\n'
 	local total=`wc -w <<< $lista_variables`
@@ -441,7 +441,7 @@ guardar_variable_en_fichero()
 	# Borrando posible dato anterior
 	if grep ^"${nombre_variable}=" $fichero_trabajo > /dev/null
 	then
-		local datos=`grep -v ^"${nombre_variable}=" $fichero_trabajo | grep -v ^$`
+		local datos=`grep -v ^"${nombre_variable}=" $fichero_trabajo | grep -v ^[[:space:]]*$`
 		echo "$datos" > $fichero_trabajo
 		[ $? -ne 0 ] && { message "E: Fallo al borrar el dato anterior en la actualizacion. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 	fi
@@ -528,8 +528,8 @@ estadisticas()
 	echo " Reglas IPv4: $reglas_ipv4"
 	echo " Reglas IPv6: $reglas_ipv6"
 	echo " Total de reglas: `expr $reglas_ipv4 + $reglas_ipv6`"
-	local reglas_no_usadas_ipv4=`$IPT -L -n -v 2>/dev/null | egrep -v "Chain"\|"pkts bytes" | grep -v ^$ | grep ^[[:space:]]*0 | wc -l`
-	local reglas_no_usadas_ipv6=`$IP6T -L -n -v 2>/dev/null | egrep -v "Chain"\|"pkts bytes" | grep -v ^$ | grep ^[[:space:]]*0 | wc -l`
+	local reglas_no_usadas_ipv4=`$IPT -L -n -v 2>/dev/null | egrep -v "Chain"\|"pkts bytes" | grep -v ^[[:space:]]*$ | grep ^[[:space:]]*0 | wc -l`
+	local reglas_no_usadas_ipv6=`$IP6T -L -n -v 2>/dev/null | egrep -v "Chain"\|"pkts bytes" | grep -v ^[[:space:]]*$ | grep ^[[:space:]]*0 | wc -l`
 	echo " Reglas no usadas en IPv4: $reglas_no_usadas_ipv4"
 	echo " Reglas no usadas en IPv6: $reglas_no_usadas_ipv6"
 	echo " Uso y politica en IPv4:"
@@ -683,7 +683,7 @@ obtener_informacion()
 			busqueda_ipset=`grep $dato_consulta $DATA_DIR/* | awk -F'#' '{print $2}' | sort -u | uniq`
 		fi
 		echo DEBUG: $busqueda_ipset > /dev/null
-		local lista_sets=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^$`
+		local lista_sets=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^[[:space:]]*$`
 		for un_set in $lista_sets
 		do
 			$IPSET -T $un_set $busqueda_ipset > /dev/null 2> /dev/null
@@ -695,7 +695,7 @@ obtener_informacion()
 	fi
 
 	# Realizar la consulta en IPset: dato en crudo
-	local lista_sets=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^$`
+	local lista_sets=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^[[:space:]]*$`
 	for un_set in $lista_sets
 	do
 		$IPSET -T $un_set $dato_consulta > /dev/null 2> /dev/null
@@ -709,7 +709,7 @@ obtener_informacion()
 	if [ ! -z "$lista_de_set_con_coincidencias" ]
 	then
 		# Arreglar para mostrar por pantalla la lista de sets
-		lista_de_set_con_coincidencias=`echo $lista_de_set_con_coincidencias | tr ' ' '\n' | grep -v ^$ | sort -u | uniq | tr '\n' ' '`
+		lista_de_set_con_coincidencias=`echo $lista_de_set_con_coincidencias | tr ' ' '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq | tr '\n' ' '`
 		echo -e "I: El dato ${C_BOLD}$dato_consulta${C_NORMAL} esta reflejado en el/los set: [${lista_de_set_con_coincidencias}]" >> $AUX_FILE
 		flag_datos_mostrados=1
 	fi
@@ -820,9 +820,9 @@ checkear_sintaxis_iptables()
 	message "I: Checkeando la sintaxis de iptables de [$fichero]:"
 	source $VARS_IPV4 && source $VARS_IPSETV4 && { IPT=$IPT_LOCAL ; IPSET=$IPSET_LOCAL ; } \
 	|| { message "E: fallo al leer los ficheros de datos IPv4." ; return 1 ; } # punto de salida
-	local lineas=`grep -v ^[[:space:]]*# $fichero | grep " -A " | grep -v ^$ | wc -l` # para la barra de progreso
+	local lineas=`grep -v ^[[:space:]]*# $fichero | grep " -A " | grep -v ^[[:space:]]*$ | wc -l` # para la barra de progreso
 	local cont=0 # para la barra de progreso
-	for linea in `cat $fichero | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$ | egrep -v ^$\|"IPSET" | grep " -A "`
+	for linea in `cat $fichero | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$ | egrep -v ^[[:space:]]*$\|"IPSET" | grep " -A "`
 	do
 		((cont++))
 		lib_progress_bar -d 2 -m 55 $cont $lineas
@@ -845,7 +845,7 @@ checkear_sintaxis_iptables()
 		local cont=0 #  para la barra de progreso
 		source $VARS_IPV6 && source $VARS_IPSETV6 && { IPT=$IP6T_LOCAL ; IPSET=$IPSET_LOCAL ; } \
 		|| { message "E: fallo al leer los ficheros de datos IPv6." ; return 1 ; } #punto  de salida
-		for linea in `cat $fichero | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$ | egrep -v ^$\|"IPSET" | grep " -A "`
+		for linea in `cat $fichero | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$ | egrep -v ^[[:space:]]*$\|"IPSET" | grep " -A "`
 		do
 			((cont++))
 			lib_progress_bar -d 2 -m 55 $cont $lineas #la variable lineas se reutilza de ipv4
@@ -859,7 +859,7 @@ checkear_sintaxis_iptables()
 			fi
 		done
 	fi
-	grep -v ^$ $AUX_FILE
+	grep -v ^[[:space:]]*$ $AUX_FILE
 	IFS=$oldIFS
 	return $checkear_sintaxis_iptables_retval
 }
@@ -883,10 +883,10 @@ checkear_fichero()
 		# algunos calculos antes del for
 		oldIFS=$IFS
 		IFS=$' \t\n'
-		local lineas=`grep -v ^[[:space:]]*# $fichero | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^$ | sort -u | wc -l`
+		local lineas=`grep -v ^[[:space:]]*# $fichero | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u | wc -l`
 		local cont=0
 		# Se recorren todas variables de $fichero
-		for palabra in `grep -v ^[[:space:]]*# $fichero | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^$ | sort -u`
+		for palabra in `grep -v ^[[:space:]]*# $fichero | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u`
 		do
 	                ((cont++))
         	        lib_progress_bar -d 2 -m 55 $cont $lineas
@@ -898,7 +898,7 @@ checkear_fichero()
 		done
 		IFS=$oldIFS
 
-		grep -v ^$ $AUX_FILE
+		grep -v ^[[:space:]]*$ $AUX_FILE
 
 		[ $flag_variables_incorrectas -ne 0 ] && return 1 #punto de retorno
 
@@ -1150,11 +1150,11 @@ ipset_reload()
 		|| { message "E: No se cargan los ficheros de datos en IPv4 de IPSET." ; ipset_reload_retval=1 ; }
 	if [ $ipset_reload_retval -eq 0 ]
 	then
-		local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^$ | wc -l` #total de lineas ejecutables
+		local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ | wc -l` #total de lineas ejecutables
 		local cont=0
 		oldIFS=$IFS
 		IFS=$'\n'
-		for linea in `grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^$` #recorriendo fichero linea a linea
+		for linea in `grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$` #recorriendo fichero linea a linea
 		do
 			((cont++))
 			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
@@ -1167,11 +1167,11 @@ ipset_reload()
 		|| { message "E: No se cargan los ficheros de datos en IPv6 de IPSET." ; ipset_reload_retval=1 ; }
 	if [ $ipset_reload_retval -eq 0 ]
 	then
-		local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^$ | wc -l` #total de lineas ejecutables
+		local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ | wc -l` #total de lineas ejecutables
 		local cont=0
 		oldIFS=$IFS
 		IFS=$'\n'
-		for linea in `grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^$` #recorriendo fichero linea a linea
+		for linea in `grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$` #recorriendo fichero linea a linea
 		do
 			((cont++))
 			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
