@@ -580,7 +580,7 @@ estadisticas()
 	then
 		message " W: Los ficheros de variables de IPSET pueden estar corruptos; el numero de variables declaradas no coinciden!"
 	fi
-	[[ $MINIMAL_AMOUNT_OF_RULES =~ ^[0-9]+$ ]] || $MINIMAL_AMOUNT_OF_RULES=40
+	[[ $MINIMAL_AMOUNT_OF_RULES =~ ^[0-9]+$ ]] || MINIMAL_AMOUNT_OF_RULES=40
 	if [ $reglas_ipv4 -gt $MINIMAL_AMOUNT_OF_RULES ] || [ $reglas_ipv6 -gt $MINIMAL_AMOUNT_OF_RULES ]
 	then
 		echo " El firewall parece activo (Más de $MINIMAL_AMOUNT_OF_RULES reglas)."
