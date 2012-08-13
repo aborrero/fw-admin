@@ -1,4 +1,4 @@
-.TH FW-ADMIN 8 "24 Jul 2012"
+.TH FW-ADMIN 8 "13 Ago 2012"
 .SH NAME
 fw-admin \- Tool for managing an iptables-based firewall.
 .SH SYNOPSIS
@@ -47,6 +47,7 @@ Esto permite escribir una única regla y que valga para ambos protocolos (doble 
 Muestra estadisticas del firewall. Al final de la lista de estadisticas, se calcula si el firewall está o no en funcionamiento según el número de reglas en el Kernel.
 Se mostrará un mensaje de tipo "El firewall está activo.". Este mensaje es usado por otros scripts (y quizás por \fBPacemaker(8)\fP para calcular si el firewall esta
 en funcionamiento en un nodo o máquina.
+Puede editarse el numero de reglas necesarias para considerar el firewall corriendo en el fichero \fB/etc/fw-admin.conf\fP en la variable \fB$MINIMAL_AMOUNT_OF_RULES\fP.
 .TP 
 \fB-a [ipv4|ipv6|fqdn]\fP
 Añade una variable al sistema de variables. Puede ser una IPv4, una IPv6 o un FQDN.
@@ -126,6 +127,36 @@ La opción \fB--nocheck\fP evade los checkeos de variables. Esta pensada para ca
 \fB--help\fP
 Muestra la ayuda, de rápida referencia.
 
+.SH ESTRUCTURA DE FICHEROS
+Ficheros importantes en el firewall:
+.TP
+\fB/etc/fw-admin.conf\fR
+Fichero principal de configuración.
+.TP
+\fB/etc/init.d/firewall\fR
+Usando este script, se integra definitivamente \fBfw-admin\fP como servicio en el sistema.
+.TP
+\fB/usr/sbin/fw-admin\fR
+El binario principal de \fBfw-admin\fP. Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
+.TP
+\fB/usr/lib/libfw-admin\fR
+La libreria de funciones de \fBfw-admin\fP. Aqui se encuentra la mayor parte del contenido del software.
+Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
+Al principio de este fichero están declaradas todas las variables que no están declaradas en \fB/etc/fw-admin.conf\fP.
+.TP
+\fB$CONF_DIR/core\fR
+Se espera que exista este fichero, donde se declara el esqueleto netfilter interno del firewall. Debe tener permisos de ejecución.
+.TP
+\fB$CONF_DIR/nat\fR
+Aqui se declaran las reglas de nateo. Debe tener permisos de ejecucion.
+.TP
+\fB$CONF_DIR/vlan_x\fR
+Reglas generales del firewall, agrupadas por vlanes. Es posible cambiar el nombre y no usar "vlan_x", si no algo como "misreglas", siempre que no se use "core", "nat" y
+demás nombres que crean conflicto con los anteriores.
+.TP
+\fB$CONF_DIR/sets\fR
+Fichero de declaracion de \fBipset(8)\fP.
+
 .SH CONFIGURACIÓN
 El fichero principal de configuración es \fB/etc/fw-admin.conf\fP.
 
@@ -133,6 +164,12 @@ Durante todo el código de \fBfw-admin\fP se usan recurrentemente algunas variab
 .TP
 \fB$DOMAIN\fP
 El dominio principal sobre el que estamos trabajando. Por ejemplo, en CICA se usará: \fBDOMAIN="cica.es"\fP.
+.TP
+\fB$MINIMAL_AMOUNT_OF_RULES\fP
+El numero minimo de reglas que deben estar insertadas en el kernel para que el se considere que el firewall esta arrancado.
+Por defecto u oimisión se usa 40. Puede usarse cualquier numero entero positivo.
+
+En los mensajes de estadisticas se advierte cuando el firewall está arrancado en base a este numero.
 .TP
 \fB$WORKING_DIR\fP
 Directorio principal de trabajo. Se recomienda algo como: \fBWORKING_DIR="/var/local/fw.d"\fP.
@@ -176,41 +213,12 @@ Algunas otras variables son:
 
 Nótese que estos ficheros son \fInecesarios\fP para el funcionamiento de \fBfw-admin\fP.
 
-.SH ESTRUCTURA DE FICHEROS
-Ficheros importantes en el firewall:
-.TP
-\fB/etc/fw-admin.conf\fR
-Fichero principal de configuración.
-.TP
-\fB/etc/init.d/firewall\fR
-Usando este script, se integra definitivamente \fBfw-admin\fP como servicio en el sistema.
-.TP
-\fB/usr/sbin/fw-admin\fR
-El binario principal de \fBfw-admin\fP. Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
-.TP
-\fB/usr/lib/libfw-admin\fR
-La libreria de funciones de \fBfw-admin\fP. Aqui se encuentra la mayor parte del contenido del software.
-Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
-Al principio de este fichero están declaradas todas las variables que no están declaradas en \fB/etc/fw-admin.conf\fP.
-.TP
-\fB$CONF_DIR/core\fR
-Se espera que exista este fichero, donde se declara el esqueleto netfilter interno del firewall. Debe tener permisos de ejecución.
-.TP
-\fB$CONF_DIR/nat\fR
-Aqui se declaran las reglas de nateo. Debe tener permisos de ejecucion.
-.TP
-\fB$CONF_DIR/vlan_x\fR
-Reglas generales del firewall, agrupadas por vlanes. Es posible cambiar el nombre y no usar "vlan_x", si no algo como "misreglas", siempre que no se use "core", "nat" y
-demás nombres que crean conflicto con los anteriores.
-.TP
-\fB$CONF_DIR/sets\fR
-Fichero de declaracion de \fBipset(8)\fP.
 
 .SH DEPENDENCIAS
 Este script necesita distintos binarios y herramientas en el sistema durante diferentes momentos de la ejecucion. 
-Si cambiaran de ruta, puede editarse el fichero \fB/usr/local/lib/libfw-admin\fP y sustituir la correspondiente variable.
+Si cambiaran de ruta, puede editarse el fichero \fB/usr/lib/libfw-admin\fP y sustituir la correspondiente variable.
 
-Se detallan algunos:
+Se detallan algunas variables y binarios:
 
 .TP
 \fBIPSET="/usr/sbin/ipset"\fP binario principal de \fBipset(8)\fP.
