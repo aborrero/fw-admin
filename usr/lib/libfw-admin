@@ -876,7 +876,7 @@ checkear_fichero()
 	local fichero=$1
 	echo "" > $AUX_FILE
 
-	if [ ! -z "$fichero"] && [ -e $fichero ]
+	if [ ! -z "$fichero" ] && [ -e $fichero ]
 	then
 		message "I: Checkeando variables del fichero [$fichero]"
 
