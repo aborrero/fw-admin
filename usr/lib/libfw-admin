@@ -962,6 +962,7 @@ start()
 	done || { message "E: Fallo general iniciando reglas en protocolo IPv4." ; flush_vlan $vlan ; do_exit 1 ; } # PUNTO DE SALIDA
 	log_vlan $vlan || { message "E: Al agregar las reglas IPv4 de logeo para [$vlan]." ; do_exit 1 ; } # PUNTO DE SALIDA
 
+
 	if grep -i nat <<< $vlan > /dev/null
 	then
 		echo "DEBUG: No se insertan reglas en IPv6 porque estamos en nat" > /dev/null
@@ -1021,7 +1022,7 @@ flush_vlan()
 			if grep -i nat <<< $1 > /dev/null
 			then
 				# Tenemos reglas de nat
-				$IPT_CLUSTER -F -t $1 2>/dev/null || flush_vlan_retval=1
+				$IPT_CLUSTER -F -t nat 2>/dev/null || flush_vlan_retval=1
 			else
 				# No tenemos reglas de nat
 				$IPT_CLUSTER -F $1 2>/dev/null || flush_vlan_retval=1
