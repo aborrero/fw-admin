@@ -1037,28 +1037,28 @@ flush_vlan()
 				# Not using iptables-cluster
 
 				# Estamos en el fichero core
-				$IPT -P INPUT ACCEPT 2>/dev/null
-				$IPT -P OUTPUT ACCEPT 2>/dev/null
-				$IPT -P FORWARD ACCEPT 2>/dev/null
-				$IPT -F 2>/dev/null || flush_vlan_retval=1
-				$IPT -F -t nat 2>/dev/null || flush_vlan_retval=1
-				$IPT -X 2>/dev/null || flush_vlan_retval=1
-				$IPT -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-				$IPT -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-				$IPT -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IPT_LOCAL -P INPUT ACCEPT 2>/dev/null
+				$IPT_LOCAL -P OUTPUT ACCEPT 2>/dev/null
+				$IPT_LOCAL -P FORWARD ACCEPT 2>/dev/null
+				$IPT_LOCAL -F 2>/dev/null || flush_vlan_retval=1
+				$IPT_LOCAL -F -t nat 2>/dev/null || flush_vlan_retval=1
+				$IPT_LOCAL -X 2>/dev/null || flush_vlan_retval=1
+				$IPT_LOCAL -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IPT_LOCAL -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IPT_LOCAL -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 
-				$IP6T -P INPUT ACCEPT 2>/dev/null
-				$IP6T -P OUTPUT ACCEPT 2>/dev/null
-				$IP6T -P FORWARD ACCEPT 2>/dev/null
-				$IP6T -F 2>/dev/null || flush_vlan_retval=1
-				$IP6T -X 2>/dev/null || flush_vlan_retval=1
-				$IP6T -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-				$IP6T -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-				$IP6T -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IP6T_LOCAL -P INPUT ACCEPT 2>/dev/null
+				$IP6T_LOCAL -P OUTPUT ACCEPT 2>/dev/null
+				$IP6T_LOCAL -P FORWARD ACCEPT 2>/dev/null
+				$IP6T_LOCAL -F 2>/dev/null || flush_vlan_retval=1
+				$IP6T_LOCAL -X 2>/dev/null || flush_vlan_retval=1
+				$IP6T_LOCAL -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IP6T_LOCAL -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IP6T_LOCAL -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 
 				# Eliminamos sets
-				$IPSET flush 2>/dev/null || flush_vlan_retval=1
-				$IPSET x 2>/dev/null || flush_vlan_retval=1
+				$IPSET_LOCAL flush 2>/dev/null || flush_vlan_retval=1
+				$IPSET_LOCAL x 2>/dev/null || flush_vlan_retval=1
 
 			fi
 		else
@@ -1074,7 +1074,7 @@ flush_vlan()
 					# Not using iptables-cluster
 
 					# Flushing nat rules
-					$IPT -F -t nat 2>/dev/null || flush_vlan_retval=1
+					$IPT_LOCAL -F -t nat 2>/dev/null || flush_vlan_retval=1
 
 				fi
 			else
@@ -1087,10 +1087,10 @@ flush_vlan()
 					$IP6T_CLUSTER -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 				else
 					# No tenemos reglas de nat
-					$IPT -F $1 2>/dev/null || flush_vlan_retval=1
-					$IPT -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T -F $1 2>/dev/null || flush_vlan_retval=1
-					$IP6T -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					$IPT_LOCAL -F $1 2>/dev/null || flush_vlan_retval=1
+					$IPT_LOCAL -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					$IP6T_LOCAL -F $1 2>/dev/null || flush_vlan_retval=1
+					$IP6T_LOCAL -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 				fi
 			fi
 		fi
