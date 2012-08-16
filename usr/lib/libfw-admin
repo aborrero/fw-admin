@@ -158,6 +158,7 @@ is_ip_fqdn_valid()
 	return $retval
 }
 
+# boolean is_domain_fqdn(string fqdn)
 # Funcion que valora si un fqdn es del dominio cica.es
 is_domain_fqdn()
 {
@@ -169,6 +170,7 @@ is_domain_fqdn()
 	fi
 	return $retval
 }
+
 # Esta funcion checkea que quien ejecuta es root
 check_root()
 {
@@ -185,24 +187,30 @@ check_root()
 check_files()
 {
 	local retval=0
-	[ -x $IPT_SAVE ] || { message "E: Incapaz de acceder a [$IPT_SAVE]" ; do_exit 1 ; }
-	[ -x $IP6T_SAVE ] || { message "E: Incapaz de acceder a [$IP6T_SAVE]" ; do_exit 1 ; }
-	[ -w $AUX_FILE ] || { message "E: Fallo al crear el fichero auxiliar [$AUX_FILE]" ; do_exit 1 ; }
-	[ -d $CONF_DIR ] || { message "E: Incapaz de acceder al directorio [$CONF_DIR]" ; do_exit 1 ; }
-	[ -x $IPSET_CONF ] || { message "E: Incapaz de acceder al fichero [$IPSET_CONF]" ; do_exit 1 ; }
-	[ -d $DATA_DIR ] || { message "E: Incapaz de acceder al directorio [$DATA_DIR]" ; do_exit 1 ; }
-	[ -w $VARS_IPV6 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPV6]" ; do_exit 1 ; }
-	[ -w $VARS_IPV4 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPV4]" ; do_exit 1 ; }
-	[ -w $VARS_IPSETV6 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPSETV6]" ; do_exit 1 ; }
-	[ -w $VARS_IPSETV4 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPSETV4]" ; do_exit 1 ; }
-	[ -x $IPT ] || { message "E: El binario [$IPT] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $IP6T ] || { message "E: El binario [$IP6T] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $IPSET ] || { message "E: El binario [$IPSET] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $IPT_CLUSTER ] || { message "E: El binario [$IPT_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $IP6T_CLUSTER ] || { message "E: El binario [$IP6T_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $IPSET_CLUSTER ] || { message "E: El binario [$IPSET_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $CONNTRACKD ] || { message "E: El binario [$CONNTRACKD] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
-	[ -x $DIG ] || { message "E: El binario [$DIG] no tiene permisos de ejecucion o no se ha encontrado." ; do_exit 1 ; }
+	[ -x $IPT_SAVE ] || { message "E: Incapaz de acceder a [$IPT_SAVE]" ; retval=1 ; }
+	[ -x $IP6T_SAVE ] || { message "E: Incapaz de acceder a [$IP6T_SAVE]" ; retval=1 ; }
+	[ -w $AUX_FILE ] || { message "E: Fallo al crear el fichero auxiliar [$AUX_FILE]" ; retval=1 ; }
+	[ -d $CONF_DIR ] || { message "E: Incapaz de acceder al directorio [$CONF_DIR]" ; retval=1 ; }
+	[ -x $IPSET_CONF ] || { message "E: Incapaz de acceder al fichero [$IPSET_CONF]" ; retval=1 ; }
+	[ -d $DATA_DIR ] || { message "E: Incapaz de acceder al directorio [$DATA_DIR]" ; retval=1 ; }
+	[ -w $VARS_IPV6 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPV6]" ; retval=1 ; }
+	[ -w $VARS_IPV4 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPV4]" ; retval=1 ; }
+	[ -w $VARS_IPSETV6 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPSETV6]" ; retval=1 ; }
+	[ -w $VARS_IPSETV4 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPSETV4]" ; retval=1 ; }
+	[ -x $IPT ] || { message "E: El binario [$IPT] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
+	[ -x $IP6T ] || { message "E: El binario [$IP6T] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
+	[ -x $IPSET ] || { message "E: El binario [$IPSET] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
+	[ -x $CONNTRACKD ] || { message "E: El binario [$CONNTRACKD] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
+	[ -x $DIG ] || { message "E: El binario [$DIG] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
+
+	# Only if neccesary
+	if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
+	then
+		[ -x $IPT_CLUSTER ] || { message "E: El binario [$IPT_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
+		[ -x $IP6T_CLUSTER ] || { message "E: El binario [$IP6T_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
+		[ -x $IPSET_CLUSTER ] || { message "E: El binario [$IPSET_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
+	fi
+
 	return $retval
 }
 
@@ -878,7 +886,7 @@ checkear_fichero()
 
 	if [ ! -z "$fichero" ] && [ -e $fichero ]
 	then
-		message "I: Checkeando variables del fichero [$fichero]"
+		message "I: Checkeando variables del fichero [$fichero]:"
 
 		# algunos calculos antes del for
 		oldIFS=$IFS
@@ -960,6 +968,7 @@ start()
 		eval "$linea 2> /dev/null" \
 			|| { echo "" ; message "E: Al iniciar las reglas en IPv4. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; do_exit 1 ; } #SALIDA
 	done || { message "E: Fallo general iniciando reglas en protocolo IPv4." ; flush_vlan $vlan ; do_exit 1 ; } # PUNTO DE SALIDA
+
 	log_vlan $vlan || { message "E: Al agregar las reglas IPv4 de logeo para [$vlan]." ; do_exit 1 ; } # PUNTO DE SALIDA
 
 
@@ -979,6 +988,7 @@ start()
 			eval "$linea 2> /dev/null" \
 				|| { echo "" ; message "E: Al iniciar las reglas en IPv6. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; do_exit 1 ; } #SALIDA
 		done || { message "E: Fallo general iniciando reglas en protocolo IPv6." ; flush_vlan $vlan ; do_exit 1 ; } # PUNTO DE SALIDA
+
 		log_vlan $vlan || { message "E: Al agregar las reglas IPv6 de logeo para [$vlan]." ; do_exit 1 ; } # PUNTO DE SALIDA
 	fi
 	IFS=$oldIFS
@@ -996,39 +1006,92 @@ flush_vlan()
 	then
 		if grep -i ^"core" <<< $1 > /dev/null
 		then
-			# Estamos en el fichero core
-			$IPT_CLUSTER -P INPUT ACCEPT 2>/dev/null
-			$IPT_CLUSTER -P OUTPUT ACCEPT 2>/dev/null
-			$IPT_CLUSTER -P FORWARD ACCEPT 2>/dev/null
-			$IPT_CLUSTER -F 2>/dev/null || flush_vlan_retval=1
-			$IPT_CLUSTER -X 2>/dev/null || flush_vlan_retval=1
-			$IPT_CLUSTER -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-			$IPT_CLUSTER -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-			$IPT_CLUSTER -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+			if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
+			then
+				# Using iptables-cluster
 
-			$IP6T_CLUSTER -P INPUT ACCEPT 2>/dev/null
-			$IP6T_CLUSTER -P OUTPUT ACCEPT 2>/dev/null
-			$IP6T_CLUSTER -P FORWARD ACCEPT 2>/dev/null
-			$IP6T_CLUSTER -F 2>/dev/null || flush_vlan_retval=1
-			$IP6T_CLUSTER -X 2>/dev/null || flush_vlan_retval=1
-			$IP6T_CLUSTER -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-			$IP6T_CLUSTER -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-			$IP6T_CLUSTER -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				# Estamos en el fichero core
+				$IPT_CLUSTER -P INPUT ACCEPT 2>/dev/null
+				$IPT_CLUSTER -P OUTPUT ACCEPT 2>/dev/null
+				$IPT_CLUSTER -P FORWARD ACCEPT 2>/dev/null
+				$IPT_CLUSTER -F 2>/dev/null || flush_vlan_retval=1
+				$IPT_CLUSTER -F -t nat 2>/dev/null || flush_vlan_retval=1
+				$IPT_CLUSTER -X 2>/dev/null || flush_vlan_retval=1
+				$IPT_CLUSTER -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IPT_CLUSTER -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IPT_CLUSTER -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 
-			# Eliminamos sets
-			$IPSET_CLUSTER flush 2>/dev/null || flush_vlan_retval=1
-			$IPSET_CLUSTER x 2>/dev/null || flush_vlan_retval=1
+				$IP6T_CLUSTER -P INPUT ACCEPT 2>/dev/null
+				$IP6T_CLUSTER -P OUTPUT ACCEPT 2>/dev/null
+				$IP6T_CLUSTER -P FORWARD ACCEPT 2>/dev/null
+				$IP6T_CLUSTER -F 2>/dev/null || flush_vlan_retval=1
+				$IP6T_CLUSTER -X 2>/dev/null || flush_vlan_retval=1
+				$IP6T_CLUSTER -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IP6T_CLUSTER -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IP6T_CLUSTER -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+
+				# Eliminamos sets
+				$IPSET_CLUSTER flush 2>/dev/null || flush_vlan_retval=1
+				$IPSET_CLUSTER x 2>/dev/null || flush_vlan_retval=1
+			else
+				# Not using iptables-cluster
+
+				# Estamos en el fichero core
+				$IPT -P INPUT ACCEPT 2>/dev/null
+				$IPT -P OUTPUT ACCEPT 2>/dev/null
+				$IPT -P FORWARD ACCEPT 2>/dev/null
+				$IPT -F 2>/dev/null || flush_vlan_retval=1
+				$IPT -F -t nat 2>/dev/null || flush_vlan_retval=1
+				$IPT -X 2>/dev/null || flush_vlan_retval=1
+				$IPT -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IPT -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IPT -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+
+				$IP6T -P INPUT ACCEPT 2>/dev/null
+				$IP6T -P OUTPUT ACCEPT 2>/dev/null
+				$IP6T -P FORWARD ACCEPT 2>/dev/null
+				$IP6T -F 2>/dev/null || flush_vlan_retval=1
+				$IP6T -X 2>/dev/null || flush_vlan_retval=1
+				$IP6T -A FORWARD -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IP6T -A INPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				$IP6T -A OUTPUT -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+
+				# Eliminamos sets
+				$IPSET flush 2>/dev/null || flush_vlan_retval=1
+				$IPSET x 2>/dev/null || flush_vlan_retval=1
+
+			fi
 		else
 			if grep -i nat <<< $1 > /dev/null
 			then
-				# Tenemos reglas de nat
-				$IPT_CLUSTER -F -t nat 2>/dev/null || flush_vlan_retval=1
+				if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
+				then
+					# Using iptables-cluster
+
+					# Flushing nat rules
+					$IPT_CLUSTER -F -t nat 2>/dev/null || flush_vlan_retval=1
+				else
+					# Not using iptables-cluster
+
+					# Flushing nat rules
+					$IPT -F -t nat 2>/dev/null || flush_vlan_retval=1
+
+				fi
 			else
-				# No tenemos reglas de nat
-				$IPT_CLUSTER -F $1 2>/dev/null || flush_vlan_retval=1
-				$IPT_CLUSTER -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-				$IP6T_CLUSTER -F $1 2>/dev/null || flush_vlan_retval=1
-				$IP6T_CLUSTER -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
+				then
+					# No tenemos reglas de nat
+					$IPT_CLUSTER -F $1 2>/dev/null || flush_vlan_retval=1
+					$IPT_CLUSTER -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					$IP6T_CLUSTER -F $1 2>/dev/null || flush_vlan_retval=1
+					$IP6T_CLUSTER -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				else
+					# No tenemos reglas de nat
+					$IPT -F $1 2>/dev/null || flush_vlan_retval=1
+					$IPT -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					$IP6T -F $1 2>/dev/null || flush_vlan_retval=1
+					$IP6T -A $1 -m comment --comment "regla_transacional_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+				fi
 			fi
 		fi
 	else
