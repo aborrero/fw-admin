@@ -280,7 +280,7 @@ get_ip_from_fqdn()
 recargar_variables()
 {
 	local recargar_variables_retval=0
-	echo "" > $AUX_FILE
+	echo -n "" > $AUX_FILE
 
 	message "I: No se recargan variables que contengan \"##ignorar##\"."
 	local lista_variables=`{ cat $VARS_IPV4 ; cat $VARS_IPV6 ; } | egrep -v "##ignorar##"\|"@"\|^[[:space:]]*# \
