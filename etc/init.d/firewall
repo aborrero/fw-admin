@@ -115,16 +115,13 @@ start()
 }
 stop()
 {
-	if is_running
-	then
-		kill_all
-		$MAIN_BIN --stop sets_rules || exit $?
-		$MAIN_BIN --stop vlan_54 || exit $?
-		$MAIN_BIN --stop vlan_18 || exit $?
-		$MAIN_BIN --stop vlan_10 || exit $?
-		$MAIN_BIN --stop nat || exit $?
-		$MAIN_BIN --stop core || exit $?
-	fi
+	kill_all
+	#$MAIN_BIN --stop sets_rules || exit $?
+	#$MAIN_BIN --stop vlan_54 || exit $?
+	#$MAIN_BIN --stop vlan_18 || exit $?
+	#$MAIN_BIN --stop vlan_10 || exit $?
+	#$MAIN_BIN --stop nat || exit $?
+	#$MAIN_BIN --stop core || exit $?
 	return 0
 }
 
