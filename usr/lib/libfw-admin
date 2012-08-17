@@ -140,6 +140,7 @@ is_fqdn_valid()
 			retval=0
 		fi
 	fi
+	message "W: not found in DNS servers [$1]."
 	return $retval
 }
 
@@ -171,6 +172,7 @@ is_domain_fqdn()
 	return $retval
 }
 
+# boolean check_root()
 # Esta funcion checkea que quien ejecuta es root
 check_root()
 {
@@ -183,6 +185,7 @@ check_root()
 	return $retval
 }
 
+# boolean check_files()
 # Esta funcion checkea y avisa de todos los ficheros necesarios para esta ejecucion
 check_files()
 {
@@ -215,33 +218,49 @@ check_files()
 }
 
 
+# string get_variable_name(string data)
 # Esta funcion retorna el nombre que debe de tener la variable en funcion de su valor
-obtener_nombre_variable()
+get_variable_name()
 {
-	# Usamos una variable global, llamada "nombre_variable"
-	if [ ! -z $1 ]
+	# Check for empty argument
+	if [ -z "$1" ]
 	then
-		# El parametro de entrada no esta vacio
-		is_ipv4_valid $1 && { nombre_variable=`echo v$1 | tr '.' '_'` ; return 0 ; }
-		is_ipv6_valid $1 && { nombre_variable=`echo v$1 | tr ':' '_'` ; return 0 ; }
-		if is_fqdn_valid $1
-		then
-			# Es una variable fqdn
-			if is_domain_fqdn $1
-			then
-				# Es un fqdn de CICA, la variable no tendra el dominio
-				nombre_variable=`echo $1 | awk -F".$DOMAIN" '{print $1}'| tr [:lower:] [:upper:] | tr '.' '_' | tr '-' '_'`
-			else
-				# No es un fqdn de CICA
-				nombre_variable=`echo $1 | tr [:lower:] [:upper:] | tr '.' '_' | tr '-' '_'`
-			fi
-		fi
-	else
-		message "E: Se ha producido un error al calcular el nombre que debe tener la variable."
-		do_exit 1
+		message "E: Calculating the name of the variable."
+		return 1
 	fi
-	return 0
 
+	# Check if the data is IPv4
+	if is_ipv4_valid $1
+	then
+		# return
+		echo v$1 | tr '.' '_'
+		return 0
+	fi
+
+	# Check if the data is IPv6
+	if is_ipv6_valid $1
+	then
+		# return
+		echo v$1 | tr ':' '_'
+		return 0
+	fi
+
+	# Check if the data is FQDN
+	if is_fqdn_valid $1
+	then
+		local name="$1"
+		# if is from $DOMAIN, delete $DOMAIN
+		is_domain_fqdn $1 && name=`echo $1 | awk -F".$DOMAIN" '{print $1}'`
+		# if starts with a number, starts now with 'v'
+		[[ $name =~ ^[0-9] ]] && name="v${name}"
+		# and then return
+		echo $name | tr [:lower:] [:upper:] | tr '.' '_' | tr '-' '_'
+		return 0
+	fi
+
+	# If this point is reached, error
+	message "E: Unable to obtain the name of the variable of data: [$1]."
+	do_exit 1
 }
 
 # ip get_ip_from_fqdn(string tipo_ip, string fqdn)
@@ -337,8 +356,7 @@ agregar_variable()
 		# Obtener nombre definitivo que tendra la variable
 		#
 
-		nombre_variable="" #variable global usada por obtener_nombre_variable()
-		obtener_nombre_variable $dato_a_agregar
+		nombre_variable=$( get_variable_name $dato_a_agregar )
 		echo "DEBUG: $nombre_variable=$dato_a_agregar #$dato_a_agregar" > /dev/null
 
 		if grep ^"${nombre_variable}=" $VARS_IPV4 > /dev/null 2> /dev/null && grep ^"${nombre_variable}=" $VARS_IPV6 > /dev/null 2> /dev/null
@@ -642,8 +660,7 @@ obtener_informacion()
 	# 1º Busqueda es por el dato introducido en crudo
 	buscar_en_fichero $dato_consulta $AUX_FILE
 
-	nombre_variable=""
-	obtener_nombre_variable $dato_consulta
+	nombre_variable=$( get_variable_name $dato_consulta )
 
 	if [ ! -z $nombre_variable ]
 	then
