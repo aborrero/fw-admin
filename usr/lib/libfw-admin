@@ -1363,15 +1363,16 @@ check_datafile_sanity()
 		retval=1
 		if [[ "$result" =~ ">" ]]
 		then
-			message "W: Variables missing in $1 from $2"
+			message "W: Missing variables in $1 from $2"
 			grep ">" <<< "$result"
 		fi
 		if [[ "$result" =~ "<" ]]
 		then
-			message "W: Variables missing in $2 from $1"
+			message "W: Missing variables in $2 from $1"
 			grep "<" <<< "$result"
 		fi
 	fi
+	rm -rf $AUX_FILE2 2>/dev/null
 	return $retval
 }
 
