@@ -54,6 +54,8 @@ message()
 	# solo se logean mensajes de error y warning
 	[ "$LOG_ERROR_MESSAGES" == "yes" ] && [[ $1 =~ ^"E:" ]] && $EJECUTABLE_LOGGER $ARGS_LOGGER $1
 	[ "$LOG_WARN_MESSAGES" == "yes" ] && [[ $1 =~ ^"W:" ]] && $EJECUTABLE_LOGGER $ARGS_LOGGER $1
+
+	return 0
 }
 
 # void do_exit(int exit_code)
@@ -1272,64 +1274,54 @@ ipset_reload()
 	return $ipset_reload_retval
 }
 
-# boolean check_datafile_format1(string filename)
+# boolean check_datafile_format(string filename)
 # Check the format of a datafile
-check_datafile_format1()
+check_datafile_format()
 {
 	local retval=0
-	# Format ---
+	# Format 1
 	# #comments
 	# VARIABLE=data #comment
-	# VARIABLE=data #comment
+	# VAR1ABl3= data #comment
 	# blankline
 	# #comments
-	# VARIABLE=data #comment
+	# VARIABLe= d4t4  ##comment
 
-	if [ ! -z "$1" ]
+	# Format 2
+	# #comments
+	# VARIABLE=d4t4
+	# VAR1ABLe=data
+	# blankline
+	# #comments
+	# VARIABLE= data
+
+	if [ ! -z "$1" ] && [ -e $1 ]
 	then
-		# invalid lines
-		local invalid_lines=`cat $1 | nl -ba | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*#\|^[[:space:]]*[0-9]*[[:space:]]*[[:alpha:]]*"="[[:alnum:]]*[[:space:]]#\|^[[:space:]]*[0-9]*[[:space:]]*$`
+		if [ "$2" == "2" ]
+		then
+			# format 2 without trailing comment
+
+			# invalid lines
+			local invalid_lines=`\
+				cat $1 | nl -ba | egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$ \
+				| grep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z]+\([[:alnum:]]+_*\)\{1,}"=".*$`
+		else
+			# format 1 default, with trailing comment
+			# invalid lines
+			local invalid_lines=`\
+				cat $1 | nl -ba | egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$ \
+				| grep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z]+\([[:alnum:]]+_*\)\{1,}"=".*"#".*$`
+		fi
 		if [ ! -z "$invalid_lines" ]
 		then
 			retval=1
-			message "W: Check invalid lines detected in ${1}:"
+			message "W: Check invalid lines detected in file ${1}:"
 			echo -e "  Line  Content"
 			echo "$invalid_lines"
 
 		fi
 	else
-		message "E: Function check_emtpy_lines1() called withoud arguments."
-		do_exit 1
-	fi
-	return $retval
-}
-# boolean check_datafile_format2(string filename)
-# Check the format of a datafile
-check_datafile_format2()
-{
-	local retval=0
-	# Format ---
-	# #comments
-	# VARIABLE=data
-	# VARIABLE=data
-	# blankline
-	# #comments
-	# VARIABLE=data
-
-	if [ ! -z "$1" ]
-	then
-		# invalid lines
-		local invalid_lines=`cat $1 | nl -ba | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*#\|^[[:space:]]*[0-9]*[[:space:]]*[[:alpha:]]*"="[[:alnum:]]*\|^[[:space:]]*[0-9]*[[:space:]]*$`
-		if [ ! -z "$invalid_lines" ]
-		then
-			retval=1
-			message "W: Check invalid lines detected in ${1}:"
-			echo -e "  Line  Content"
-			echo "$invalid_lines"
-
-		fi
-	else
-		message "E: Function check_emtpy_lines2() called withoud arguments."
+		message "E: Function check_datafile_format() called with bad arguments."
 		do_exit 1
 	fi
 	return $retval
@@ -1382,11 +1374,12 @@ check_datafiles()
 {
 	local retval=0
 
-	# Checking formats NOT YET!!
-	#check_datafile_format1 $VARS_IPV4 || retval=$?
-	#check_datafile_format1 $VARS_IPV6 || retval=$?
-	#check_datafile_format2 $VARS_IPSETV4 || retval=$?
-	#check_datafile_format2 $VARS_IPSETV6 || retval=$?
+	# Checking format 1: trailing comment
+	check_datafile_format $VARS_IPV4 1 || retval=$?
+	check_datafile_format $VARS_IPV6 1 || retval=$?
+	# Checking format 2: no trailing comment
+	check_datafile_format $VARS_IPSETV4 2 || retval=$?
+	check_datafile_format $VARS_IPSETV6 2 || retval=$?
 
 	# Checking sanity
 	check_datafile_sanity $VARS_IPV4 $VARS_IPV6 || retval=$?
