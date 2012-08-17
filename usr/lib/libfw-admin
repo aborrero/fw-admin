@@ -273,7 +273,7 @@ get_ip_from_fqdn()
 	[ -z "$tipo_ip" ] && { message "E: En la funcion get_ip_from_fqdn() (recursiva) llamada con parametro tipo_ip vacio." ; do_exit 1 ; }
 	[ -z "$fqdn" ] && { message "E: En la funcion get_ip_from_fqdn() (recursiva) llamada con parametro fqdn vacio." ; do_exit 1 ; }
 	[ -z "$recursivityLevel" ] && recursivityLevel=0
-	[ "$recursivityLevel" -gt 100 ] && message "E: Max recursion level reached in function get_ip_from_fqdn()." ; do_exit 1 ; }
+	[ "$recursivityLevel" -gt 100 ] && { message "E: Max recursion level reached in function get_ip_from_fqdn()." ; do_exit 1 ; }
 	((recursivityLevel++))
 
         local resolucion=`$DIG +short $fqdn $tipo_ip`
@@ -1271,6 +1271,129 @@ ipset_reload()
 
 	return $ipset_reload_retval
 }
+
+# boolean check_datafile_format1(string filename)
+# Check the format of a datafile
+check_datafile_format1()
+{
+	local retval=0
+	# Format ---
+	# #comments
+	# VARIABLE=data #comment
+	# VARIABLE=data #comment
+	# blankline
+	# #comments
+	# VARIABLE=data #comment
+
+	if [ ! -z "$1" ]
+	then
+		# invalid lines
+		local invalid_lines=`cat $1 | nl -ba | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*#\|^[[:space:]]*[0-9]*[[:space:]]*[[:alnum:]]*"="[[:alnum:]]*[[:space:]]#\|^[[:space:]]*[0-9]*[[:space:]]*$`
+		if [ ! -z "$invalid_lines" ]
+		then
+			retval=1
+			message "W: Check invalid lines detected in ${1}:"
+			echo -e "  Line  Content"
+			echo "$invalid_lines"
+
+		fi
+	else
+		message "E: Function check_emtpy_lines1() called withoud arguments."
+		do_exit 1
+	fi
+	return $retval
+}
+# boolean check_datafile_format2(string filename)
+# Check the format of a datafile
+check_datafile_format2()
+{
+	local retval=0
+	# Format ---
+	# #comments
+	# VARIABLE=data
+	# VARIABLE=data
+	# blankline
+	# #comments
+	# VARIABLE=data
+
+	if [ ! -z "$1" ]
+	then
+		# invalid lines
+		local invalid_lines=`cat $1 | nl -ba | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*#\|^[[:space:]]*[0-9]*[[:space:]]*[[:alnum:]]*"="[[:alnum:]]*\|^[[:space:]]*[0-9]*[[:space:]]*$`
+		if [ ! -z "$invalid_lines" ]
+		then
+			retval=1
+			message "W: Check invalid lines detected in ${1}:"
+			echo -e "  Line  Content"
+			echo "$invalid_lines"
+
+		fi
+	else
+		message "E: Function check_emtpy_lines2() called withoud arguments."
+		do_exit 1
+	fi
+	return $retval
+}
+
+# boolean check_datafile_sanity(string filename1, string filename2)
+# Check if all variables are the same in both files
+check_datafile_sanity()
+{
+	local retval=0
+	local AUX_FILE2="`mktemp`"
+
+
+	if [ -z "$1" ] || [ -z "$2" ]
+	then
+		message "E: Function check_datafile_sanity() called without arguments."
+		do_exit 1
+	fi
+
+	if [ ! -r "$1" ] || [ ! -r "$2" ]
+	then
+		message "E: Unable to read $1 or $2."
+		do_exit 1
+	fi
+
+	egrep -v ^[[:space:]]*#\|^[[:space:]]*$ $1 | awk -F'=' '{print $1}' | sort -n > $AUX_FILE
+	egrep -v ^[[:space:]]*#\|^[[:space:]]*$ $2 | awk -F'=' '{print $1}' | sort -n > $AUX_FILE2
+	result=`diff $AUX_FILE $AUX_FILE2`
+	if [ ! -z "$result" ]
+	then
+		retval=1
+		if [[ "$result" =~ ">" ]]
+		then
+			message "W: Variables missing in $1 from $2"
+			grep ">" <<< "$result"
+		fi
+		if [[ "$result" =~ "<" ]]
+		then
+			message "W: Variables missing in $2 from $1"
+			grep "<" <<< "$result"
+		fi
+	fi
+	return $retval
+}
+
+# boolean check_datafiles()
+# Check what variables are missing in what datafiles and the format is correct.
+check_datafiles()
+{
+	local retval=0
+
+	# Checking formats
+	check_datafile_format1 $VARS_IPV4 || retval=$?
+	check_datafile_format1 $VARS_IPV6 || retval=$?
+	check_datafile_format2 $VARS_IPSETV4 || retval=$?
+	check_datafile_format2 $VARS_IPSETV6 || retval=$?
+
+	# Checking sanity
+	check_datafile_sanity $VARS_IPV4 $VARS_IPV6 || retval=$?
+	check_datafile_sanity $VARS_IPSETV4 $VARS_IPSETV6 || retval=$?
+
+	return $retval
+}
+
 
 # Funcion para la barra de progreso
 # http://www.brianhare.com/wordpress/2011/03/02/bash-progress-bar/

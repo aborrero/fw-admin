@@ -1,4 +1,4 @@
-.TH FW-ADMIN 8 "13 Ago 2012"
+.TH FW-ADMIN 8 "17 Ago 2012"
 .SH NAME
 fw-admin \- Tool for managing an iptables-based firewall.
 .SH SYNOPSIS
@@ -19,6 +19,8 @@ fw-admin \- Tool for managing an iptables-based firewall.
 \fBfw-admin --stop\fP {\fIvlan|nat|core\fP}
 
 \fBfw-admin --ipset-reload\fP [--nocheck]
+
+\fBfw-admin --check-datafiles\fP
 
 \fBfw-admin --help\fP
 .SH DESCRIPCION
@@ -123,6 +125,11 @@ Se recarga la información de \fBipset(8)\fP en el sistema. Se lee el fichero lo
 aunque si que se checkean las variables.
 
 La opción \fB--nocheck\fP evade los checkeos de variables. Esta pensada para casos donde es necesaria una operación rápida.
+.TP
+\fB--check-datafiles\fP
+Se realizarán checkeos de integridad sobre los ficheros de datos, buscando lineas inválidas y diferencias entre el numero de variables guardadas.
+
+Si no hay ningún error no se mostrará ningún mensaje.
 .TP
 \fB--help\fP
 Muestra la ayuda, de rápida referencia.

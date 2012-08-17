@@ -30,6 +30,7 @@ ayuda()
 	echo -e "	${C_BOLD}--start${C_NORMAL} {vlan|nat|core}		Inicia las reglas de una vlan/nat/core. Esto también sirve como reload."
 	echo -e "	${C_BOLD}--stop${C_NORMAL} {vlan|nat|core}		Elimina las reglas de una vlan/nat/core."
 	echo -e "	${C_BOLD}--ipset-reload${C_NORMAL}			Recarga los datos de conjuntos de IPs."
+	echo -e "	${C_BOLD}--check-datafiles${C_NORMAL}			Checkea los ficheros de datos buscando errores."
 	echo -e "	${C_BOLD}--help${C_NORMAL}				Muestra esta ayuda."
 	echo -e "Para mas información consultar ${C_BOLD}fw-admin(8)${C_NORMAL}"
 
@@ -38,7 +39,7 @@ ayuda()
 
 uso()
 {
-	echo -e "${C_BOLD}Uso:${C_NORMAL} fw-admin {-s|-a [ipv4|ipv6|fqdn]|-as [nombreset]|-r|-i [ipv4|ipv6|fqdn|var]|-c fichero|--start {vlan|nat|core}|--stop {vlan|nat|core}|--ipset-reload|--help}"
+	echo -e "${C_BOLD}Uso:${C_NORMAL} fw-admin {-s|-a [ipv4|ipv6|fqdn]|-as [nombreset]|-r|-i [ipv4|ipv6|fqdn|var]|-c fichero|--start {vlan|nat|core}|--stop {vlan|nat|core}|--ipset-reload|--check-datafiles|--help}"
 	return 0
 }
 
@@ -50,7 +51,7 @@ uso()
 ################################################################
 source $CONF_FILE 2>/dev/null || { echo "E: Unable to load config file $CONF_FILE" >&2; exit 1 ; }
 
-if [ "$1" == "-s" ] || [ "$1" == "-a" ] || [ "$1" == "-as" ] || [ "$1" == "-r" ] || [ "$1" == "-i" ] || [ "$1" == "-c" ] || [ "$1" == "--start" ] || [ "$1" == "--stop" ] || [ "$1" == "--ipset-reload" ]
+if [ "$1" == "-s" ] || [ "$1" == "-a" ] || [ "$1" == "-as" ] || [ "$1" == "-r" ] || [ "$1" == "-i" ] || [ "$1" == "-c" ] || [ "$1" == "--start" ] || [ "$1" == "--stop" ] || [ "$1" == "--ipset-reload" ] || [ "$1" == "--check-datafiles" ]
 then
 	source $LIB 2>/dev/null || { echo "E: Unable to load library $LIB" >&2; exit 1 ; }
 	check_root
@@ -109,6 +110,10 @@ case "$1" in
 		message "I: Recargando conjuntos."
 		[ "$2" == "--nocheck" ] && flag_no_check=1
 		ipset_reload #sin parametros
+		do_exit $?
+		;;
+	"--check-datafiles" )
+		check_datafiles #without parameters
 		do_exit $?
 		;;
 	"--help" )
