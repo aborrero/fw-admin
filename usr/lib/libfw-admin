@@ -134,7 +134,8 @@ is_fqdn_valid()
 	if [ ! -z $1 ]
 	then
 		# resolve it to know if it's valid
-		if [ `$DIG +short $1 | wc -l` -ne 0 ] > /dev/null
+		local resolution=`$DIG +short $1 2>/dev/null | wc -l 2>/dev/null`
+		if [ ! -z "$resolution" ] && [[ $resolution =~ ^[0-9]+$ ]] && [ $resolution -ne 0 ]
 		then
 			retval=0
 		fi
