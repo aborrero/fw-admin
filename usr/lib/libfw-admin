@@ -139,7 +139,6 @@ is_fqdn_valid()
 			retval=0
 		fi
 	fi
-	message "W: not found in DNS servers [$1]."
 	return $retval
 }
 
