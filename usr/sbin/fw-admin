@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio 2012
+# Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio/Agosto 2012
+VERSION="0.3.3"
 
 CONF_FILE="/etc/fw-admin.conf"
 LIB="/usr/lib/libfw-admin"
@@ -78,7 +79,7 @@ case "$1" in
 	"-r" )
 		validar_ejecucion
 		message "I: Recargando variables."
-		recargar_variables
+		reload_variable_values
 		do_exit $?
 		;;
 	"-i" )

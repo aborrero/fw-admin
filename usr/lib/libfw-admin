@@ -1,13 +1,12 @@
 #!/bin/bash
 
-# Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio 2012
+# Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio/Agosto 2012
 
 ################################################################
 ################################################################
 # Variables
 ################################################################
 ################################################################
-VERSION="0.3.3"
 PID=$$
 THIS="`uname -n`"
 
