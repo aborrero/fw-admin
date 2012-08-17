@@ -179,7 +179,7 @@ check_root()
 	local retval=0
 	if [ `id -u` -ne 0 ]
 	then
-		message "E: No eres root!"
+		message "W: Not root!"
 		retval=1
 	fi
 	return $retval
@@ -225,8 +225,8 @@ get_variable_name()
 	# Check for empty argument
 	if [ -z "$1" ]
 	then
-		message "E: Calculating the name of the variable."
-		return 1
+		message "E: Calculating the name of the variable: empty argument to the function get_variable_name()."
+		do_exit 1
 	fi
 
 	# Check if the data is IPv4
@@ -263,14 +263,19 @@ get_variable_name()
 	do_exit 1
 }
 
-# ip get_ip_from_fqdn(string tipo_ip, string fqdn)
+# ip get_ip_from_fqdn(string tipo_ip, string fqdn, int recursivityLevel)
+# recursive function.
 get_ip_from_fqdn()
 {
         local tipo_ip=$1
         local fqdn=$2
+	local recursivityLevel=$3
 
 	[ -z "$tipo_ip" ] && { message "E: En la funcion get_ip_from_fqdn() (recursiva) llamada con parametro tipo_ip vacio." ; do_exit 1 ; }
 	[ -z "$fqdn" ] && { message "E: En la funcion get_ip_from_fqdn() (recursiva) llamada con parametro fqdn vacio." ; do_exit 1 ; }
+	[ -z "$recursivityLevel" ] && recursivityLevel=0
+	[ "$recursivityLevel" -gt 100 ] && message "E: Max recursion level reached in function get_ip_from_fqdn()." ; do_exit 1 ; }
+	((recursivityLevel++))
 
         local resolucion=`$DIG +short $fqdn $tipo_ip`
         if is_ipv6_valid $resolucion
@@ -285,7 +290,7 @@ get_ip_from_fqdn()
 			IFS=$' \t\n'
 	                for linea in $resolucion
 	                do
-	                        local resolucion2="$resolucion2 $(get_ip_from_fqdn $tipo_ip $linea)"
+	                        local resolucion2="$resolucion2 $(get_ip_from_fqdn $tipo_ip $linea $recursivityLevel)"
 	                done
 			IFS=$oldIFS
 	                local resolucion3=`echo "$resolucion2" | tr [[:space:]] '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq`
@@ -295,10 +300,11 @@ get_ip_from_fqdn()
 	return 0
 }
 
+# boolean reload_variable_values()
 # Esta funcion recorre todas las variables del sistema, reajustando su valor.
-recargar_variables()
+reload_variable_values()
 {
-	local recargar_variables_retval=0
+	local reload_variable_values_retval=0
 	echo -n "" > $AUX_FILE
 
 	message "I: No se recargan variables que contengan \"##ignorar##\"."
@@ -313,12 +319,12 @@ recargar_variables()
 		((cont++))
 		lib_progress_bar -d 2 -m 55 $cont $total
 		# Solo se mostraran luego los mensajes de error
-		agregar_variable $variable | grep E: >> $AUX_FILE || recargar_variables_retval=1
+		agregar_variable $variable | grep E: >> $AUX_FILE || reload_variable_values_retval=1
 	done
 	IFS=$oldIFS
 	message "I: Resultados:"
 	cat $AUX_FILE
-	return $recargar_variables_retval
+	return $reload_variable_values_retval
 }
 
 # Funcion que agrega una variable al sistema, IPv4, IPv6 o FQDN.
@@ -420,9 +426,9 @@ agregar_set()
 				|| { message "E: Fallo al escribir la variable en [$VARS_IPSETV6]" ; agregar_set_retval=1 ; }
 
 		echo "Los datos guardados: "
-		grep ^"${dato_a_agregar}=" $DATA_DIR/* 2>/dev/null
+		grep ^"${dato_a_agregar}=" $VARS_IPSETV4 2>/dev/null
+		grep ^"${dato_a_agregar}=" $VARS_IPSETV6 2>/dev/null
 	fi
-
 
 	return $agregar_set_retval
 }
@@ -480,11 +486,11 @@ guardar_variable_en_fichero()
 		case "$ip" in
 			"ipv4" )
 				#tirar del hilo
-				local resolucion="$(get_ip_from_fqdn A $dato_a_agregar)"
+				local resolucion="$(get_ip_from_fqdn A $dato_a_agregar 0)"
 				;;
 			"ipv6" )
 				#tirar del hilo
-				local resolucion="$(get_ip_from_fqdn AAAA $dato_a_agregar)"
+				local resolucion="$(get_ip_from_fqdn AAAA $dato_a_agregar 0)"
 				;;
 		esac
 		if [ -z "$resolucion" ]
@@ -558,6 +564,7 @@ estadisticas()
 	local reglas_no_usadas_ipv6=`$IP6T -L -n -v 2>/dev/null | egrep -v "Chain"\|"pkts bytes" | grep -v ^[[:space:]]*$ | grep ^[[:space:]]*0 | wc -l`
 	echo " Reglas no usadas en IPv4: $reglas_no_usadas_ipv4"
 	echo " Reglas no usadas en IPv6: $reglas_no_usadas_ipv6"
+	echo " Hash de las reglas del kernel: `( { $IPT_SAVE 2>/dev/null ; $IP6T_SAVE 2>/dev/null; } | grep ^"-" | md5sum | awk -F' ' '{print $1}' ) || echo error! `"
 	echo " Uso y politica en IPv4:"
 	$IPT -n -L -v 2>/dev/null | grep policy | while read linea
 	do
@@ -568,7 +575,6 @@ estadisticas()
 	do
 		echo -e "\t$linea"
 	done
-	echo " Hash de las reglas del kernel: `( { $IPT_SAVE 2>/dev/null ; $IP6T_SAVE 2>/dev/null; } | grep ^"-" | md5sum | awk -F' ' '{print $1}' ) || echo error! `"
 	echo ""
 
 	# Info ipset
