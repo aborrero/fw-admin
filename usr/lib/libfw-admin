@@ -1288,7 +1288,7 @@ check_datafile_format1()
 	if [ ! -z "$1" ]
 	then
 		# invalid lines
-		local invalid_lines=`cat $1 | nl -ba | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*#\|^[[:space:]]*[0-9]*[[:space:]]*[[:alnum:]]*"="[[:alnum:]]*[[:space:]]#\|^[[:space:]]*[0-9]*[[:space:]]*$`
+		local invalid_lines=`cat $1 | nl -ba | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*#\|^[[:space:]]*[0-9]*[[:space:]]*[[:alpha:]]*"="[[:alnum:]]*[[:space:]]#\|^[[:space:]]*[0-9]*[[:space:]]*$`
 		if [ ! -z "$invalid_lines" ]
 		then
 			retval=1
@@ -1319,7 +1319,7 @@ check_datafile_format2()
 	if [ ! -z "$1" ]
 	then
 		# invalid lines
-		local invalid_lines=`cat $1 | nl -ba | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*#\|^[[:space:]]*[0-9]*[[:space:]]*[[:alnum:]]*"="[[:alnum:]]*\|^[[:space:]]*[0-9]*[[:space:]]*$`
+		local invalid_lines=`cat $1 | nl -ba | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*#\|^[[:space:]]*[0-9]*[[:space:]]*[[:alpha:]]*"="[[:alnum:]]*\|^[[:space:]]*[0-9]*[[:space:]]*$`
 		if [ ! -z "$invalid_lines" ]
 		then
 			retval=1
@@ -1381,11 +1381,11 @@ check_datafiles()
 {
 	local retval=0
 
-	# Checking formats
-	check_datafile_format1 $VARS_IPV4 || retval=$?
-	check_datafile_format1 $VARS_IPV6 || retval=$?
-	check_datafile_format2 $VARS_IPSETV4 || retval=$?
-	check_datafile_format2 $VARS_IPSETV6 || retval=$?
+	# Checking formats NOT YET!!
+	#check_datafile_format1 $VARS_IPV4 || retval=$?
+	#check_datafile_format1 $VARS_IPV6 || retval=$?
+	#check_datafile_format2 $VARS_IPSETV4 || retval=$?
+	#check_datafile_format2 $VARS_IPSETV6 || retval=$?
 
 	# Checking sanity
 	check_datafile_sanity $VARS_IPV4 $VARS_IPV6 || retval=$?

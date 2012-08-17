@@ -30,7 +30,7 @@ ayuda()
 	echo -e "	${C_BOLD}--start${C_NORMAL} {vlan|nat|core}		Inicia las reglas de una vlan/nat/core. Esto también sirve como reload."
 	echo -e "	${C_BOLD}--stop${C_NORMAL} {vlan|nat|core}		Elimina las reglas de una vlan/nat/core."
 	echo -e "	${C_BOLD}--ipset-reload${C_NORMAL}			Recarga los datos de conjuntos de IPs."
-	echo -e "	${C_BOLD}--check-datafiles${C_NORMAL}			Checkea los ficheros de datos buscando errores."
+	echo -e "	${C_BOLD}--check-datafiles${C_NORMAL}		Checkea los ficheros de datos buscando errores."
 	echo -e "	${C_BOLD}--help${C_NORMAL}				Muestra esta ayuda."
 	echo -e "Para mas información consultar ${C_BOLD}fw-admin(8)${C_NORMAL}"
 
