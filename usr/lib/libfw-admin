@@ -197,6 +197,7 @@ check_files()
 	[ -d $CONF_DIR ] || { message "E: Incapaz de acceder al directorio [$CONF_DIR]" ; retval=1 ; }
 	[ -x $IPSET_CONF ] || { message "E: Incapaz de acceder al fichero [$IPSET_CONF]" ; retval=1 ; }
 	[ -d $DATA_DIR ] || { message "E: Incapaz de acceder al directorio [$DATA_DIR]" ; retval=1 ; }
+	[ -d ${WORKING_DIR}/run ] || { message "E: Incapaz de acceder al directorio [${WORKING_DIR}/run]" ; retval=1 ; }
 	[ -w $VARS_IPV6 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPV6]" ; retval=1 ; }
 	[ -w $VARS_IPV4 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPV4]" ; retval=1 ; }
 	[ -w $VARS_IPSETV6 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPSETV6]" ; retval=1 ; }
@@ -601,18 +602,16 @@ estadisticas()
 	local vars_ipv6=`grep \= $VARS_IPV6 2>/dev/null | wc -l`
 	echo " Variables IPv4 declaradas: $vars_ipv4"
 	echo " Variables IPv6 declaradas: $vars_ipv6"
-	if [ $vars_ipv4 -ne $vars_ipv6 ]
-	then
-		message " W: Los ficheros de IPs o FQDNs pueden estar corruptos; el numero de variables declaradas no coinciden!"
-	fi
 	local vars_ipset_ipv4=`grep \= $VARS_IPSETV4 2>/dev/null | wc -l`
 	local vars_ipset_ipv6=`grep \= $VARS_IPSETV6 2>/dev/null | wc -l`
 	echo " Variables IPSET IPv4 declaradas: $vars_ipset_ipv4"
 	echo " Variables IPSET IPv6 declaradas: $vars_ipset_ipv6"
-	if [ $vars_ipset_ipv4 -ne $vars_ipset_ipv6 ]
+	if [ $vars_ipset_ipv4 -ne $vars_ipset_ipv6 ] || [ $vars_ipv4 -ne $vars_ipv6 ]
 	then
-		message " W: Los ficheros de variables de IPSET pueden estar corruptos; el numero de variables declaradas no coinciden!"
+		message " W: Please run \`fw-admin --check-datafiles' to know about datafile corruptions."
 	fi
+
+
 	[[ $MINIMAL_AMOUNT_OF_RULES =~ ^[0-9]+$ ]] || MINIMAL_AMOUNT_OF_RULES=40
 	if [ $reglas_ipv4 -gt $MINIMAL_AMOUNT_OF_RULES ] || [ $reglas_ipv6 -gt $MINIMAL_AMOUNT_OF_RULES ]
 	then
@@ -1304,13 +1303,13 @@ check_datafile_format()
 			# invalid lines
 			local invalid_lines=`\
 				cat $1 | nl -ba | egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$ \
-				| grep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z]+\([[:alnum:]]+_*\)\{1,}"=".*$`
+				| grep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*`
 		else
 			# format 1 default, with trailing comment
 			# invalid lines
 			local invalid_lines=`\
 				cat $1 | nl -ba | egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$ \
-				| grep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z]+\([[:alnum:]]+_*\)\{1,}"=".*"#".*$`
+				| grep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*[[:space:]]+#.*$`
 		fi
 		if [ ! -z "$invalid_lines" ]
 		then
