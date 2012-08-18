@@ -1,4 +1,4 @@
-.TH FW-ADMIN 8 "17 Ago 2012"
+.TH FW-ADMIN 8 "18 Ago 2012"
 .SH NAME
 fw-admin \- Tool for managing an iptables-based firewall.
 .SH SYNOPSIS
@@ -47,30 +47,32 @@ Esto permite escribir una única regla y que valga para ambos protocolos (doble 
 .TP 
 \fB-s\fP
 Muestra estadisticas del firewall. Al final de la lista de estadisticas, se calcula si el firewall está o no en funcionamiento según el número de reglas en el Kernel.
-Se mostrará un mensaje de tipo "El firewall está activo.". Este mensaje es usado por otros scripts (y quizás por \fBPacemaker(8)\fP para calcular si el firewall esta
-en funcionamiento en un nodo o máquina.
+Se mostrará un mensaje de tipo "El firewall está activo.". Este mensaje es usado por otros scripts (y quizás por \fBPacemaker(8)\fP) para calcular si el firewall esta
+en funcionamiento localmente.
 Puede editarse el numero de reglas necesarias para considerar el firewall corriendo en el fichero \fB/etc/fw-admin.conf\fP en la variable \fB$MINIMAL_AMOUNT_OF_RULES\fP.
 .TP 
 \fB-a [ipv4|ipv6|fqdn]\fP
 Añade una variable al sistema de variables. Puede ser una IPv4, una IPv6 o un FQDN.
-Se retornará el nombre de la variable que debe usarse en los ficheros de reglas. 
+Se mostrará en pantalla el nombre de la variable que debe usarse en los ficheros de reglas. 
 Si la variable ya estubiera guardada, se actualizará su contenido, consultando al DNS o lo que proceda.
-Esta opcion puede llamarse con o sin parámetro de entrada. En caso de llamarla sin argumentos, se mostrará un prompt interactivo.
+Esta opcion puede llamarse con o sin parámetro de entrada. 
 
-En caso de usar un FQDN, si este pertenece a \fBDOMAIN\fP (véase \fB/etc/fw-admin.conf\fP más abajo), el nombre de variable que se retornará no contendrá el dominio.
+En caso de usar un FQDN, si este pertenece a \fBDOMAIN\fP (véase \fB/etc/fw-admin.conf\fP más abajo), el nombre de variable que se usará no contendrá el dominio.
+
+Si es necesario usar una variable especial, que no pueda validarse correctamente por los métodos implementados en \fBfw-admin\fP,
+deben escribirse a mano en los ficheros de datos, usando la etiquera \fB##ignorar##\fP.
 
 .TP
 \fB-as [nombreset]\fP
-Para guardar en el sistema un nombre de set. Es necesario llamar con distinto nombre a un set con datos IPv4 y a un set con datos IPv6. 
+Para guardar en el sistema un nombre de set. Debido al funcionamiento de \fBipset(8)\fP, es necesario llamar con distinto nombre a un set con datos IPv4 y a un set con datos IPv6. 
 
 El nombre de variable resultante siempre será en mayúsculas.
 
-Como curiosidad, decir que el nombre del set se guardara como: "NOMBRE=nombre_ipv4" y "NOMBRE=nombre_ipv6" en los ficheros de datos IPv4 e IPv6 respectivamente.
+El nombre del set se guardara como: "NOMBRE=nombre_ipv4" y "NOMBRE=nombre_ipv6" en los ficheros de datos IPv4 e IPv6 respectivamente.
 
-Esta opcion puede llamarse con o sin parámetro de entrada. En caso de llamarla sin argumentos, se mostrará un prompt interactivo.
 .TP
 \fB-r\fP
-Todas las variables de IPv4, IPv6 y FQDN se recargarán. Por cada variable encontrada en los ficheros datos, se volverá a ejecutar el algoritmo que calcula el 
+Todas las variables de IPv4, IPv6 y FQDN (no de sets) se recargarán. Por cada variable encontrada en los ficheros datos, se volverá a ejecutar el algoritmo que calcula el 
 guardado (el algoritmo de la opción \fB-a\fP).
 Es posible que se ignoren ciertas variables que hayan podido meterse a mano en los ficheros de datos, como en las lineas que se encuentre la cadena "\fB##ignorar##\fP".
 
@@ -86,7 +88,9 @@ IF_INET=eth0 ##ignorar##
 RED_GENERAL=150.214.0.0/16 ##ignorar##
 .TP
 [...]
-.RE	
+.RE
+
+Nótese que para recargar los valores, se usa el comentario del final de linea, que contiene el dato original.
 .TP
 \fB-i [ipv4|ipv6|fqdn|var]\fP
 Usando esta opcion es posible realizar una busqueda automatizada entre datos, variables y reglas en el kernel.
@@ -105,11 +109,14 @@ Este es el mismo algoritmo que se usa como paso previo de checkeo al usar la opc
 \fB--start {vlan|nat|core} [--nocheck]\fP
 Se checkea que el fichero existe en la ruta especificada en la variable \fB$CONF_DIR\fP (generalmente \fB/var/local/fw.d/rules/\fP) y que tiene permisos de ejecucion.
 Luego, se checkea su sintaxis, de manera similar a la opción \fB-c\fP.
-Si todo esta bien, se hará un \fB`source'\fP de los ficheros de vairables IPv4 y se ejecutarán las reglas. Luego un \fB`source'\fP de los ficheros de variables IPv6 
-y otra ejecución de las reglas.
+
+Si el checkeo es positivo, se hará un \fB`source'\fP de los ficheros de vairables IPv4 y se ejecutarán las reglas una a una, valorando si hay algún error al insertarla en el Kernel.
+
+Luego un \fB`source'\fP de los ficheros de variables IPv6 y otra ejecución de las reglas.
 
 Antes de empezar a ejecutar las reglas descritas en los ficheros, se borraran todas, dejando una regla de tráfico permisivo. Si cuando se acaben de introducir las nuevas
-reglas, no hay ningun error, la regla de trafico permisivo es eliminada. Esta regla esta identificada con un comentario y suele poner algo asi como "regla_transaccional_fw_admin"
+reglas, no hay ningun error, la regla de trafico permisivo es eliminada. 
+Esta regla esta identificada con un comentario y suele poner algo asi como "regla_transaccional_fw_admin"
 para su fácil identificación en caso de error.
 
 La orden \fB--start\fP sirve como reload. Se diferencian fichero de reglas standar (vlan), ficheros de nat y el fichero core, debido a las características concretas de cada tipo de regla.
@@ -171,7 +178,10 @@ Los datos no son más que variables en formato \fBbash(1)\fP. Antes de ejecutar 
 
 Por lo cual, todas las variables que haya en el fichero de reglas deben estar reflejadas en los ficheros de datos.
 
-Un ejemplo de fichero de datos simple para IPv4 puede ser:
+Pueden añadirse datos a mano, pero se recomienda hacer uso de la herramienta \fBfw-admin\fP. Es necesario usar la opción \fB--check-datafiles\fP de vez en cuando
+para detectar posibles errores y corregirlos.
+
+Un ejemplo de formato de fichero de datos simple para IPv4 puede ser:
 
 .RS
 .TP
@@ -180,7 +190,9 @@ Un ejemplo de fichero de datos simple para IPv4 puede ser:
 
 IPT=/sbin/iptables ##ignorar##
 
-FICTICIA=255.255.255.255
+FICTICIA=255.255.255.255 ##ignorar##
+
+# comentario
 
 NIC1=eth0 ##ignorar##
 
@@ -189,6 +201,12 @@ NIC2=eth1 ##ignorar##
 NETWORK=192.168.0.0/24 ##ignorar##
 
 R2D2=150.214.4.150 #r2d2.cica.es
+
+C3PO=$FICTICIA #c3po.cica.es
+
+v192_168_2_2=192.168.2.2 #192.168.2.2
+
+v2a00_9ac0_c1ca__1=$FICTICIA #2a00:9ac0:c1ca::1
 .RE
 
 Y en IPv6:
@@ -201,6 +219,8 @@ IPT=/sbin/ip6tables ##ignorar##
 
 FICTICIA=ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ##ignorar##
 
+#comentario
+
 NIC1=eth0 ##ignorar##
 
 NIC2=eth1 ##ignorar##
@@ -208,14 +228,22 @@ NIC2=eth1 ##ignorar##
 NETWORK=$FICTICIA ##ignorar##
 
 R2D2=2a00:9ac0:c1ca:27::150 #r2d2.cica.es
+
+C3PO=2a00:9ac0:c1ca:27::170 #c3po.cica.es
+
+v192_168_2_2=$FICTICIA #192.168.2.2
+
+v2a00_9ac0_c1ca__1=2a00:9ac0:c1ca::1 #2a00:9ac0:c1ca::1
 .RE
 
 Recuerde que usando la etiqueta \fB##ignorar##\fP las variables no se recargaran automaticamente con la opcion \fB-r\fP.
 
+El formato de los ficheros de datos de sets es similar, pero no se exije el comentario a final de linea.
+
 .SH CONFIGURACIÓN
 El fichero principal de configuración es \fB/etc/fw-admin.conf\fP.
 
-aDurante todo el código de \fBfw-admin\fP se usan recurrentemente algunas variables, que pueden editarse y de las cuales algunas se detallan a continuación:
+Durante todo el código de \fBfw-admin\fP se usan recurrentemente algunas variables, que pueden editarse y de las cuales algunas se detallan a continuación:
 .TP
 \fB$DOMAIN\fP
 El dominio principal sobre el que estamos trabajando. Por ejemplo, en CICA se usará: \fBDOMAIN="cica.es"\fP.
@@ -304,6 +332,29 @@ Si en el fichero de configuración \fB/etc/fw-admin.conf\fP se configura la dire
 \fBIPT_CLUSTER="/usr/sbin/iptables-cluster"\fP binario principal del wrapper \fBiptables-cluster(8)\fP.
 .TP
 \fBIP6T_CLUSTER="/usr/sbin/ip6tables-cluster"\fP binario principal del wrapper \fBip6tables-cluster(8)\fP.
+.RE
+
+.SH DEBUGEANDO ERRORES
+Es posible debugear el funcionamiento completo de \fBfw-admin\fP usándo los métodos tradicionales de \fBBash(1)\fP.
+
+En este ejemplo se vuelva al fichero \fI/root/debug\fP el funcionamiento interno de la orden \fB-r\fP:
+.RS
+.TP
+root@debian:~# bash -x /usr/sbin/fw-admin -r 2>debug
+.RE
+
+Para debugear posibles fallos en los ficheros de reglas, se recomienda lo siguiente:
+.RS
+.TP
+Forzar la carga de las variables al inicio del fichero de reglas.
+
+.RS
+#!/bin/bash
+
+source /var/local/fw.d/data/iptables_vars_ipv4.bash
+
+source /var/local/fw.d/data/ipset_vars_ipv4.bash
+.RE
 .RE
 
 .SH AUTOR, BUGS, COMENTARIOS Y CÓDIGO
