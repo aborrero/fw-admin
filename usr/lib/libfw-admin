@@ -319,7 +319,7 @@ reload_variable_values()
 	for variable in $lista_variables
 	do
 		((cont++))
-		lib_progress_bar -d 2 -m 55 $cont $total
+		libprogressbar $cont $total
 		# Solo se mostraran luego los mensajes de error
 		agregar_variable $variable | grep E: >> $AUX_FILE || reload_variable_values_retval=1
 	done
@@ -856,7 +856,7 @@ checkear_sintaxis_iptables()
 	for linea in `cat $fichero | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$ | egrep -v ^[[:space:]]*$\|"IPSET" | grep " -A "`
 	do
 		((cont++))
-		lib_progress_bar -d 2 -m 55 $cont $lineas
+		libprogressbar $cont $lineas
 		#ipv4
 		ejec=`awk -F' ' '{$1=""}1' <<< ${linea/" -A "/" -C "}` # A $linea se le sustituye -A por -C y se quita el numero de linea, luego se evalua
 		eval "$ejec 2> /dev/null"
@@ -879,7 +879,7 @@ checkear_sintaxis_iptables()
 		for linea in `cat $fichero | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$ | egrep -v ^[[:space:]]*$\|"IPSET" | grep " -A "`
 		do
 			((cont++))
-			lib_progress_bar -d 2 -m 55 $cont $lineas #la variable lineas se reutilza de ipv4
+			libprogressbar $cont $lineas #la variable lineas se reutilza de ipv4
 			#ipv6
 			ejec=`awk -F' ' '{$1=""}1' <<< ${linea/" -A "/" -C "}` # A $linea se le sustituye -A por -C y se quita el numero de linea, luego se evalua
 			eval "$ejec 2> /dev/null"
@@ -920,7 +920,7 @@ checkear_fichero()
 		for palabra in `grep -v ^[[:space:]]*# $fichero | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u`
 		do
 	                ((cont++))
-        	        lib_progress_bar -d 2 -m 55 $cont $lineas
+        	        libprogressbar $cont $lineas
 			{ [[ "$palabra" =~ "IPT" ]] || [[ "$palabra" =~ "IPSET" ]] || [[ "$palabra" =~ "ip"[6]?"tables" ]] ; } && continue
 			local busqueda=`echo $palabra | tr -d '$'`
 			{ grep ^$busqueda= $VARS_IPV4 > /dev/null && grep ^$busqueda= $VARS_IPV6 > /dev/null ; } \
@@ -987,7 +987,7 @@ start()
 	&& for linea in `grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$`
 	do
 		((cont++))
-		[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
+		[ -z "$flag_no_check" ] && libprogressbar $cont $lineas
 		eval "$linea 2> /dev/null" \
 			|| { echo "" ; message "E: Al iniciar las reglas en IPv4. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; do_exit 1 ; } #SALIDA
 	done || { message "E: Fallo general iniciando reglas en protocolo IPv4." ; flush_vlan $vlan ; do_exit 1 ; } # PUNTO DE SALIDA
@@ -1007,7 +1007,7 @@ start()
 		&& for linea in ` grep -v ^[[:space:]]*# $CONF_DIR/$vlan`
 		do
 			((cont++))
-			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
+			[ -z "$flag_no_check" ] && libprogressbar $cont $lineas
 			eval "$linea 2> /dev/null" \
 				|| { echo "" ; message "E: Al iniciar las reglas en IPv6. Regla num (no linea) [$cont]. Dejando reglas permisivas..." ; flush_vlan $vlan ; do_exit 1 ; } #SALIDA
 		done || { message "E: Fallo general iniciando reglas en protocolo IPv6." ; flush_vlan $vlan ; do_exit 1 ; } # PUNTO DE SALIDA
@@ -1244,7 +1244,7 @@ ipset_reload()
 		for linea in `grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$` #recorriendo fichero linea a linea
 		do
 			((cont++))
-			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
+			[ -z "$flag_no_check" ] && libprogressbar $cont $lineas
 			eval "${linea} 2>/dev/null" || { message "E: Fallo al recargar sets en IPv4. Regla num (no linea) [$cont]." ; do_exit 1 ; }
 		done
 		IFS=$oldIFS
@@ -1261,7 +1261,7 @@ ipset_reload()
 		for linea in `grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$` #recorriendo fichero linea a linea
 		do
 			((cont++))
-			[ -z "$flag_no_check" ] && lib_progress_bar -d 2 -m 55 $cont $lineas
+			[ -z "$flag_no_check" ] && libprogressbar $cont $lineas
 			eval "${linea} 2>/dev/null" || { message "E: Fallo al recargar sets en IPv6. Regla num (no linea) [$cont]." ; do_exit 1 ; }
 		done
 		IFS=$oldIFS
@@ -1388,79 +1388,60 @@ check_datafiles()
 }
 
 
-# Funcion para la barra de progreso
+# Funcion para la barra de progreso, modificada por mi de la original:
 # http://www.brianhare.com/wordpress/2011/03/02/bash-progress-bar/
-	#lib_progress_bar $i 100
-	#lib_progress_bar -d 2 -m 55 $i 1241
-lib_progress_bar() {
+# libprogressbar $i 100
+libprogressbar()
+{
+        local current=0
+        local max=100
+        local completed_char="#"
+        local uncompleted_char="."
+        local decimal=2
+        local prefix=" ["
+        local suffix="]"
+        local percent_sign="%"
+        local max_width=55
+        local complete remain subtraction width atleast percent chars
+        local padding=3
 
-	local current=0
-	local max=100
-	local completed_char="#"
-	local uncompleted_char="."
-	local decimal=1
-	local prefix=" ["
-	local suffix="]"
-	local percent_sign="%"
-	local max_width=$(tput cols)
-	local complete remain subtraction width atleast percent chars
-	local padding=3
+        current=${1:-$current}
+        max=${2:-$max}
 
-	local OPTIND
+        (( padding = padding + decimal + 1 ))
 
-	while getopts c:u:d:p:s:%:m:hV flag; do
-		case "$flag" in
-			c) completed_char="$OPTARG";;
-			u) uncompleted_char="$OPTARG";;
-			d) decimal="$OPTARG";;
-			p) prefix="$OPTARG";;
-			s) suffix="$OPTARG";;
-			%) percent_sign="$OPTARG";;
-			m) max_width="$OPTARG";;
+        let subtraction=${#completed_char}+${#prefix}+${#suffix}+padding+${#percent_sign}
+        let width=max_width-subtraction
 
-			(h) lib_help;;
-			(V) echo "$lib_script_name: version $Revision$ ($Date$)"; exit 0;;
-			(*) lib_usage;;
-		esac
-	done
-	shift $((OPTIND-1))
-
-	current=${1:-$current}
-	max=${2:-$max}
-
-	if (( decimal > 0 )); then
-		(( padding = padding + decimal + 1 ))
-	fi
-
-	let subtraction=${#completed_char}+${#prefix}+${#suffix}+padding+${#percent_sign}
-	let width=max_width-subtraction
-
-	if (( width < 5 )); then
+	if (( width < 5 ));
+	then
 		(( atleast = 5 + subtraction ))
-		echo >&2 "the max_width of ($max_width) is too small, must be atleast $atleast"
+		echo >&2 "libprogressbar: the max_width of ($max_width) is too small, must be atleast $atleast"
+		return 1
+        fi
+
+	if (( current > max ))
+	then
+		echo >&2 "libprogressbar: current value must be smaller than max. value"
 		return 1
 	fi
 
-    if (( current > max ));then
-        echo >&2 "current value must be smaller than max. value"
-        return 1
-    fi
+	percent=$(awk -v "f=%${padding}.${decimal}f" -v "c=$current" -v "m=$max" 'BEGIN{printf('f', c / m * 100)}')
+	(( chars = current * width / max))
 
-    percent=$(awk -v "f=%${padding}.${decimal}f" -v "c=$current" -v "m=$max" 'BEGIN{printf('f', c / m * 100)}')
+	# sprintf n zeros into the var named as the arg to -v
+	printf -v complete '%0*.*d' '' "$chars" ''
+	printf -v remain '%0*.*d' '' "$((width - chars))" ''
 
-    (( chars = current * width / max))
+	# replace the zeros with the desired char
+	complete=${complete//0/"$completed_char"}
+	remain=${remain//0/"$uncompleted_char"}
 
-    # sprintf n zeros into the var named as the arg to -v
-    printf -v complete '%0*.*d' '' "$chars" ''
-    printf -v remain '%0*.*d' '' "$((width - chars))" ''
+	printf '%s%s%s%s %s%s\r' "$prefix" "$complete" "$remain" "$suffix" "$percent" "$percent_sign"
 
-    # replace the zeros with the desired char
-    complete=${complete//0/"$completed_char"}
-    remain=${remain//0/"$uncompleted_char"}
-
-    printf '%s%s%s%s %s%s\r' "$prefix" "$complete" "$remain" "$suffix" "$percent" "$percent_sign"
-
-	if (( current >= max )); then
+	if (( current >= max ))
+	then
 		echo ""
 	fi
+	return 0
 }
