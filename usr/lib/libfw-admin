@@ -62,14 +62,14 @@ message()
 # sale del programa borrando el lockfile y el fichero auxiliar
 do_exit()
 {
-	if [ -r $LOCK_FILE ]
+	if [ -r "$LOCK_FILE" ]
 	then
 		if [ "`cat $LOCK_FILE`" == "${$}@${THIS}" ] 2> /dev/null # Borramos el lock file solo si es nuestro
 		then
 			rm -f $LOCK_FILE 2> /dev/null
 		fi
 	fi
-	if [ -e $AUX_FILE ]
+	if [ -e "$AUX_FILE" ]
 	then
 		rm -f $AUX_FILE 2> /dev/null
 	fi
@@ -228,7 +228,7 @@ get_variable_name()
 	if [ -z "$1" ]
 	then
 		message "E: Calculating the name of the variable: empty argument to the function get_variable_name()."
-		do_exit 1
+		return 1
 	fi
 
 	# Check if the data is IPv4
@@ -260,9 +260,7 @@ get_variable_name()
 		return 0
 	fi
 
-	# If this point is reached, error
-	message "E: Unable to obtain the name of the variable of data: [$1]."
-	do_exit 1
+	return 1
 }
 
 # ip get_ip_from_fqdn(string tipo_ip, string fqdn, int recursivityLevel)
@@ -365,6 +363,8 @@ agregar_variable()
 		#
 
 		nombre_variable=$( get_variable_name $dato_a_agregar )
+		[ $? -ne 0 ] && { message "E: Unable to determine variable name." ; do_exit 1 ; }
+
 		echo "DEBUG: $nombre_variable=$dato_a_agregar #$dato_a_agregar" > /dev/null
 
 		if grep ^"${nombre_variable}=" $VARS_IPV4 > /dev/null 2> /dev/null && grep ^"${nombre_variable}=" $VARS_IPV6 > /dev/null 2> /dev/null
@@ -631,12 +631,15 @@ buscar_en_fichero()
 
 	if [ ! -z "$dato" ] && [ -e "$fichero" ]
 	then
-		grep "$dato" $VARS_IPV4 | while read linea # Se recorren cada una de las lineas que pudiera devolver el grep
+		egrep -i ="$dato"[[:space:]]\|"#""$dato"\|"$dato"[[:space:]]*"="\|"`tr '.' '_' <<< $dato | tr '-' '_'`"[[:space:]]*"=" $VARS_IPV4 2>/dev/null \
+		| while read linea
+		# Se recorren cada una de las lineas que pudiera devolver el grep
 		do
 			# Si cambias este message debes cambiar la funcion obtener_informacion()
 			echo -e "Dato relacionado en ${C_BOLD}$VARS_IPV4${C_NORMAL} de la forma: ${C_BOLD} $linea ${C_NORMAL}" >> $2
 		done
-		grep "$dato" $VARS_IPV6 | while read linea # Se recorren cada una de las lineas que pudiera devolver el grep
+		egrep -i ="$dato"[[:space:]]\|"#""$dato"\|"$dato"[[:space:]]*"="\|"`tr '.' '_' <<< $dato | tr '-' '_'`"[[:space:]]*"=" $VARS_IPV6 2>/dev/null \
+		| while read linea
 		do
 			# Si cambias este mensaje debes cambiar la funcion obtener_informacion()
 			echo -e "Dato relacionado en ${C_BOLD}$VARS_IPV6${C_NORMAL} de la forma: ${C_BOLD} $linea ${C_NORMAL}" >> $2
@@ -667,11 +670,15 @@ obtener_informacion()
 	buscar_en_fichero $dato_consulta $AUX_FILE
 
 	nombre_variable=$( get_variable_name $dato_consulta )
+	[ $? -ne 0 ] && { message "E: Unable to determine variable name." ; do_exit 1 ; }
 
-	if [ ! -z $nombre_variable ]
+	if [ ! -z "$nombre_variable" ]
 	then
 		# 2º Busqueda es por el posible nombre variable que pudiera tener el dato introducido
 		buscar_en_fichero $nombre_variable $AUX_FILE
+	else
+		message "E: Unable to continue."
+		do_exit 1
 	fi
 
 	# 3º busqueda se realiza si ya se ha encontrado algun dato, por un nombre de variable o de aclaracion (tras #) similar
@@ -725,14 +732,38 @@ obtener_informacion()
 		done
 	fi
 
+	local flag_set_added=0
 	# Realizar la consulta en IPset: dato en crudo
 	local lista_sets=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^[[:space:]]*$`
 	for un_set in $lista_sets
 	do
-		$IPSET -T $un_set $dato_consulta > /dev/null 2> /dev/null
-		if [ $? -eq 0 ]
+		if $IPSET -T $un_set $dato_consulta > /dev/null 2> /dev/null
 		then
 			lista_de_set_con_coincidencias="$lista_de_set_con_coincidencias $un_set"
+			flag_set_added=1
+		fi
+		if ! $flag_set_added
+		then
+	                # Buscando por aclaracion (tras #)
+			for dato in `cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq`
+			do
+				if $IPSET -T $un_set $dato
+				then
+					lista_de_set_con_coincidencias="$lista_de_set_con_coincidencias $un_set"
+					flag_set_added=1
+				fi
+			done
+		fi
+		if ! $flag_set_added
+		then
+	                # Buscando por aclaracion (tras #)
+			for dato in `cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq`
+			do
+				if $IPSET -T $un_set $dato
+				then
+					lista_de_set_con_coincidencias="$lista_de_set_con_coincidencias $un_set"
+				fi
+			done
 		fi
 	done
 
@@ -741,7 +772,7 @@ obtener_informacion()
 	then
 		# Arreglar para mostrar por pantalla la lista de sets
 		lista_de_set_con_coincidencias=`echo $lista_de_set_con_coincidencias | tr ' ' '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq | tr '\n' ' '`
-		echo -e "I: El dato ${C_BOLD}$dato_consulta${C_NORMAL} esta reflejado en el/los set: [${lista_de_set_con_coincidencias}]" >> $AUX_FILE
+		echo -e "I: El dato ${C_BOLD}$dato_consulta${C_NORMAL} esta reflejado en el/los set: ${lista_de_set_con_coincidencias}" >> $AUX_FILE
 		flag_datos_mostrados=1
 	fi
 
