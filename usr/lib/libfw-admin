@@ -322,8 +322,13 @@ reload_variable_values()
 		agregar_variable $variable | grep E: >> $AUX_FILE || reload_variable_values_retval=1
 	done
 	IFS=$oldIFS
-	message "I: Resultados:"
-	cat $AUX_FILE
+
+	local checklist=`cat $AUX_FILE`
+	if [ ! -z "$checklist" ]
+	then
+		message "I: Check:"
+		echo -e "$checklist"
+	fi
 	return $reload_variable_values_retval
 }
 
@@ -556,67 +561,76 @@ estadisticas()
 	local retval=0
 
 	# Info iptables
-	echo "### Información sobre iptables"
-	local reglas_ipv4=`$IPT_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l`
-	local reglas_ipv6=`$IP6T_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l`
-	echo " Reglas IPv4: $reglas_ipv4"
-	echo " Reglas IPv6: $reglas_ipv6"
-	echo " Total de reglas: `expr $reglas_ipv4 + $reglas_ipv6`"
-	local reglas_no_usadas_ipv4=`$IPT -L -n -v 2>/dev/null | egrep -v "Chain"\|"pkts bytes" | grep -v ^[[:space:]]*$ | grep ^[[:space:]]*0 | wc -l`
-	local reglas_no_usadas_ipv6=`$IP6T -L -n -v 2>/dev/null | egrep -v "Chain"\|"pkts bytes" | grep -v ^[[:space:]]*$ | grep ^[[:space:]]*0 | wc -l`
-	echo " Reglas no usadas en IPv4: $reglas_no_usadas_ipv4"
-	echo " Reglas no usadas en IPv6: $reglas_no_usadas_ipv6"
-	echo " Hash de las reglas del kernel: `( { $IPT_SAVE 2>/dev/null ; $IP6T_SAVE 2>/dev/null; } | grep ^"-" | md5sum | awk -F' ' '{print $1}' ) || echo error! `"
-	echo " Uso y politica en IPv4:"
+	echo -e "### About iptables  \tIPv4\tIPv6\ttotal"
+	local num_of_ipv4_rules=`$IPT_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l`
+	local num_of_ipv6_rules=`$IP6T_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l`
+	local num_of_ipv4_rules_nomatch=`$IPT_SAVE -c 2>/dev/null | grep ^"\[0:0\]" | wc -l`
+	local num_of_ipv6_rules_nomatch=`$IP6T_SAVE -c 2>/dev/null | grep ^"\[0:0\]" | wc -l`
+
+	[[ $num_of_ipv4_rules =~ ^[0-9]+$ ]] || num_of_ipv4_rules=0
+	[[ $num_of_ipv6_rules =~ ^[0-9]+$ ]] || num_of_ipv6_rules=0
+	[[ $num_of_ipv4_rules_nomatch =~ ^[0-9]+$ ]] || num_of_ipv4_rules_nomatch=0
+	[[ $num_of_ipv6_rules_nomatch =~ ^[0-9]+$ ]] || num_of_ipv6_rules_nomatch=0
+
+	echo -e " Rules with match: \t $(( num_of_ipv4_rules - num_of_ipv4_rules_nomatch)) \t $(( num_of_ipv6_rules - num_of_ipv6_rules_nomatch )) \t $(( num_of_ipv4_rules + num_of_ipv6_rules - num_of_ipv4_rules_nomatch - num_of_ipv6_rules_nomatch))"
+	echo -e " Rules not in use: \t $num_of_ipv4_rules_nomatch \t $num_of_ipv6_rules_nomatch \t $(( num_of_ipv4_rules_nomatch + num_of_ipv6_rules_nomatch))"
+	echo -e " Amount of rules: \t $num_of_ipv4_rules \t $num_of_ipv6_rules \t $(( num_of_ipv4_rules + num_of_ipv6_rules ))"
+	echo " Use and default policy IPv4:"
 	$IPT -n -L -v 2>/dev/null | grep policy | while read linea
 	do
 		echo -e "\t$linea"
 	done
-	echo " Uso y politica en IPv6:"
+	echo " Use and default policy IPv6:"
 	$IP6T -n -L -v 2>/dev/null | grep policy | while read linea
 	do
 		echo -e "\t$linea"
 	done
+	echo " Hash of the ruleset: `( { $IPT_SAVE 2>/dev/null ; $IP6T_SAVE 2>/dev/null; } | grep ^"-" | md5sum | awk -F' ' '{print $1}' ) || echo error! `"
+
 	echo ""
 
 	# Info ipset
-	echo "### Información sobre ipset"
-	local total_sets="`$IPSET -L -n 2>/dev/null | wc -l`"
-	echo " Sets en el kernel: $total_sets"
-	local sets_usados="`$IPSET list 2>/dev/null | grep \"References: \" | grep -v \"References: 0\" | wc -l`"
-	echo " Sets usados en el kernel: $sets_usados"
-	local sets_no_usados=`$IPSET list 2>/dev/null | grep "References: 0" | wc -l`
-	echo " Sets no usados en el kernel: $sets_no_usados"
+	echo -e "### About ipset \tIPv4\tIPv6\ttotal"
+	local num_of_ipset_ipv4=`$IPSET list 2>/dev/null | grep "family inet " | wc -l`
+	local num_of_ipset_ipv6=`$IPSET list 2>/dev/null | grep "family inet6" | wc -l`
+
+	[[ $num_of_ipset_ipv4 =~ ^[0-9]+$ ]] || num_of_ipset_ipv4=0
+	[[ $num_of_ipset_ipv6 =~ ^[0-9]+$ ]] || num_of_ipset_ipv6=0
+
+	local num_of_ipset_ipv4_nomatch=`$IPSET list 2>/dev/null | grep "family inet " | grep "References: " | grep -v "References: 0" | wc -l`
+	local num_of_ipset_ipv6_nomatch=`$IPSET list 2>/dev/null | grep "family inet6" | grep "References: " | grep -v "References: 0" | wc -l`
+
+	[[ $num_of_ipset_ipv4_nomatch =~ ^[0-9]+$ ]] || num_of_ipset_ipv4=0
+	[[ $num_of_ipset_ipv6_nomatch =~ ^[0-9]+$ ]] || num_of_ipset_ipv6=0
+
+	echo -e " Sets used by kernel: \t $(( num_of_ipset_ipv4 - num_of_ipset_ipv4_nomatch )) \t $(( num_of_ipset_ipv6 - num_of_ipset_ipv6_nomatch)) \t $(( num_of_ipset_ipv4 + num_of_ipset_ipv6 - num_of_ipset_ipv6_nomatch - num_of_ipset_ipv4_notmach ))"
+	echo -e " Sets not used: \t $(( num_of_ipset_ipv4_nomatch )) \t $(( num_of_ipset_ipv6_nomatch )) \t $(( num_of_ipset_ipv4_nomatch + num_of_ipset_ipv6_nomatch ))"
+	echo -e " Sets in kernel: \t $num_of_ipset_ipv4 \t $num_of_ipset_ipv6 \t $(( num_of_ipset_ipv4 + num_of_ipset_ipv6 ))"
+
 	echo ""
 
-	# Info conntrackd
-	echo "### Estadisticas de Conntrackd"
-	$CONNTRACKD -s 2> /dev/null | while read linea
-	do
-		echo -n " " ; echo "$linea"
-	done || message "E: Al consultar las estadisticas de conntrackd."
 
 	# Info variables
-	echo "### Otras estaditisticas"
+	echo -e "### Other data\t\t\tIPv4\tIPv6"
 	local vars_ipv4=`grep \= $VARS_IPV4 2>/dev/null | wc -l`
 	local vars_ipv6=`grep \= $VARS_IPV6 2>/dev/null | wc -l`
-	echo " Variables IPv4 declaradas: $vars_ipv4"
-	echo " Variables IPv6 declaradas: $vars_ipv6"
 	local vars_ipset_ipv4=`grep \= $VARS_IPSETV4 2>/dev/null | wc -l`
 	local vars_ipset_ipv6=`grep \= $VARS_IPSETV6 2>/dev/null | wc -l`
-	echo " Variables IPSET IPv4 declaradas: $vars_ipset_ipv4"
-	echo " Variables IPSET IPv6 declaradas: $vars_ipset_ipv6"
+	echo -e " Declared iptables variables:\t $vars_ipv4 \t $vars_ipv6"
+	echo -e " Declared ipset variables:\t $vars_ipset_ipv4 \t $vars_ipset_ipv6"
+	echo ""
+
+	[[ $MINIMAL_AMOUNT_OF_RULES =~ ^[0-9]+$ ]] || MINIMAL_AMOUNT_OF_RULES=40
+	if [ $num_of_ipv4_rules -gt $MINIMAL_AMOUNT_OF_RULES ] || [ $num_of_ipv6_rules -gt $MINIMAL_AMOUNT_OF_RULES ]
+	then
+		echo " The firewall appears to be up and running (More than $MINIMAL_AMOUNT_OF_RULES rules in kernel)."
+	fi
+
 	if [ $vars_ipset_ipv4 -ne $vars_ipset_ipv6 ] || [ $vars_ipv4 -ne $vars_ipv6 ]
 	then
 		message " W: Please run \`fw-admin --check-datafiles' to know about datafile corruptions."
 	fi
 
-
-	[[ $MINIMAL_AMOUNT_OF_RULES =~ ^[0-9]+$ ]] || MINIMAL_AMOUNT_OF_RULES=40
-	if [ $reglas_ipv4 -gt $MINIMAL_AMOUNT_OF_RULES ] || [ $reglas_ipv6 -gt $MINIMAL_AMOUNT_OF_RULES ]
-	then
-		echo " El firewall parece activo (Más de $MINIMAL_AMOUNT_OF_RULES reglas)."
-	fi
 	return $retval
 
 }
@@ -1428,7 +1442,7 @@ libprogressbar()
         local max=100
         local completed_char="#"
         local uncompleted_char="."
-        local decimal=2
+        local decimal=1
         local prefix=" ["
         local suffix="]"
         local percent_sign="%"
