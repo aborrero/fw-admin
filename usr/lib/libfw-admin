@@ -1277,43 +1277,83 @@ ipset_reload()
 	# Checkear el fichero de IPSET
 	checkear_fichero $IPSET_CONF || return $?
 
-	message "I: Recargando ahora informacion de sets en IPv4."
+
+	# Now IPv4
+	message "I: Reloading now IPset IPv4 data."
 	source $VARS_IPV4 && source $VARS_IPSETV4 \
-		|| { message "E: No se cargan los ficheros de datos en IPv4 de IPSET." ; ipset_reload_retval=1 ; }
+		|| { message "E: Unable to load IPv4 datafiles." ; ipset_reload_retval=1 ; }
 	if [ $ipset_reload_retval -eq 0 ]
 	then
-		local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ | wc -l` #total de lineas ejecutables
 		local cont=0
-		oldIFS=$IFS
-		IFS=$'\n'
+		# evaluating in we need calcules related to the progress bar
+		if [ "$USE_PROGRESS_BAR" == "yes" ]
+		then
+			local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ | wc -l` #total de lineas ejecutables
+		fi
+
+		oldIFS=$IFS ; IFS=$'\n' # Controls over IFS
 		for linea in `grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$` #recorriendo fichero linea a linea
 		do
 			((cont++))
-			[ -z "$flag_no_check" ] && libprogressbar $cont $lineas
-			eval "${linea} 2>/dev/null" || { message "E: Fallo al recargar sets en IPv4. Regla num (no linea) [$cont]." ; do_exit 1 ; }
+			# evaluating in we need calcules related to the progress bar
+			[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $lineas
+
+			# Evaluate the line of the file.
+			error_msg=$( eval "${linea} 2>&1" 2>&1 )
+			if [ $? -ne 0 ]
+			then
+				message "E: Error found reloading sets in IPv4. Rule num (not line) [$cont]."
+				echo "Details:"
+				echo " ${linea}"
+				for line in $error_msg
+				do
+					echo " $line"
+				done
+				do_exit 1
+			fi
 		done
-		IFS=$oldIFS
+		IFS=$oldIFS # Controls over IFS
 	fi
-	message "I: Recargando ahora informacion de sets en IPv6."
+
+	# Now IPv6
+	message "I: Reloading now IPset IPv6 data."
 	source $VARS_IPV6 && source $VARS_IPSETV6 \
-		|| { message "E: No se cargan los ficheros de datos en IPv6 de IPSET." ; ipset_reload_retval=1 ; }
+		|| { message "E: Unable to load IPv6 datafiles." ; ipset_reload_retval=1 ; }
 	if [ $ipset_reload_retval -eq 0 ]
 	then
-		local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ | wc -l` #total de lineas ejecutables
 		local cont=0
-		oldIFS=$IFS
-		IFS=$'\n'
+		# evaluating in we need calcules related to the progress bar
+		if [ "$USE_PROGRESS_BAR" == "yes" ]
+		then
+			local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ | wc -l` #total de lineas ejecutables
+		fi
+
+		oldIFS=$IFS ; IFS=$'\n' # Controls over IFS
 		for linea in `grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$` #recorriendo fichero linea a linea
 		do
 			((cont++))
-			[ -z "$flag_no_check" ] && libprogressbar $cont $lineas
-			eval "${linea} 2>/dev/null" || { message "E: Fallo al recargar sets en IPv6. Regla num (no linea) [$cont]." ; do_exit 1 ; }
+			# evaluating in we need calcules related to the progress bar
+			[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $lineas
+
+			# Evaluate the line of the file.
+			error_msg=$( eval "${linea} 2>&1" 2>&1 )
+			if [ $? -ne 0 ]
+			then
+				message "E: Error found reloading sets in IPv6. Rule num (not line) [$cont]."
+				echo "Details:"
+				echo " ${linea}"
+				for line in $error_msg
+				do
+					echo " $line"
+				done
+				do_exit 1
+			fi
 		done
-		IFS=$oldIFS
+		IFS=$oldIFS # Controls over IFS
 	fi
 
         local tiempo_final="`date +%s`"
-        message "I: Tiempo total de recarga de sets: `expr $tiempo_final - $tiempo_inicio` segundos."
+        message "I: Operation time: `expr $tiempo_final - $tiempo_inicio` seconds."
 
 	return $ipset_reload_retval
 }
@@ -1453,12 +1493,19 @@ libprogressbar()
         current=${1:-$current}
         max=${2:-$max}
 
+	# Delete the bar now
+	if [ $max -eq $current ]
+	then
+		printf '%s\r' "                                                       "
+		return 0
+	fi
+
         (( padding = padding + decimal + 1 ))
 
         let subtraction=${#completed_char}+${#prefix}+${#suffix}+padding+${#percent_sign}
         let width=max_width-subtraction
 
-	if (( width < 5 ));
+	if (( width < 5 ))
 	then
 		(( atleast = 5 + subtraction ))
 		echo >&2 "libprogressbar: the max_width of ($max_width) is too small, must be atleast $atleast"
