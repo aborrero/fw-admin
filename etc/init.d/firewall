@@ -67,7 +67,7 @@ check_required_files()
 }
 is_running()
 {
-	$MAIN_BIN -s | grep -i "[fw up]" > /dev/null 2> /dev/null
+	$MAIN_BIN -s | grep -i "\[fw up\]" > /dev/null 2> /dev/null
 	if [ $? -ne 0 ]
 	then
 		return 3 #parado
