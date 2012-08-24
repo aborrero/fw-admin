@@ -47,7 +47,7 @@ Esto permite escribir una única regla y que valga para ambos protocolos (doble 
 .TP 
 \fB-s\fP
 Muestra estadisticas del firewall. Al final de la lista de estadisticas, se calcula si el firewall está o no en funcionamiento según el número de reglas en el Kernel.
-Se mostrará un mensaje de tipo "El firewall está activo.". Este mensaje es usado por otros scripts (y quizás por \fBPacemaker(8)\fP) para calcular si el firewall esta
+Se mostrará un mensaje de tipo "[fw up]" o "[fw down]". Este mensaje es usado por otros scripts (y quizás por \fBPacemaker(8)\fP) para calcular si el firewall esta
 en funcionamiento localmente.
 Puede editarse el numero de reglas necesarias para considerar el firewall corriendo en el fichero \fB/etc/fw-admin.conf\fP en la variable \fB$MINIMAL_AMOUNT_OF_RULES\fP.
 .TP 

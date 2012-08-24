@@ -623,7 +623,9 @@ estadisticas()
 	[[ $MINIMAL_AMOUNT_OF_RULES =~ ^[0-9]+$ ]] || MINIMAL_AMOUNT_OF_RULES=40
 	if [ $num_of_ipv4_rules -gt $MINIMAL_AMOUNT_OF_RULES ] || [ $num_of_ipv6_rules -gt $MINIMAL_AMOUNT_OF_RULES ]
 	then
-		echo " The firewall appears to be up and running (More than $MINIMAL_AMOUNT_OF_RULES rules in kernel)."
+		echo " The firewall appears to be up and running (More than $MINIMAL_AMOUNT_OF_RULES rules in kernel). [fw up]"
+	else
+		echo " The firewall appears to be down (Less than $MINIMAL_AMOUNT_OF_RULES rules in kernel). [fw down]"
 	fi
 
 	if [ $vars_ipset_ipv4 -ne $vars_ipset_ipv6 ] || [ $vars_ipv4 -ne $vars_ipv6 ]
