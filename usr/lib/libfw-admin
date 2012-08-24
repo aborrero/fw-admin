@@ -1033,9 +1033,9 @@ check_rulefile()
 			local search=`echo $word | tr -d '$'`
 
 			# the search. Must be in both datafiles of the same type to consider the variable valid.
-			if ! { grep ^$search= $VARS_IPV4 > /dev/null && grep ^$search= $VARS_IPV6 > /dev/null ; }
+			if ! { grep ^[[:space:]]*"$search"=.*$ $VARS_IPV4 > /dev/null && grep ^[[:space:]]*"$search"=.*$ $VARS_IPV6 > /dev/null ; }
 			then
-				if ! { grep ^$search= $VARS_IPSETV4 > /dev/null && grep ^$search= $VARS_IPSETV6 > /dev/null ; }
+				if ! { grep ^[[:space:]]*"$search"=.*$ $VARS_IPSETV4 > /dev/null && grep ^[[:space:]]*"$search"=.*$ $VARS_IPSETV6 > /dev/null ; }
 				then
 					message "W: Check variable ${C_BOLD}${search}${C_NORMAL}" >> $AUX_FILE
 					flag_wrong_variables=1
@@ -1515,14 +1515,14 @@ check_datafile_format()
 
 			# invalid lines
 			local invalid_lines=`\
-				cat $1 | nl -ba | egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$ \
-				| grep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*`
+				cat $1 | nl -ba \
+				| egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$\|^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*`
 		else
 			# format 1 default, with trailing comment
 			# invalid lines
 			local invalid_lines=`\
-				cat $1 | nl -ba | egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$ \
-				| grep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*[[:space:]]+#.*$`
+				cat $1 | nl -ba \
+				| egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$\|^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*[[:space:]]+#.*$`
 		fi
 		if [ ! -z "$invalid_lines" ]
 		then
