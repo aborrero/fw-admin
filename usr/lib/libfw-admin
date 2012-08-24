@@ -307,17 +307,29 @@ reload_variable_values()
 	local reload_variable_values_retval=0
 	echo -n "" > $AUX_FILE
 
-	message "I: No se recargan variables que contengan \"##ignorar##\"."
-	local lista_variables=`{ cat $VARS_IPV4 ; cat $VARS_IPV6 ; } | egrep -v "##ignorar##"\|"@"\|^[[:space:]]*# \
+	message "I: Variables containing the tag \"##ignore##\" are ignored."
+
+	local lista_variables=`{ cat $VARS_IPV4 ; cat $VARS_IPV6 ; } | egrep -v "##ignorar##"\|"##ignore##"\|"@"\|^[[:space:]]*# \
 		| awk -F'#' '{print $2}' | sort -u | uniq | grep -v ^[[:space:]]*$`
-	oldIFS=$IFS
-        IFS=$' \t\n'
-	local total=`wc -w <<< $lista_variables`
-	local cont=0
+
+	oldIFS=$IFS ; IFS=$' \t\n' #control over IFS
+
+
+	# Evaluating if calcules regarding progress bar are neccesary
+	if [ "$USE_PROGRESS_BAR" == "yes" ]
+	then
+		local total=`wc -w <<< $lista_variables`
+		local cont=0
+	fi
+
 	for variable in $lista_variables
 	do
-		((cont++))
-		libprogressbar $cont $total
+		# Evaluating if calcules regarding progress bar are neccesary
+		if [ "$USE_PROGRESS_BAR" == "yes" ]
+		then
+			((cont++))
+			libprogressbar $cont $total
+		fi
 		# Solo se mostraran luego los mensajes de error
 		agregar_variable $variable | grep E: >> $AUX_FILE || reload_variable_values_retval=1
 	done
@@ -337,7 +349,7 @@ reload_variable_values()
 agregar_variable()
 {
 	# trap de cancelacion
-	trap " echo "" && message \"W: Interrumpiendo...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	local agregar_variable_retval=0
 	local dato_a_agregar=$1
@@ -348,7 +360,7 @@ agregar_variable()
 	if [ -z $dato_a_agregar ]
 	then
 		# No hay parametro de entrada, usar menu
-		read -p "-> Definir IPv4, IPv6 o FQDN: " dato_a_agregar
+		read -p "-> Define IPv4, IPv6 or FQDN: " dato_a_agregar
 	fi
 
 	#
@@ -872,15 +884,78 @@ obtener_informacion()
 	return $obtener_informacion_retval
 }
 
-# Recibe un fichero
-checkear_sintaxis_iptables()
+
+# boolean check_iptables_syntax_loop(string file_being_checked, int protocol)
+# Loop over a file checking iptables syntax. Protocol: 4|6
+check_iptables_syntax_loop()
 {
-	local checkear_sintaxis_iptables_retval=0
+
+	local check_iptables_syntax_loop_retval=0
+	echo -n "" > $AUX_FILE
+
+	# Validations
+	[ ! -r "$1" ] && { message "E: Function check_iptables_syntax_loop() called with an unreadable filename as argument." ; return 1 ;}
+	[ "$2" != "4" ] && [ "$2" != "6" ] && { message "E: Function check_iptables_syntax_loop() called with bad protocol as argument." ; return 1 ; }
+
+	# Using a more legible name
+	local file_being_checked=$1
+	local protocol=$2
+
+	# Evaluating if we need calcules regarding progress bar
+	if [ "$USE_PROGRESS_BAR" == "yes" ]
+	then
+		local amount_of_lines=`grep -v ^[[:space:]]*# $file_being_checked | egrep "IPT -A "\|"IPT -I " | grep -v ^[[:space:]]*$ | wc -l`
+		local cont=0
+	fi
+
+	for line in `cat $file_being_checked | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$\|"IPSET" | egrep "IPT -A "\|"IPT -I "`
+	do
+		# Evaluating if we need calcules regarding progress bar
+		if [ "$USE_PROGRESS_BAR" == "yes" ]
+		then
+			((cont++))
+			libprogressbar $cont $amount_of_lines
+		fi
+
+		# Preparing the line to be evaluated.
+
+		# 1º Delete the number of the line
+		local ejec=`awk -F' ' '{$1=""}1' <<< ${line}`
+		# 2º Change -I to -C
+		ejec=${ejec/"IPT -I "/"IPT -C "}
+		# 3º Change -A to -C
+		ejec=${ejec/"IPT -A "/"IPT -C "}
+
+		# Evaluating now
+		error_msg=$( eval "${ejec} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
+		if [ $? -eq 2 ]
+		then
+			message "W: The rule in line \"`awk -F' ' '{print $1}' <<< $line`\" failed the check in IPv${protocol}." >> $AUX_FILE
+			echo "Details:" >> $AUX_FILE
+			awk -F' ' '{$1=""}1' <<< ${line} >> $AUX_FILE
+			# add a space to improve reading by the admin
+			for error_line in $error_msg
+			do
+				echo " $error_line" >> $AUX_FILE
+			done
+			check_iptables_syntax_loop_retval=1
+		fi
+	done
+
+	grep -v ^[[:space:]]*$ $AUX_FILE
+
+	return $check_iptables_syntax_loop_retval
+}
+
+# Recibe un fichero
+check_iptables_syntax()
+{
+	local check_iptables_syntax_retval=0
 	local fichero=$1
 
 	if [[ "$fichero" =~ ^"core"$ ]] || [[ "$fichero" =~ /"core"$ ]] || [[ "$fichero" =~ ^"sets"$ ]] || [[ "$fichero" =~ /"sets"$ ]]
 	then
-		# no se hace checkeo de sintaxis
+		# no se hace checkeo de syntaxis
 		return 0
 	fi
 
@@ -889,57 +964,31 @@ checkear_sintaxis_iptables()
 	# punto de salida
 	if [ ! -r $fichero ]
 	then
-		message "E: No se ha recibido un nombre de fichero correcto en la funcion checkear_sintaxis_iptables(). Terminando..."
+		message "E: No se ha recibido un nombre de fichero correcto en la funcion check_iptables_syntax(). Terminando..."
 		return 1
 	fi
 
 	oldIFS=$IFS
 	IFS=$'\n'
-	message "I: Checkeando la sintaxis de iptables de [$fichero]:"
+	message "I: Checking iptables syntax [$fichero]"
 	source $VARS_IPV4 && source $VARS_IPSETV4 && { IPT=$IPT_LOCAL ; IPSET=$IPSET_LOCAL ; } \
-	|| { message "E: fallo al leer los ficheros de datos IPv4." ; return 1 ; } # punto de salida
-	local lineas=`grep -v ^[[:space:]]*# $fichero | grep " -A " | grep -v ^[[:space:]]*$ | wc -l` # para la barra de progreso
-	local cont=0 # para la barra de progreso
-	for linea in `cat $fichero | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$ | egrep -v ^[[:space:]]*$\|"IPSET" | grep " -A "`
-	do
-		((cont++))
-		libprogressbar $cont $lineas
-		#ipv4
-		ejec=`awk -F' ' '{$1=""}1' <<< ${linea/" -A "/" -C "}` # A $linea se le sustituye -A por -C y se quita el numero de linea, luego se evalua
-		eval "$ejec 2> /dev/null"
-		if [ $? -eq 2 ]
-		then
-			message "E: La regla de la linea \"`awk -F' ' '{print $1}' <<< $linea`\" parece tener fallos de sintaxis en IPv4." >> $AUX_FILE
-			checkear_sintaxis_iptables_retval=1
-		fi
-	done
+	|| { message "E: Unable to load datafiles in IPv4." ; return 1 ; } # punto de salida
+
+	check_iptables_syntax_loop $fichero 4 || check_iptables_retval=1
 
 	# Si es fichero de nat, no comprobar IPv6
 	if grep -i nat <<< $fichero > /dev/null
 	then
-		echo "DEBUG: No se checkea sintaxis en IPv6 porque es NAT." > /dev/null
+		echo "DEBUG: No IPv6 syntax check because NAT." > /dev/null
 	else
-		message "I: Checkeando la sintaxis de ip6tables de [$fichero]:"
-		local cont=0 #  para la barra de progreso
+		message "I: Checking ip6tables syntax [$fichero]"
 		source $VARS_IPV6 && source $VARS_IPSETV6 && { IPT=$IP6T_LOCAL ; IPSET=$IPSET_LOCAL ; } \
-		|| { message "E: fallo al leer los ficheros de datos IPv6." ; return 1 ; } #punto  de salida
-		for linea in `cat $fichero | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$ | egrep -v ^[[:space:]]*$\|"IPSET" | grep " -A "`
-		do
-			((cont++))
-			libprogressbar $cont $lineas #la variable lineas se reutilza de ipv4
-			#ipv6
-			ejec=`awk -F' ' '{$1=""}1' <<< ${linea/" -A "/" -C "}` # A $linea se le sustituye -A por -C y se quita el numero de linea, luego se evalua
-			eval "$ejec 2> /dev/null"
-			if [ $? -eq 2 ]
-			then
-				message "E: La regla de la linea \"`awk -F' ' '{print $1}' <<< $linea`\" parece tener fallos de sintaxis en IPv6." >> $AUX_FILE
-				checkear_sintaxis_iptables_retval=1
-			fi
-		done
+		|| { message "E: Unable to load datafiles in IPv6." ; return 1 ; } # punto de salida
+
+		check_iptables_syntax_loop $fichero 6 || check_iptables_retval=1
 	fi
-	grep -v ^[[:space:]]*$ $AUX_FILE
 	IFS=$oldIFS
-	return $checkear_sintaxis_iptables_retval
+	return $check_iptables_syntax_retval
 }
 
 # Esta funcion parsea un fichero de reglas de iptables/ipset
@@ -980,7 +1029,7 @@ checkear_fichero()
 
 		[ $flag_variables_incorrectas -ne 0 ] && return 1 #punto de retorno
 
-		checkear_sintaxis_iptables $fichero || flag_iptables_incorrectas=$?
+		check_iptables_syntax $fichero || flag_iptables_incorrectas=$?
 	else
 		message "E: No se ha encontrado el fichero o no tiene permisos de lectura."
 		retval=1
