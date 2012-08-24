@@ -89,7 +89,7 @@ case "$1" in
 		do_exit $?
 		;;
 	"-c" )
-		checkear_fichero $2 #fichero de vlan como parametro
+		check_rulefile $2 # file as a parameter
 		do_exit $?
 		;;
 	"--start" )

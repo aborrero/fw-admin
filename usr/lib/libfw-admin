@@ -942,7 +942,7 @@ check_iptables_syntax_loop()
 		fi
 	done
 
-	grep -v ^[[:space:]]*$ $AUX_FILE
+	grep -v ^[[:space:]]*$ $AUX_FILE >&2
 
 	return $check_iptables_syntax_loop_retval
 }
@@ -974,7 +974,7 @@ check_iptables_syntax()
 	source $VARS_IPV4 && source $VARS_IPSETV4 && { IPT=$IPT_LOCAL ; IPSET=$IPSET_LOCAL ; } \
 	|| { message "E: Unable to load datafiles in IPv4." ; return 1 ; } # punto de salida
 
-	check_iptables_syntax_loop $fichero 4 || check_iptables_retval=1
+	check_iptables_syntax_loop $fichero 4 || check_iptables_syntax_retval=1
 
 	# Si es fichero de nat, no comprobar IPv6
 	if grep -i nat <<< $fichero > /dev/null
@@ -985,57 +985,81 @@ check_iptables_syntax()
 		source $VARS_IPV6 && source $VARS_IPSETV6 && { IPT=$IP6T_LOCAL ; IPSET=$IPSET_LOCAL ; } \
 		|| { message "E: Unable to load datafiles in IPv6." ; return 1 ; } # punto de salida
 
-		check_iptables_syntax_loop $fichero 6 || check_iptables_retval=1
+		check_iptables_syntax_loop $fichero 6 || check_iptables_syntax_retval=1
 	fi
 	IFS=$oldIFS
 	return $check_iptables_syntax_retval
 }
 
-# Esta funcion parsea un fichero de reglas de iptables/ipset
-# y comprueba que su asignacion es correcta
-checkear_fichero()
+# boolean check_rulefile(string file_to_check)
+# To check that variables of a rulefile are in datafiles and ip[6]?tables syntax
+check_rulefile()
 {
 	[ ! -z "$flag_no_check" ] && [ $flag_no_check -eq 1 ] && { message "W: No check [$1]." ; return 0 ; }
 
-	local retval=0
-	local flag_variables_incorrectas=0
-	local flag_iptables_incorrectas=0
-	local fichero=$1
+	local check_rulefile_retval=0
+	local flag_wrong_variables=0
+	local flag_wrong_iptables=0
+	local file_to_check=$1
 	echo "" > $AUX_FILE
 
-	if [ ! -z "$fichero" ] && [ -e $fichero ]
+	if [ ! -z "$file_to_check" ] && [ -e "$file_to_check" ]
 	then
-		message "I: Checkeando variables del fichero [$fichero]:"
+		message "I: Checking variables of file [$file_to_check]"
 
-		# algunos calculos antes del for
-		oldIFS=$IFS
-		IFS=$' \t\n'
-		local lineas=`grep -v ^[[:space:]]*# $fichero | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u | wc -l`
-		local cont=0
-		# Se recorren todas variables de $fichero
-		for palabra in `grep -v ^[[:space:]]*# $fichero | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u`
+		oldIFS=$IFS ; IFS=$' \t\n' # control over IFS
+
+		# Do we need to do calcules related to progress bar?
+		if [ "$USE_PROGRESS_BAR" == "yes" ]
+		then
+			local amount=`grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u | wc -l`
+			local cont=0
+		fi
+
+		# Iterate over variables ($FOO) on file
+		for word in `grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u`
 		do
-	                ((cont++))
-        	        libprogressbar $cont $lineas
-			{ [[ "$palabra" =~ "IPT" ]] || [[ "$palabra" =~ "IPSET" ]] || [[ "$palabra" =~ "ip"[6]?"tables" ]] ; } && continue
-			local busqueda=`echo $palabra | tr -d '$'`
-			{ grep ^$busqueda= $VARS_IPV4 > /dev/null && grep ^$busqueda= $VARS_IPV6 > /dev/null ; } \
-				|| { grep ^$busqueda= $VARS_IPSETV4 > /dev/null && grep ^$busqueda= $VARS_IPSETV6 > /dev/null ; } \
-				|| { message "W: Revisar variable ${C_BOLD}$busqueda${C_NORMAL}" >> $AUX_FILE; flag_variables_incorrectas=1 ; }
+			# Do we need to do calcules related to progress bar?
+			if [ "$USE_PROGRESS_BAR" == "yes" ]
+			then
+		                ((cont++))
+	        	        libprogressbar $cont $amount
+			fi
+
+			# If the word is IPT|IPSET|iptables|ip6tables, do nothing and continue
+			{ [[ "$word" =~ "IPT" ]] || [[ "$word" =~ "IPSET" ]] || [[ "$word" =~ "ip"[6]?"tables" ]] ; } && continue
+
+			# If not, look for the word in datafiles
+			local search=`echo $word | tr -d '$'`
+
+			# the search. Must be in both datafiles of the same type to consider the variable valid.
+			if ! { grep ^$search= $VARS_IPV4 > /dev/null && grep ^$search= $VARS_IPV6 > /dev/null ; }
+			then
+				if ! { grep ^$search= $VARS_IPSETV4 > /dev/null && grep ^$search= $VARS_IPSETV6 > /dev/null ; }
+				then
+					message "W: Check variable ${C_BOLD}${search}${C_NORMAL}" >> $AUX_FILE
+					flag_wrong_variables=1
+				fi
+			fi
 		done
 		IFS=$oldIFS
 
+		# Showing warnings now
 		grep -v ^[[:space:]]*$ $AUX_FILE
 
-		[ $flag_variables_incorrectas -ne 0 ] && return 1 #punto de retorno
+		[ $flag_wrong_variables -ne 0 ] && return 1 # return point
 
-		check_iptables_syntax $fichero || flag_iptables_incorrectas=$?
+
+		# Check iptables syntax if all variables all fine
+		check_iptables_syntax $file_to_check || flag_wrong_iptables=$?
+
+		[ "$flag_wrong_variables" -ne 0 ] || [ "$flag_wrong_iptables" -ne 0 ] && check_rulefile_retval=1
+
 	else
-		message "E: No se ha encontrado el fichero o no tiene permisos de lectura."
-		retval=1
+		message "E: File not found [$file_to_check]."
+		check_rulefile_retval=1
 	fi
-	[ "$flag_variables_incorrectas" -ne 0 ] || [ "$flag_iptables_incorrectas" -ne 0 ] && retval=1
-	return $retval
+	return $check_rulefile_retval
 }
 
 salida_controlada_start()
@@ -1070,7 +1094,7 @@ start()
 
 
 	# Se checkea el fichero. PUNTO DE SALIDA
-	checkear_fichero $CONF_DIR/$vlan || { message "E: No se inician las reglas porque el checkeo ha fallado."; do_exit 1 ; }
+	check_rulefile $CONF_DIR/$vlan || { message "E: No se inician las reglas porque el checkeo ha fallado."; do_exit 1 ; }
 
 	# Iniciando reglas en IPv4
 	message "I: Starting IPv4 rules."
@@ -1379,7 +1403,7 @@ ipset_reload()
 	local tiempo_inicio="`date +%s`"
 
 	# Checkear el fichero de IPSET
-	checkear_fichero $IPSET_CONF || return $?
+	check_rulefile $IPSET_CONF || return $?
 
 
 	# Now IPv4
