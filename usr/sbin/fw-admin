@@ -85,7 +85,7 @@ case "$1" in
 		;;
 	"-i" )
 		message "I: Obteniendo informacion."
-		obtener_informacion $2 #dato como parametro
+		get_information $2 #dato como parametro
 		do_exit $?
 		;;
 	"-c" )

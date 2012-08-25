@@ -379,33 +379,33 @@ agregar_variable()
 		# Obtener nombre definitivo que tendra la variable
 		#
 
-		nombre_variable=$( get_variable_name $dato_a_agregar )
+		variable_name=$( get_variable_name $dato_a_agregar )
 		[ $? -ne 0 ] && { message "E: Unable to determine variable name." ; do_exit 1 ; }
 
-		echo "DEBUG: $nombre_variable=$dato_a_agregar #$dato_a_agregar" > /dev/null
+		echo "DEBUG: $variable_name=$dato_a_agregar #$dato_a_agregar" > /dev/null
 
-		if grep ^"${nombre_variable}=" $VARS_IPV4 > /dev/null 2> /dev/null && grep ^"${nombre_variable}=" $VARS_IPV6 > /dev/null 2> /dev/null
+		if grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null && grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null
 		then
 			# La variable ya esta guardada, actualizar
-			message "W: Actualizando la variable [${nombre_variable}]."
+			message "W: Actualizando la variable [${variable_name}]."
 		else
-			message "I: El nombre de la variable es [${nombre_variable}]."
+			message "I: El nombre de la variable es [${variable_name}]."
 		fi
 
 		#
 		# Escribir las variables a los ficheros de datos
 		#
-		guardar_variable_en_fichero "ipv4" "$nombre_variable" "$dato_a_agregar" \
+		guardar_variable_en_fichero "ipv4" "$variable_name" "$dato_a_agregar" \
 			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV4}]" ; agregar_variable_retval=1 ; }
-		guardar_variable_en_fichero "ipv6" "$nombre_variable" "$dato_a_agregar" \
+		guardar_variable_en_fichero "ipv6" "$variable_name" "$dato_a_agregar" \
 			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV6}]" ; agregar_variable_retval=1 ; }
 
 		#
 		# Checkeo de que la escritura ha sido correcta
 		#
-		grep ^"${nombre_variable}=" $VARS_IPV4 > /dev/null 2> /dev/null || agregar_variable_retval=1
-		grep ^"${nombre_variable}=" $VARS_IPV6 > /dev/null 2> /dev/null || agregar_variable_retval=1
-		[ $agregar_variable_retval -ne 0 ] &&  message "E: No se pudo guardar la variable [${nombre_variable}]."
+		grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null || agregar_variable_retval=1
+		grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null || agregar_variable_retval=1
+		[ $agregar_variable_retval -ne 0 ] &&  message "E: No se pudo guardar la variable [${variable_name}]."
 	fi
 	return $agregar_variable_retval
 
@@ -649,167 +649,154 @@ estadisticas()
 
 }
 
-# Esta funcion se usa desde la funcion obtener informacion
-# Recibe una cadena de texto a buscar, un fichero a donde escribir el mensaje
-# Retorna 1 si ha operado bien
-buscar_en_fichero()
+# boolean search_datafiles(string data, string result_return_file)
+# This function search for data in datafiles and return results to a file
+search_datafiles()
 {
-	local dato=$1 #dato a buscar
-	local fichero=$2 #fichero al que escribir mensaje en caso de acierto
+	local search_datafiles_retval=1
+	local data=$1 #dato a buscar
+	local result_return_file=$2 #fichero al que escribir mensaje en caso de acierto
 
-	if [ ! -z "$dato" ] && [ -e "$fichero" ]
+	if [ ! -z "$data" ] && [ -e "$result_return_file" ]
 	then
-		egrep -i ="$dato"[[:space:]]\|"#""$dato"\|"$dato"[[:space:]]*"="\|"`tr '.' '_' <<< $dato | tr '-' '_'`"[[:space:]]*"=" $VARS_IPV4 2>/dev/null \
-		| while read linea
-		# Se recorren cada una de las lineas que pudiera devolver el grep
+
+		oldIFS=$IFS ; IFS=$'\n' # control over IFS
+
+		local aux_data=`tr '.' '_' <<< $data | tr '-' '_'`
+		for line in `egrep -i ="$data"[[:space:]]?\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV4 2>/dev/null`
 		do
-			# Si cambias este message debes cambiar la funcion obtener_informacion()
-			echo -e "Dato relacionado en ${C_BOLD}$VARS_IPV4${C_NORMAL} de la forma: ${C_BOLD} $linea ${C_NORMAL}" >> $2
+			search_datafiles_retval=0
+			# WARNING! If you change this message, you must change also the function get_information()
+			echo -e "Related data found in ${C_BOLD}$VARS_IPV4${C_NORMAL}: ${C_BOLD}${line}${C_NORMAL}" >> $2
 		done
-		egrep -i ="$dato"[[:space:]]\|"#""$dato"\|"$dato"[[:space:]]*"="\|"`tr '.' '_' <<< $dato | tr '-' '_'`"[[:space:]]*"=" $VARS_IPV6 2>/dev/null \
-		| while read linea
+		for line in `egrep -i ="$data"[[:space:]]?\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV6 2>/dev/null`
 		do
-			# Si cambias este mensaje debes cambiar la funcion obtener_informacion()
-			echo -e "Dato relacionado en ${C_BOLD}$VARS_IPV6${C_NORMAL} de la forma: ${C_BOLD} $linea ${C_NORMAL}" >> $2
+			search_datafiles_retval=0
+			# WARNING! If you change this message, you must change also the function get_information()
+			echo -e "Related data found in ${C_BOLD}$VARS_IPV6${C_NORMAL}: ${C_BOLD}${line}${C_NORMAL}" >> $2
 		done
-	fi
-}
-
-# Funcion obtener informacion. Recibe de entrada una cadena.
-obtener_informacion()
-{
-	oldIFS=$IFS
-        IFS=$' \t\n'
-
-	local obtener_informacion_retval=1
-        local dato_consulta=$1
-	echo -n "" > $AUX_FILE
-
-        if [ -z $dato_consulta ]
-        then
-                # No hay parametro de entrada, usar menu
-                read -p "-> Definir IPv4, IPv6 o FQDN: " dato_consulta
-        fi
-
-	# Buscar en ficheros: se le pasa como parametros el dato a buscar y el fichero donde debe escribir el mensaje
-	# Retorna 1 en caso de acierto
-
-	# 1º Busqueda es por el dato introducido en crudo
-	buscar_en_fichero $dato_consulta $AUX_FILE
-
-	nombre_variable=$( get_variable_name $dato_consulta )
-	[ $? -ne 0 ] && { message "E: Unable to determine variable name." ; do_exit 1 ; }
-
-	if [ ! -z "$nombre_variable" ]
-	then
-		# 2º Busqueda es por el posible nombre variable que pudiera tener el dato introducido
-		buscar_en_fichero $nombre_variable $AUX_FILE
 	else
-		message "E: Unable to continue."
+		message "E: Function search_datafiles() called with bad arguments."
 		do_exit 1
 	fi
 
-	# 3º busqueda se realiza si ya se ha encontrado algun dato, por un nombre de variable o de aclaracion (tras #) similar
-	# Ojo al formato que hace la funcion buscar_en_fichero()
-	# "Dato relacionado en ${C_BOLD}$VARS_IPV4${C_NORMAL} de la forma: ${C_BOLD}$dato_guardado${C_NORMAL}" # ojo ' VAR=dato #aclaracion'
+	return $search_datafiles_retval
+}
+
+# boolean get_information(string data)
+# Search for information in datafiles, sets and iptables
+get_information()
+{
+	oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
+
+	local get_information_retval=1
+        local data=$1
+	echo -n "" > $AUX_FILE
+
+        if [ -z $data ]
+        then
+                # No hay parametro de entrada, usar menu
+                read -p "-> Define IPv4, IPv6 o FQDN: " dato_consulta
+        fi
+
+
+	# 1º Search the data just typed
+	search_datafiles $data $AUX_FILE
+
+
+	# 2º Search the variable name the data should has
+	variable_name=$( get_variable_name $data )
+	if [ $? -ne 0 ] || [ -z "$variable_name" ]
+	then
+		message "E: Unable to determine variable name (Maybe FQDN not found in DNS servers, or invalid IPv4|IPv6)."
+		do_exit 1
+	fi
+	search_datafiles $variable_name $AUX_FILE
+
+
+	# 3º Search only if previous data has been found.
+	# Search in base a previous data found
+	#
+	# Take care of the message format produced by function search_datafiles()
+	# "Related data found in ${C_BOLD}$VARS_IPV4${C_NORMAL}: ${C_BOLD}${line}${C_NORMAL}" #--> ' VAR=dato #aclaracion'
 	if [ `cat $AUX_FILE | wc -l` -gt 0 ]
 	then
 
-		# Buscando por aclaracion (tras #)
-		local nueva_lista_datos_busqueda=`cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq `
-		for i in $nueva_lista_datos_busqueda
+		# Search after comment (#)
+		local new_data_searh_list=`cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq `
+		for i in $new_data_search_list
 		do
-			buscar_en_fichero $i $AUX_FILE
+			search_datafiles $i $AUX_FILE
 		done
-		# Buscando por variable (antes de = )
-		local nueva_lista_datos_busqueda=`cat $AUX_FILE | awk -F' ' '{print $9}' | awk -F'=' '{print $1}' | sort -u | uniq`
-		for i in $nueva_lista_datos_busqueda
+		# Search behind (=)
+		local new_data_search_list=`cat $AUX_FILE | awk -F' ' '{print $9}' | awk -F'=' '{print $1}' | sort -u | uniq`
+		for i in $new_data_search_list
 		do
-			buscar_en_fichero $i $AUX_FILE
+			search_datafiles $i $AUX_FILE
 		done
-		# Buscando por variable (despues de = )
-		local nueva_lista_datos_busqueda=`cat $AUX_FILE | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
-		for i in $nueva_lista_datos_busqueda
+		# Seach after (=)
+		local new_data_search_list=`cat $AUX_FILE | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
+		for i in $new_data_search_list
 		do
-			if [ "$i" != "\$FICTICIA" ]
+			if [ "$i" != "\$FICTICIA" ] || [ "$i" != "\$VOID" ]
 			then
-				buscar_en_fichero $i $AUX_FILE
+				search_datafiles $i $AUX_FILE
 			fi
 		done
 	fi
 
-	local lista_de_set_con_coincidencias=""
-	# Realizar la consulta en IPset: dato o variable guardada
-	if [ `cat $AUX_FILE | wc -l` -gt 0 ]
-	then
-		if [ ! -z "$nombre_variable" ]
-		then
-			busqueda_ipset=`egrep $nombre_variable\|$dato_consulta $DATA_DIR/* | awk -F'#' '{print $2}' | sort -u | uniq`
-		else
-			busqueda_ipset=`grep $dato_consulta $DATA_DIR/* | awk -F'#' '{print $2}' | sort -u | uniq`
-		fi
-		echo DEBUG: $busqueda_ipset > /dev/null
-		local lista_sets=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^[[:space:]]*$`
-		for un_set in $lista_sets
-		do
-			$IPSET -T $un_set $busqueda_ipset > /dev/null 2> /dev/null
-			if [ $? -eq 0 ]
-			then
-				lista_de_set_con_coincidencias="$lista_de_set_con_coincidencias $un_set"
-			fi
-		done
-	fi
+	# Querying now ipset
 
+	local list_of_sets_with_match=""
 	local flag_set_added=0
-	# Realizar la consulta en IPset: dato en crudo
-	local lista_sets=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^[[:space:]]*$`
-	for un_set in $lista_sets
+	local set_list=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^[[:space:]]*$`
+	for sset in $lista_sets
 	do
-		if $IPSET -T $un_set $dato_consulta > /dev/null 2> /dev/null
+		if $IPSET -T $sset $data > /dev/null 2> /dev/null
 		then
-			lista_de_set_con_coincidencias="$lista_de_set_con_coincidencias $un_set"
+			list_of_sets_with_match="$list_of_sets_with_match $sset"
 			flag_set_added=1
 		fi
 		if ! $flag_set_added
 		then
-	                # Buscando por aclaracion (tras #)
-			for dato in `cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq`
+	                # Searching with data behind # from data already found
+			for data in `cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq`
 			do
-				if $IPSET -T $un_set $dato
+				if $IPSET -T $un_set $data
 				then
-					lista_de_set_con_coincidencias="$lista_de_set_con_coincidencias $un_set"
+					list_of_sets_with_match="$list_of_sets_with_match $sset"
 					flag_set_added=1
 				fi
 			done
 		fi
 		if ! $flag_set_added
 		then
-	                # Buscando por aclaracion (tras #)
-			for dato in `cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq`
+			# Seach with data after (=) from data already found
+			for data in `cat $AUX_FILE | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
 			do
-				if $IPSET -T $un_set $dato
+				if $IPSET -T $un_set $data
 				then
-					lista_de_set_con_coincidencias="$lista_de_set_con_coincidencias $un_set"
+					list_of_sets_with_match="$list_of_sets_with_match $sset"
 				fi
 			done
 		fi
 	done
 
-	# Mostrar o no set donde se han encontrado datos
-	if [ ! -z "$lista_de_set_con_coincidencias" ]
+	# Show or not sets where data was found
+	if [ ! -z "$list_of_sets_with_match" ]
 	then
-		# Arreglar para mostrar por pantalla la lista de sets
-		lista_de_set_con_coincidencias=`echo $lista_de_set_con_coincidencias | tr ' ' '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq | tr '\n' ' '`
-		echo -e "I: El dato ${C_BOLD}$dato_consulta${C_NORMAL} esta reflejado en el/los set: ${lista_de_set_con_coincidencias}" >> $AUX_FILE
-		flag_datos_mostrados=1
+		# Fix for printing
+		list_of_sets_witch_match=`echo $list_of_sets_with_match | tr ' ' '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq | tr '\n' ' '`
+		echo -e "I: Data ${C_BOLD}$data${C_NORMAL} is in set(s): ${list_of_sets_with_match}" >> $AUX_FILE
+		flag_data_shown=1
 	fi
 
 
 	#########################################################
 	# Ordenando y mostrando los datos que tenemos hasta ahora
-	if [ `cat $AUX_FILE | wc -l` -ne 0 ]
+	if [ `cat $AUX_FILE | wc -l` -gt 0 ]
 	then
-		flag_datos_mostrados=true
+		flag_data_shown=1
 		cat $AUX_FILE | sort -u | while read linea
 		do
 			message "$linea"
@@ -833,27 +820,27 @@ obtener_informacion()
 	fi
 
 	# Realizar la consulta a iptables
-	local consulta_iptables=`grep -i $dato_consulta $VARS_IPV4 | grep -v FICTICIA | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` #obtener valor
+	local consulta_iptables=`grep -i $data $VARS_IPV4 | grep -v FICTICIA | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` #obtener valor
 	if is_ipv4_valid $consulta_iptables
 	then
 		local num_reglas_ipv4_nat=`$IPT_SAVE -t nat | grep "$consulta_iptables" | wc -l`
 		if [ $num_reglas_ipv4_nat -gt 0 ]
 		then
 			message "I: Reglas en IPv4 (nat): $num_reglas_ipv4_nat"
-			$IPT_SAVE -c -t nat | grep $consulta_iptables && flag_datos_mostrados=true
+			$IPT_SAVE -c -t nat | grep $consulta_iptables && flag_data_shown=true
 		fi
 		local num_reglas_ipv4=`$IPT_SAVE | grep "$consulta_iptables" | wc -l`
 		if [ $num_reglas_ipv4 -gt 0 ]
 		then
 			message "I: Reglas en IPv4: $num_reglas_ipv4"
-			$IPT_SAVE -c | grep $consulta_iptables && flag_datos_mostrados=true
+			$IPT_SAVE -c | grep $consulta_iptables && flag_data_shown=true
 		fi
 	else
 		num_reglas_ipv4=0
 		num_reglas_ipv4_nat=0
 	fi
 	# Volvemos a realizar la consulta a iptables, en este caso buscando nateo
-	consulta_iptables=`grep $dato_consulta $VARS_IPV6 | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` #obtener valor
+	consulta_iptables=`grep $data $VARS_IPV6 | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` #obtener valor
 	if is_ipv6_valid $consulta_iptables
 	then
 		local num_reglas_ipv6=`$IP6T_SAVE | grep "$consulta_iptables" | wc -l`
@@ -861,7 +848,7 @@ obtener_informacion()
 		then
 			message "I: Reglas en IPv6: $num_reglas_ipv6"
 			$IP6T_SAVE -c | grep $consulta_iptables
-			flag_datos_mostrados=true
+			flag_data_shown=true
 		fi
 	else
 		num_reglas_ipv6=0
@@ -873,7 +860,7 @@ obtener_informacion()
 	message "I: Se han encontrado un total de ${C_BOLD}${total_reglas}${C_NORMAL} reglas coincidentes."
 
 
-	if [ "$flag_datos_mostrados" != "true" ]
+	if [ "$flag_data_shown" != "true" ]
 	then
 		message "W: No se ha encontrado ninguna informacion relacionada."
 	else
