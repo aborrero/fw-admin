@@ -1052,9 +1052,72 @@ check_rulefile()
 start_controlled_exit()
 {
 	echo ""
-	message "W: Aborting the start operation. Dejando reglas permisivas."
-	flush_vlan $1
+	# Behaviour when aborting start operation
+	#FLUSH_WHEN_ABORT_START="yes"
+
+	if [ "$FLUSH_WHEN_ABORT_START" == "yes" ]
+	then
+		message "W: Aborting the start operation for ${1} and flushing rules."
+		flush_vlan $1
+	else
+		message "E: Aborting the start operation for ${1}."
+	fi
 	do_exit 1
+}
+
+# boolean start_loop(string vlan_file, integer protocol)
+# Iterate over rulefile inserting rules in kernel
+start_loop()
+{
+	local start_loop_retval=0
+
+	local vlan=$1
+	local protocol=$2
+
+	if [ -z "$vlan" ] || [ ! -e "$CONF_DIR/$vlan" ] || [ -z "$protocol" ]
+	then
+		message "E: Invalid call to function start_loop(), invalid input arguments."
+	fi
+
+
+	# Evaluating if we need calcules related to the progress bar
+	if [ "$USE_PROGRESS_BAR" == "yes" ]
+	then
+		local amount_of_lines=`grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$ | wc -l`
+	fi
+	local cont=0
+
+	for line in `grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$`
+	do
+		((cont++))
+		# Evaluating if we need calcules related to the progress bar
+		[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
+
+		# Insert the rule in kernel and evaluate return code
+		error_msg=$( eval "${line} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
+		if [ $? -ne 0 ]
+		then
+			start_loop_retval=1
+			message "E: Error found adding rules to kernel in IPv${protocol}. Rule num (not line) [$cont]."
+			echo "Details:"
+			echo " ${line}"
+			for error_line in $error_msg
+			do
+				echo " $error_line"
+			done
+
+			# Behavour when error at start operation
+			#FLUSH_WHEN_ERROR_START="no"
+
+			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
+			then
+				message "W: Flushing vlan $vlan ..."
+				flush_vlan $vlan
+				do_exit 1 # EXIT POINT
+			fi
+		fi
+	done
+	return $start_loop_retval
 }
 
 start()
@@ -1063,7 +1126,7 @@ start()
 	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	local start_retval=0
-	local tiempo_inicial=`date +%s`
+	local initial_time=`date +%s`
 
 	# Comprobar que hemos recibido parametro de entrada
 	if [ -z "$1" ]
@@ -1079,49 +1142,34 @@ start()
 		fi
 	fi
 
+	# Checking rulefile.
+	if ! check_rulefile $CONF_DIR/$vlan
+	then
+		message "E: Check failed. Don't starting."
+		do_exit 1 # Exit point
+	fi
 
-	# Se checkea el fichero. PUNTO DE SALIDA
-	check_rulefile $CONF_DIR/$vlan || { message "E: No se inician las reglas porque el checkeo ha fallado."; do_exit 1 ; }
+	# Deletin previous rules
+	if ! flush_vlan $vlan
+	then
+		message "E: Error flushing vlan."
+		do_exit 1 # Exit point
+	fi
 
-	# Iniciando reglas en IPv4
+	# Starting IPv4 rules
 	message "I: Starting IPv4 rules."
 	oldIFS=$IFS ; IFS=$'\n' # control over IFS
 
-	# Evaluating if we need calcules related to the progress bar
-	if [ "$USE_PROGRESS_BAR" == "yes" ]
-	then
-		local lineas=`grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$ | wc -l`
-	fi
-	local cont=0
-
 	# Start the for loop only if success loading datafiles and flushing vlan
-	if flush_vlan $vlan && source $VARS_IPV4 && source $VARS_IPSETV4
+	if source $VARS_IPV4 && source $VARS_IPSETV4
 	then
-		for linea in `grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$`
-		do
-			((cont++))
-			# Evaluating if we need calcules related to the progress bar
-			[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $lineas
-
-			# Insert the rule in kernel and evaluate return code
-			error_msg=$( eval "${linea} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
-			if [ $? -ne 0 ]
-			then
-				message "E: Error found adding rules to kernel in IPv4. Rule num (not line) [$cont]."
-				echo "Details:"
-				echo " ${linea}"
-				for line in $error_msg
-				do
-					echo " $line"
-				done
-				message "W: Flushing vlan $vlan ..."
-				flush_vlan $vlan
-				do_exit 1 # EXIT POINT
-			fi
-		done
+		start_loop $vlan 4 || start_retval=$?
 	else
 		message "E: Error loading datafiles in IPv4."
-		flush_vlan $vlan
+		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
+		then
+			flush_vlan $vlan
+		fi
 		do_exit 1 # EXIT POINT
 	fi
 	log_vlan $vlan || { message "E: Unable to insert LOGGING and RETURN rules in IPv4 for [$vlan]." ; do_exit 1 ; } # EXIT POINT
@@ -1129,54 +1177,29 @@ start()
 
 	if grep -i nat <<< $vlan > /dev/null
 	then
-		echo "DEBUG: No se insertan reglas en IPv6 porque estamos en nat" > /dev/null
+		echo "DEBUG: Not inserting rules in IPv6 because a nat file" > /dev/null
 	else
 		# Iniciando reglas en IPv6
 		message "I: Starting IPv6 rules."
 		oldIFS=$IFS ; IFS=$'\n' # control over IFS
 
-		# Evaluating if we need calcules related to the progress bar
-		if [ "$USE_PROGRESS_BAR" == "yes" ]
-		then
-			local lineas=`grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$ | wc -l`
-		fi
-		local cont=0
-
 		# Start the for loop only if success loading datafiles
 		if source $VARS_IPV6 && source $VARS_IPSETV6
 		then
-			for linea in `grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$`
-			do
-				((cont++))
-				# Evaluating if we need calcules related to the progress bar
-				[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $lineas
-
-				# Insert the rule in kernel and evaluate return code
-				error_msg=$( eval "${linea} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
-				if [ $? -ne 0 ]
-				then
-					message "E: Error found adding rules to kernel in IPv6. Rule num (not line) [$cont]."
-					echo "Details:"
-					echo " ${linea}"
-					for line in $error_msg
-					do
-						echo " $line"
-					done
-					message "W: Flushing vlan $vlan ..."
-					flush_vlan $vlan
-					do_exit 1 # EXIT POINT
-				fi
-			done
+			start_loop $vlan 6 || start_retval=$?
 		else
 			message "E: Error loading datafiles in IPv6."
-			flush_vlan $vlan
+			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
+			then
+				flush_vlan $vlan
+			fi
 			do_exit 1 # EXIT POINT
 		fi
 		log_vlan $vlan || { message "E: Unable to insert LOGGING and RETURN rules in IPv6 for [$vlan]." ; do_exit 1 ; } # EXIT POINT
 	fi
 	IFS=$oldIFS
-	local tiempo_final=`date +%s`
-	message "I: Operation time over ${vlan}: `expr $tiempo_final - $tiempo_inicial` seconds."
+	local final_time=`date +%s`
+	message "I: Operation time over ${vlan}: $(( final_time - start_time )) seconds."
 
 	return $start_retval
 }
