@@ -1049,10 +1049,10 @@ check_rulefile()
 	return $check_rulefile_retval
 }
 
-salida_controlada_start()
+start_controlled_exit()
 {
 	echo ""
-	message "W: Abortando el arranque. Dejando reglas permisivas."
+	message "W: Aborting the start operation. Dejando reglas permisivas."
 	flush_vlan $1
 	do_exit 1
 }
@@ -1060,7 +1060,7 @@ salida_controlada_start()
 start()
 {
 	# Trap de seguridad para la salida
-	trap "salida_controlada_start $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	local start_retval=0
 	local tiempo_inicial=`date +%s`
