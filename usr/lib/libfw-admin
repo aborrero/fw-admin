@@ -36,6 +36,43 @@ ARGS_LOGGER="-t fw-admin[$PID] --"
 ################################################################
 ################################################################
 
+# void start_in_restore_format(string filename)
+# start rules in iptables-restore format
+# JUST A POC
+start_in_restore_format()
+{
+	local start_in_restore_format_retval=0
+	local filename=$1
+
+	if [ ! -r "$filename" ]
+	then
+		message "E: File not found $filename"
+		do_exit 1
+	fi
+
+	source /var/local/fw.d/data/iptables_vars_ipv4.bash || return 1
+
+	local rules=""
+	local flag_first_iteration=1
+	# Iterate over variables ($FOO) on file
+	for word in `grep -v ^[[:space:]]*# $filename | tr [[:space:]] '\n' | fgrep \$ | sort -u | grep -v ^[[:space:]]*$`
+	do
+		variable=$word
+		data=`eval "echo $word"`
+		if [ $flag_first_iteration -eq 1 ]
+		then
+			rules=$( sed s/$variable/$data/ $filename )
+			flag_first_iteration=0
+			continue
+		fi
+		rules=$( sed s/$variable/$data/ <<< "$rules" )
+	done
+
+	iptables-restore <<< "$rules" || start_in_restore_format_retval=1
+
+	return $start_in_restore_format_retval
+}
+
 # void message(string message)
 # Esta funcion pinta un mensaje por pantalla y quizás lo guarde en un log
 message()
