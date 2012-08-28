@@ -51,7 +51,8 @@ uso()
 ################################################################
 source $CONF_FILE 2>/dev/null || { echo "E: Unable to load config file $CONF_FILE" >&2; exit 1 ; }
 
-if [ "$1" == "-s" ] || [ "$1" == "-a" ] || [ "$1" == "-as" ] || [ "$1" == "-r" ] || [ "$1" == "-i" ] || [ "$1" == "-c" ] || [ "$1" == "--start" ] || [ "$1" == "--stop" ] || [ "$1" == "--ipset-reload" ] || [ "$1" == "--check-datafiles" ]
+if [ "$1" == "-s" ] || [ "$1" == "-a" ] || [ "$1" == "-as" ] || [ "$1" == "-r" ] || [ "$1" == "-i" ] \
+|| [ "$1" == "-c" ] || [ "$1" == "--start" ] || [ "$1" == "--stop" ] || [ "$1" == "--ipset-reload" ] || [ "$1" == "--check-datafiles" ]
 then
 	source $LIB 2>/dev/null || { echo "E: Unable to load library $LIB" >&2; exit 1 ; }
 	check_root
@@ -67,25 +68,25 @@ case "$1" in
 
 	"-a" )
 		validar_ejecucion
-		message "I: Agregando variable de IP o FQDN."
-		agregar_variable $2 #dato como parametro
+		message "I: Adding IP/FQDN variable."
+		agregar_variable $2 # data as a parameter
 		do_exit $?
 		;;
 	"-as" )
 		validar_ejecucion
-		message "I: Agregando variable de conjunto."
-		agregar_set $2 #dato como parametro
+		message "I: Adding setname variable."
+		agregar_set $2 # data as a parameter
 		do_exit $?
 		;;
 	"-r" )
 		validar_ejecucion
-		message "I: Recargando variables."
+		message "I: Reloading variables."
 		reload_variable_values
 		do_exit $?
 		;;
 	"-i" )
-		message "I: Obteniendo informacion."
-		get_information $2 #dato como parametro
+		message "I: Gathering information."
+		get_information $2 # data as a parameter
 		do_exit $?
 		;;
 	"-c" )
@@ -94,7 +95,7 @@ case "$1" in
 		;;
 	"--start" )
 		validar_ejecucion
-		message "I: Inicializando reglas de iptables [$2]."
+		#message "I: Inicializando reglas de iptables [$2]."
 		[ "$3" == "--nocheck" ] && flag_no_check=1
 		start $2 #nombre de vlan como parametro
 		do_exit $?

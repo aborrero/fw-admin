@@ -663,13 +663,13 @@ search_datafiles()
 		oldIFS=$IFS ; IFS=$'\n' # control over IFS
 
 		local aux_data=`tr '.' '_' <<< $data | tr '-' '_'`
-		for line in `egrep -i ="$data"[[:space:]]?\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV4 2>/dev/null`
+		for line in `egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV4 2>/dev/null`
 		do
 			search_datafiles_retval=0
 			# WARNING! If you change this message, you must change also the function get_information()
 			echo -e "Related data found in ${C_BOLD}$VARS_IPV4${C_NORMAL}: ${C_BOLD}${line}${C_NORMAL}" >> $2
 		done
-		for line in `egrep -i ="$data"[[:space:]]?\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV6 2>/dev/null`
+		for line in `egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV6 2>/dev/null`
 		do
 			search_datafiles_retval=0
 			# WARNING! If you change this message, you must change also the function get_information()
@@ -693,10 +693,10 @@ get_information()
         local data=$1
 	echo -n "" > $AUX_FILE
 
-        if [ -z $data ]
+        if [ -z "$data" ]
         then
                 # No hay parametro de entrada, usar menu
-                read -p "-> Define IPv4, IPv6 o FQDN: " dato_consulta
+                read -p "-> Define IPv4, IPv6 or FQDN: " data
         fi
 
 
@@ -1049,6 +1049,29 @@ check_rulefile()
 	return $check_rulefile_retval
 }
 
+# boolean check_chain_exist(string chainname)
+# Check if a chain is create in iptables/6tables
+check_chain_exist()
+{
+	local check_table_exist_retval=1
+
+	# validating
+	[ -z "$1" ] && return 1
+
+	# core, sets, nat doesn't require chain
+	[[ $1 =~ ^"core"$|^"sets"$|^"nat"$ ]] && return 0
+
+	if $IPT_SAVE | grep ^: | grep $1 >/dev/null 2>/dev/null
+	then
+		if $IP6T_SAVE | grep ^: | grep $1 >/dev/null 2>/dev/null
+		then
+			check_table_exist_retval=0
+		fi
+	fi
+
+	return $check_table_exist_retval
+}
+
 start_controlled_exit()
 {
 	echo ""
@@ -1060,7 +1083,7 @@ start_controlled_exit()
 		message "W: Aborting the start operation for ${1} and flushing rules."
 		flush_vlan $1
 	else
-		message "E: Aborting the start operation for ${1}."
+		message "W: Aborting the start operation for ${1}."
 	fi
 	do_exit 1
 }
@@ -1106,12 +1129,12 @@ start_loop()
 				echo " $error_line"
 			done
 
-			# Behavour when error at start operation
+			# Behaviour when error at start operation
 			#FLUSH_WHEN_ERROR_START="no"
 
 			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
 			then
-				message "W: Flushing vlan $vlan ..."
+				message "W: Flushing rules of $vlan ..."
 				flush_vlan $vlan
 				do_exit 1 # EXIT POINT
 			fi
@@ -1120,27 +1143,37 @@ start_loop()
 	return $start_loop_retval
 }
 
+# boolean start(string vlan)
+# Check&start rules on vlan
 start()
 {
-	# Trap de seguridad para la salida
-	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	local start_retval=0
 	local initial_time=`date +%s`
 
-	# Comprobar que hemos recibido parametro de entrada
+	# Check input parameter
 	if [ -z "$1" ]
 	then
-		message "E: Es necesario especificar un nombre vlan/nat/core (el nombre que debe tener el fichero en $CONF_DIR)"
-		start_retval=1
+		message "E: A name as an argument (corresponding to something in ${CONF_DIR}) is needed."
+		do_exit 1 # EXIT POINT
 	else
 		local vlan=$1
 		if [ ! -x "$CONF_DIR/$vlan" ]
 		then
-			message "E: No se encuentra fichero de vlan/nat/core o no tiene permisos de ejecucion."
-			do_exit 1 # PUNTO DE SALIDA
+			message "E: File not found."
+			do_exit 1 # EXIT POINT
 		fi
 	fi
+
+	# Check that given chain exist
+	if ! check_chain_exist $vlan
+	then
+		message "E: Given chain doesn't exist."
+		do_exit 1 # EXIT POINT
+	fi
+
+	# Trap de seguridad para la salida
+	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	# Checking rulefile.
 	if ! check_rulefile $CONF_DIR/$vlan
@@ -1155,6 +1188,7 @@ start()
 		message "E: Error flushing vlan."
 		do_exit 1 # Exit point
 	fi
+
 
 	# Starting IPv4 rules
 	message "I: Starting IPv4 rules."
@@ -1199,7 +1233,7 @@ start()
 	fi
 	IFS=$oldIFS
 	local final_time=`date +%s`
-	message "I: Operation time over ${vlan}: $(( final_time - start_time )) seconds."
+	message "I: Operation time over ${vlan}: $(( final_time - initial_time )) seconds."
 
 	return $start_retval
 }
