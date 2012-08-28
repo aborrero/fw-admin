@@ -667,13 +667,13 @@ search_datafiles()
 		do
 			search_datafiles_retval=0
 			# WARNING! If you change this message, you must change also the function get_information()
-			echo -e "Related data found in ${C_BOLD}$VARS_IPV4${C_NORMAL}: ${C_BOLD}${line}${C_NORMAL}" >> $2
+			echo -e "Related data found in ${C_BOLD}$VARS_IPV4${C_NORMAL}: ${line}" >> $2
 		done
 		for line in `egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV6 2>/dev/null`
 		do
 			search_datafiles_retval=0
 			# WARNING! If you change this message, you must change also the function get_information()
-			echo -e "Related data found in ${C_BOLD}$VARS_IPV6${C_NORMAL}: ${C_BOLD}${line}${C_NORMAL}" >> $2
+			echo -e "Related data found in ${C_BOLD}$VARS_IPV6${C_NORMAL}: ${line}" >> $2
 		done
 	else
 		message "E: Function search_datafiles() called with bad arguments."
@@ -729,7 +729,7 @@ get_information()
 			search_datafiles $i $AUX_FILE
 		done
 		# Search behind (=)
-		local new_data_search_list=`cat $AUX_FILE | awk -F' ' '{print $9}' | awk -F'=' '{print $1}' | sort -u | uniq`
+		local new_data_search_list=`cat $AUX_FILE | awk -F' ' '{print $6}' | awk -F'=' '{print $1}' | sort -u | uniq`
 		for i in $new_data_search_list
 		do
 			search_datafiles $i $AUX_FILE
