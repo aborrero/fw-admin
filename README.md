@@ -6,8 +6,6 @@ Custom tool for admin netfilter-based firewalls in dual stack mode (IPv4 &amp;&a
 Features
 ========
 
-Some nice features.
-
 ###Designed to easily implement a firewall in dual stack mode (IPv4 and IPv6)
 
 Today, the way it's recommended to face IPv6 is dual stack mode.  
@@ -15,19 +13,27 @@ This mean that a single FQDN will have both A and AAAA registries.
 Using `fw-admin`, you will write each rule just once. That rule will be valid for IPv4 and IPv6 using the variable declaration system.  
 
 
+###Two formats for having your firewall: script or ruleset
+
+Working with `fw-admin` it's easy because you have two ways to implement the firewall, two formats that most people use:
+
+	· script (a shell script with rules)
+	· ruleset for loading to iptables-restore
+
+`fw-admin` can afford both methods. Continue reading for more info.
+
 ###Using a variable declaration system that avoid thousand of DNS queries
 
-You usally set your ruleset in this way:  
+In a format like a shellscript, you usally set your ruleset in this way:  
 
-`$IPT -A INPUT -i $IF -s $INTERNET -d $MYSERVER -p tcp --sport 1024: --dport $SSH_PORT -j ACCEPT`  
+		$IPT -A INPUT -i $IF -s $INTERNET -d $MYSERVER -p tcp --dport $SSH_PORT -j ACCEPT
+		$IPT -A INPUT -o $IF -d $INTERNET -s $MYSERVER -p tcp --sport $SSH_PORT -j ACCEPT
 
 Using `fw-admin`, you will have a handy way of manage thousands of variables like `$MYSERVER`, with full support for FQDN variable declarations.
 
-IMPORTANT NOTE:
+For an iptables-restore format, `fw-admin` implements the same logic:
 
-Current development version of `fw-admin` include support for abstraction at ruleset in `iptables-save` format. But this is still quite new.
-
-The main idea is that `fw-admin` being able to parse a ruleset like this:
+The main idea is that `fw-admin` being able to parse a ruleset like this (note bash-like variables):
 
 		*nat
 		:PREROUTING ACCEPT [0:0]
@@ -64,27 +70,15 @@ And then generate an equivalent ruleset valid for iptables and an equivalent rul
 This method is fast as hell to load a huge ruleset, and recommended if you're using >4.000 rules.
 
 
-###Full support for all iptables/ip6tables/ipset commands.
-
-The netfilter base isn't modified. So you still could design your netfilter system as you like, i.e. declaring other chains, etc...
-
-
 ###Support for massive rule sets.
 
-`fw-admin` is designed to work with tons of thousand of rules. There are some nice progress bars, so you don't get bored when reloading the firewall.
+`fw-admin` is designed to work with tons of thousand of rules. There are some nice progress bars, so you don't get bored when reloading working.
 
 ###Syntax check and variable checks.
 
-When loading a ruleset, `fw-admin` will perform a complete syntax and variable check, so most human mistakes are avoided.  
-Also, when loading rulesets, `fw-admin` will warn you about what rule have problems with iptables.
+`fw-admin` is able to perform a complete syntax and variable check, so most human mistakes are avoided.
 
-
-###Easy to revert. Easy to customize.
-
-Migrate to or from `fw-admin` it's easy, because all shell-like organization in rulesets are allways preserved.
-
-Also, `fw-admin` is just a complex bash script, so you can modify it to fit your environment or requisites.
-
+You will control all errors, so forget complex debug modes.
 
 ###Transactional-like mechanism
 
@@ -103,7 +97,13 @@ The ideal way of working with `fw-admin` is:
 		/var/local/fw.d/data/ipset_vars_ipv6.bash
 		/var/local/fw.d/data/ipset_vars_ipv4.bash
 
-2. Having a working directory with your ruleset, separed by vlans/subnets or whatever you like:
+A datafile is a bash file with variable declaration (note trailing coments is for reloading the value of all variables against DNS or whatever when you request it):
+
+		R2D2_EXAMPLE_COM=192.168.2.2 #r2d2.example.com
+		C3PO_EXAMPLE_COM=192.168.2.3 #c3po.example.com
+		IF=eth0 ##ignore##
+
+2. If `FORMAT=script`, having a working directory with your ruleset, separed by vlans/subnets or whatever you like:
 
 		/var/local/fw.d/rules/core
 		/var/local/fw.d/rules/sets
@@ -114,9 +114,43 @@ The ideal way of working with `fw-admin` is:
 
 	I this example, a `core` file is used for building all custom chains, a `set` file is used to declare all sets, and all others files are pure rule declaration zone.  
 
-3. Tunning global variables
+3. If `FORMAT=restore`, having a ruleset file with all your data:
+
+		/var/local/fw.d/rules/ruleset
+
+4. Simple configuration: `/etc/fw-admin.conf`
 
 `fw-admin` have some global variables to help you customize your experiencie: working directories, company domain, etc..
+
+Here is the simple config file: 
+
+		# Values:{restore|script}, Default: script
+		FORMAT=script
+
+		# Your company domain
+		DOMAIN="cica.es"
+
+		# Working dirs and data files
+		WORKING_DIR="/var/local/fw.d"
+		CONF_DIR="$WORKING_DIR/rules"
+		DATA_DIR="$WORKING_DIR/data"
+		VARS_IPV6="$DATA_DIR/iptables_vars_ipv6.bash"
+		VARS_IPV4="$DATA_DIR/iptables_vars_ipv4.bash"
+		VARS_IPSETV4="$DATA_DIR/ipset_vars_ipv4.bash"
+		VARS_IPSETV6="$DATA_DIR/ipset_vars_ipv6.bash"
+
+		# Some options. Values:{yes|no}
+		LOG_ERROR_MESSAGES="yes"
+		LOG_WARN_MESSAGES="yes"
+		USE_COLORS="no"
+		USE_PROGRESS_BAR="yes"
+
+		# [...]
+
+
+5. Check the `/etc/init.d/firewall` startup script.
+
+6. Run it.
 
 
 
@@ -124,3 +158,5 @@ More to come
 ============
 
 Expect more changes in the future, this is only the first approach.
+
+Please comment.
