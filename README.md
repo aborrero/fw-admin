@@ -97,7 +97,7 @@ The ideal way of working with `fw-admin` is:
 		/var/local/fw.d/data/ipset_vars_ipv6.bash
 		/var/local/fw.d/data/ipset_vars_ipv4.bash
 
-A datafile is a bash file with variable declaration (note trailing coments is for reloading the value of all variables against DNS or whatever when you request it):
+	A datafile is a bash file with variable declaration (note trailing coments is for reloading the value of all variables against DNS or whatever when you request it):
 
 		R2D2_EXAMPLE_COM=192.168.2.2 #r2d2.example.com
 		C3PO_EXAMPLE_COM=192.168.2.3 #c3po.example.com
@@ -120,9 +120,9 @@ A datafile is a bash file with variable declaration (note trailing coments is fo
 
 4. Simple configuration: `/etc/fw-admin.conf`
 
-`fw-admin` have some global variables to help you customize your experiencie: working directories, company domain, etc..
+	`fw-admin` have some global variables to help you customize your experiencie: working directories, company domain, etc..
 
-Here is the simple config file: 
+	Here is the simple config file: 
 
 		# Values:{restore|script}, Default: script
 		FORMAT=script
