@@ -88,13 +88,13 @@ start()
 	if [ $? -ne 0 ]
 	then
 		# Example:
-		#$MAIN_BIN --start core --nocheck >/dev/null 2>/dev/null \
-		#	&& $MAIN_BIN --ipset-reload --nocheck >/dev/null 2>/dev/null \
-		#	&& $MAIN_BIN --start nat --nocheck >/dev/null 2>/dev/null \
-		#	&& $MAIN_BIN --start sets_rules --nocheck >/dev/null 2>/dev/null \
-		#	&& $MAIN_BIN --start vlan_10 --nocheck >/dev/null 2>/dev/null \
-		#	&& $MAIN_BIN --start vlan_18 --nocheck >/dev/null 2>/dev/null \
-		#	&& $MAIN_BIN --start vlan_54 --nocheck >/dev/null 2>/dev/null &
+		#( $MAIN_BIN --start core --nocheck >/dev/null 2>/dev/null \
+		#	; $MAIN_BIN --ipset-reload --nocheck >/dev/null 2>/dev/null \
+		#	; $MAIN_BIN --start nat --nocheck >/dev/null 2>/dev/null \
+		#	; $MAIN_BIN --start sets_rules --nocheck >/dev/null 2>/dev/null \
+		#	; $MAIN_BIN --start vlan_10 --nocheck >/dev/null 2>/dev/null \
+		#	; $MAIN_BIN --start vlan_18 --nocheck >/dev/null 2>/dev/null \
+		#	; $MAIN_BIN --start vlan_54 --nocheck >/dev/null 2>/dev/null ) &
 
 		# esperando timeout de arranque
 		local cont=0

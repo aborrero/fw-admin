@@ -245,6 +245,13 @@ El fichero principal de configuración es \fB/etc/fw-admin.conf\fP.
 
 Durante todo el código de \fBfw-admin\fP se usan recurrentemente algunas variables, que pueden editarse y de las cuales algunas se detallan a continuación:
 .TP
+\fB$FORMAT\fP
+Al arrancar un fichero de reglas, el fichero de reglas puede estar en format script o en formato \fBiptables-save(8)\fP.
+
+Con esta directiva, \fBfw-admin\fP sabrá cómo tiene que tratar los ficheros de reglas. Todavía en estado de desarrollo.
+
+Valores: {restore|script} Por defecto: script
+.TP
 \fB$DOMAIN\fP
 El dominio principal sobre el que estamos trabajando. Por ejemplo, en CICA se usará: \fBDOMAIN="cica.es"\fP.
 .TP
