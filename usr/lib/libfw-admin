@@ -74,6 +74,7 @@ start_in_restore_format_loop()
 			;;
 		ipv6)
 			rules=$( delete_nat_from_ruleset $filename )
+			[ $? -ne 0 ] && rules=$( cat $filename )
 			;;
 	esac
 	# Iterate over variables ($FOO) on file
@@ -151,6 +152,7 @@ delete_nat_from_ruleset()
 start_in_restore_format()
 {
 	local start_in_restore_format_retval=0
+	local initial_time=`date +%s`
 	local filename=$1
 
 	if [ ! -r "$filename" ]
@@ -167,18 +169,24 @@ start_in_restore_format()
 	fi
 
 
+	# Start IPv4
+	message "I: Starting IPv4 ruleset."
 	if ! start_in_restore_format_loop $filename ipv4
 	then
 		start_in_restore_format_retval=$?
 		message "W: Errors found loading ruleset of $filename in IPv4"
 	fi
 
+	# Start IPv6
+	message "I: Starting IPv6 ruleset."
 	if ! start_in_restore_format_loop $filename ipv6
 	then
 		start_in_restore_format_retval=$?
 		message "W: Errors found loading ruleset of $filename in IPv6"
 	fi
 
+	# Finishing
+	message "I: Operation time: $(( `date +%s` - initial_time )) seconds."
 
 	return $start_in_restore_format_retval
 }
