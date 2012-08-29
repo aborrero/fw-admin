@@ -27,6 +27,43 @@ IMPORTANT NOTE:
 
 Current development version of `fw-admin` include support for abstraction at ruleset in `iptables-save` format. But this is still quite new.
 
+The main idea is that `fw-admin` being able to parse a ruleset like this:
+
+		*nat
+		:PREROUTING ACCEPT [0:0]
+		:INPUT DROP [0:0]
+		:OUTPUT DROP [0:0]
+		:POSTROUTING ACCEPT [0:0]
+		# some nat rules here
+		-A POSTROUTING -j MASQUERADE
+		COMMIT
+		*filter
+		:INPUT DROP [0:0]
+		:FORWARD DROP [0:0]
+		:OUTPUT DROP [0:0]
+		# some customization here
+		:sets_rules - [0:0]
+		:myotherchain - [0:0]
+		:vlan_6 - [0:0]
+		-A INPUT -j sets_rules
+		-A OUTPUT -j sets_rules
+		-A FORWARD -j sets_rules
+		# also support for ipset (family inet and family inet6)
+		-A sets_rules --match-set $SET_ONE src --match-set $SET_TWO dst -j ACCEPT
+		-A sets_rules -j RETURN
+		-A FORWARD -i $NIC1 -o $NIC2 -j vlan_6
+		# FQDNs with both A and AAAA records
+		-A vlan_6 -s $R2D2_EXAMPLE_COM -d $C3PO_EXAMPLE_COM -p tcp --dport 22 -j ACCEPT
+		# Also, a IPv4
+		-A vlan_6 -s $v192_168_1_2 -p udp -j ACCEPT
+		# Or an plain IPv6
+		-A vlan_6 -d $2a00_9ac0_11__2 -j ACCEPT
+		COMMIT
+
+And then generate an equivalent ruleset valid for iptables and an equivalent ruleset valid for ip6tables.
+This method is fast as hell to load a huge ruleset, and recommended if you're using >4.000 rules.
+
+
 ###Full support for all iptables/ip6tables/ipset commands.
 
 The netfilter base isn't modified. So you still could design your netfilter system as you like, i.e. declaring other chains, etc...
