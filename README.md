@@ -23,6 +23,10 @@ You usally set your ruleset in this way:
 
 Using `fw-admin`, you will have a handy way of manage thousands of variables like `$MYSERVER`, with full support for FQDN variable declarations.
 
+IMPORTANT NOTE:
+
+Current development version of `fw-admin` include support for abstraction at ruleset in `iptables-save` format. But this is still quite new.
+
 ###Full support for all iptables/ip6tables/ipset commands.
 
 The netfilter base isn't modified. So you still could design your netfilter system as you like, i.e. declaring other chains, etc...
