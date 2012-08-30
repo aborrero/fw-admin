@@ -70,21 +70,21 @@ case "$1" in
 
 	"-a" )
 		loadlibrary
-		validar_ejecucion
+		validate_execution
 		message "I: Adding IP/FQDN variable."
 		add_ip_variable $2 # data as a parameter
 		do_exit $?
 		;;
 	"-as" )
 		loadlibrary
-		validar_ejecucion
+		validate_execution
 		message "I: Adding setname variable."
 		agregar_set $2 # data as a parameter
 		do_exit $?
 		;;
 	"-r" )
 		loadlibrary
-		validar_ejecucion
+		validate_execution
 		message "I: Reloading variables."
 		reload_variable_values
 		do_exit $?
@@ -102,7 +102,7 @@ case "$1" in
 		;;
 	"--start" )
 		loadlibrary
-		validar_ejecucion
+		validate_execution
 		[ "$3" == "--nocheck" ] && flag_no_check=1
 
 		if [ "$FORMAT" == "restore" ]
@@ -116,14 +116,14 @@ case "$1" in
 		;;
 	"--stop" )
 		loadlibrary
-		validar_ejecucion
+		validate_execution
 		message "I: Parando reglas de iptables de [$2]."
 		stop $2 #nombre de vlan como parametro
 		do_exit $?
 		;;
 	"--ipset-reload" )
 		loadlibrary
-		validar_ejecucion
+		validate_execution
 		message "I: Recargando conjuntos."
 		[ "$2" == "--nocheck" ] && flag_no_check=1
 		ipset_reload #sin parametros
