@@ -3,8 +3,8 @@
 # Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio/Agosto 2012
 VERSION="0.5"
 
-CONF_FILE="/etc/fw-admin.conf"
-LIB="/usr/lib/libfw-admin"
+CONF_FILE="etc/fw-admin.conf"
+LIB="usr/lib/libfw-admin"
 
 C_RED="\E[31m"
 C_GREEN="\E[32m"
@@ -17,83 +17,91 @@ C_BLUEBOLD="\E[1;33m"
 C_NORMAL="\E[0m"
 C_BOLD="\E[1m"
 
-ayuda()
+help()
 {
-	echo -e "${C_BOLD}fw-admin Version: $VERSION${C_NORMAL}"
-	uso
-	echo -e "	${C_BOLD}-s${C_NORMAL}				Muestra estadisticas."
-	echo -e "	${C_BOLD}-a${C_NORMAL} [ipv4|ipv6|fqdn]		Agregar una variable al sistema, ya sea IP o FQDN."
-	echo -e "	${C_BOLD}-as${C_NORMAL} [nombreset]			Agregar una variable de nombre de conjunto al sistema."
-	echo -e "	${C_BOLD}-r${C_NORMAL}				Recarga el valor de todas las variables guardadas."
-	echo -e "	${C_BOLD}-i${C_NORMAL} [ipv4|ipv6|fqdn|var]		Obtener informacion de una IP, FQDN, variable o set."
-	echo -e "	${C_BOLD}-c${C_NORMAL} fichero			Comprueba las variables de un fichero de vlan o set."
-	echo -e "	${C_BOLD}--start${C_NORMAL} {vlan|nat|core}		Inicia las reglas de una vlan/nat/core. Esto también sirve como reload."
-	echo -e "	${C_BOLD}--stop${C_NORMAL} {vlan|nat|core}		Elimina las reglas de una vlan/nat/core."
-	echo -e "	${C_BOLD}--ipset-reload${C_NORMAL}			Recarga los datos de conjuntos de IPs."
-	echo -e "	${C_BOLD}--check-datafiles${C_NORMAL}		Checkea los ficheros de datos buscando errores."
-	echo -e "	${C_BOLD}--help${C_NORMAL}				Muestra esta ayuda."
-	echo -e "Para mas información consultar ${C_BOLD}fw-admin(8)${C_NORMAL}"
-
-	return 0
-}
-
-uso()
-{
-	echo -e "${C_BOLD}Uso:${C_NORMAL} fw-admin {-s|-a [ipv4|ipv6|fqdn]|-as [nombreset]|-r|-i [ipv4|ipv6|fqdn|var]|-c fichero|--start {vlan|nat|core}|--stop {vlan|nat|core}|--ipset-reload|--check-datafiles|--help}"
+	echo -e "${C_BOLD}fw-admin v${VERSION}${C_NORMAL}"
+	echo -e " ${C_BOLD}-s${C_NORMAL}				Show some stats."
+	echo -e " ${C_BOLD}-a${C_NORMAL} [ipv4|ipv6|fqdn]		Add an IP or FQDN variable to datafiles."
+	echo -e " ${C_BOLD}-as${C_NORMAL} [setname]			Add an IPSET variable to datafiles."
+	echo -e " ${C_BOLD}-r${C_NORMAL}				Reload the value of all IP or FQDN variables in datafiles."
+	echo -e " ${C_BOLD}-i${C_NORMAL} [ipv4|ipv6|fqdn|var]	Get information about IP, FQDN, IPSET or variable."
+	echo -e " ${C_BOLD}-c${C_NORMAL} file			Check file."
+	echo -e " ${C_BOLD}--start${C_NORMAL} arg [--nocheck]"
+	echo -e "	if FORMAT=restore	Start the selected ruleset"
+	echo -e "	--start ruleset [--nocheck]"
+	echo -e "	if FORMAT=script	Start the selected rulefile/vlan/nat"
+	echo -e "	--start {core|nat|vlan_name} [--nocheck]"
+	echo -e " ${C_BOLD}--stop${C_NORMAL} {vlan|nat|core}		Stop and/or flush rules."
+	echo -e " ${C_BOLD}--ipset-reload${C_NORMAL}			Reload IPSET kernel data."
+	echo -e " ${C_BOLD}--check-datafiles${C_NORMAL}		Check datafiles for errors."
+	echo -e " ${C_BOLD}--help${C_NORMAL}				Show this message."
 	return 0
 }
 
 
-################################################################
-################################################################
-# Programa
-################################################################
-################################################################
-source $CONF_FILE 2>/dev/null || { echo "E: Unable to load config file $CONF_FILE" >&2; exit 1 ; }
+nofound()
+{
+	echo "fw-admin: invalid option. Try \`fw-admin --help' or see man page fw-admin(8)" >&2
+	return 1
+}
 
-if [ "$1" == "-s" ] || [ "$1" == "-a" ] || [ "$1" == "-as" ] || [ "$1" == "-r" ] || [ "$1" == "-i" ] \
-|| [ "$1" == "-c" ] || [ "$1" == "--start" ] || [ "$1" == "--stop" ] || [ "$1" == "--ipset-reload" ] || [ "$1" == "--check-datafiles" ]
-then
-	source $LIB 2>/dev/null || { echo "E: Unable to load library $LIB" >&2; exit 1 ; }
+
+
+loadlibrary()
+{
+	source $LIB 2>/dev/null || { echo "E: Unable to load library $LIB" >&2 ; exit 1 ; }
 	check_root
-	check_files || { message "Terminando..." ; exit 1 ; }
-fi
+	check_files || { message "Ending..." ; exit 1 ; }
+	return 0
+}
+
+
+################################################################
+# Program
+################################################################
+source $CONF_FILE 2>/dev/null || { echo "E: Unable to load config file $CONF_FILE" >&2 ; exit 1 ; }
 
 case "$1" in
-
 	"-s" )
+		loadlibrary
 		estadisticas
 		do_exit $?
 		;;
 
 	"-a" )
+		loadlibrary
 		validar_ejecucion
 		message "I: Adding IP/FQDN variable."
 		agregar_variable $2 # data as a parameter
 		do_exit $?
 		;;
 	"-as" )
+		loadlibrary
 		validar_ejecucion
 		message "I: Adding setname variable."
 		agregar_set $2 # data as a parameter
 		do_exit $?
 		;;
 	"-r" )
+		loadlibrary
 		validar_ejecucion
 		message "I: Reloading variables."
 		reload_variable_values
 		do_exit $?
 		;;
 	"-i" )
+		loadlibrary
 		message "I: Gathering information."
 		get_information $2 # data as a parameter
 		do_exit $?
 		;;
 	"-c" )
+		loadlibrary
 		check_rulefile $2 # file as a parameter
 		do_exit $?
 		;;
 	"--start" )
+		loadlibrary
 		validar_ejecucion
 		[ "$3" == "--nocheck" ] && flag_no_check=1
 
@@ -107,12 +115,14 @@ case "$1" in
 		do_exit $?
 		;;
 	"--stop" )
+		loadlibrary
 		validar_ejecucion
 		message "I: Parando reglas de iptables de [$2]."
 		stop $2 #nombre de vlan como parametro
 		do_exit $?
 		;;
 	"--ipset-reload" )
+		loadlibrary
 		validar_ejecucion
 		message "I: Recargando conjuntos."
 		[ "$2" == "--nocheck" ] && flag_no_check=1
@@ -120,15 +130,16 @@ case "$1" in
 		do_exit $?
 		;;
 	"--check-datafiles" )
+		loadlibrary
 		check_datafiles #without parameters
 		do_exit $?
 		;;
 	"--help" )
-		ayuda
+		help
 		exit $?
 		;;
 	* )
-		uso
+		nofound
 		exit $?
 		;;
 esac
