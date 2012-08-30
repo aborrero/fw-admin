@@ -583,7 +583,7 @@ guardar_variable_en_fichero()
 		if [ -z "$resolution" ]
 		then
 			# No hay resolution DNS para este registro
-			echo "${nombre_variable}=\$FICTICIA #$data_to_add" >> $fichero_trabajo
+			echo "${nombre_variable}=\$VOID #$data_to_add" >> $fichero_trabajo
 			[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 		else
 			# Hay resolution DNS para el registro
@@ -604,7 +604,7 @@ guardar_variable_en_fichero()
 		then
 			case "$ip" in
 				"ipv4" )
-					echo "${nombre_variable}=\$FICTICIA #$data_to_add" >> $fichero_trabajo
+					echo "${nombre_variable}=\$VOID #$data_to_add" >> $fichero_trabajo
 					[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 					;;
 				"ipv6" )
@@ -622,7 +622,7 @@ guardar_variable_en_fichero()
 						[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 						;;
 					"ipv6" )
-						echo "${nombre_variable}=\$FICTICIA #$data_to_add" >> $fichero_trabajo
+						echo "${nombre_variable}=\$VOID #$data_to_add" >> $fichero_trabajo
 						[ $? -ne 0 ] && { message "E: Fallo al borrar el dato anterior en la actualizacion. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 						;;
 				esac
@@ -891,7 +891,7 @@ get_information()
 		local new_data_search_list=`cat $AUX_FILE | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
 		for i in $new_data_search_list
 		do
-			if [ "$i" != "\$FICTICIA" ] || [ "$i" != "\$VOID" ]
+			if [ "$i" != "\$VOID" ] || [ "$i" != "\$VOID" ]
 			then
 				search_datafiles $i $AUX_FILE
 			fi
@@ -973,7 +973,7 @@ get_information()
 	fi
 
 	# Realizar la consulta a iptables
-	local consulta_iptables=`grep -i $data $VARS_IPV4 | grep -v FICTICIA | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` #obtener valor
+	local consulta_iptables=`grep -i $data $VARS_IPV4 | grep -v VOID | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` #obtener valor
 	if is_ipv4_valid $consulta_iptables
 	then
 		local num_reglas_ipv4_nat=`$IPT_SAVE -t nat | grep "$consulta_iptables" | wc -l`
