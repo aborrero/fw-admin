@@ -64,7 +64,7 @@ source $CONF_FILE 2>/dev/null || { echo "E: Unable to load config file $CONF_FIL
 case "$1" in
 	"-s" )
 		loadlibrary
-		estadisticas
+		stats
 		do_exit $?
 		;;
 
