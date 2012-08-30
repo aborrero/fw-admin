@@ -60,7 +60,7 @@ do_exit()
 {
 	if [ -r "$LOCK_FILE" ]
 	then
-		if [ "`cat $LOCK_FILE`" == "${$}@${THIS}" ] 2> /dev/null # Borramos el lock file solo si es nuestro
+		if [ "`cat $LOCK_FILE`" == "${$}" ] 2> /dev/null # Borramos el lock file solo si es nuestro
 		then
 			rm -f $LOCK_FILE 2> /dev/null
 		fi
