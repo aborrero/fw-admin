@@ -5,8 +5,6 @@
 ################################################################
 ################################################################
 # Variables
-################################################################
-################################################################
 PID=$$
 THIS="`uname -n`"
 
@@ -27,171 +25,15 @@ DIG="/usr/bin/dig"
 
 AUX_FILE="`mktemp`"
 
-EJECUTABLE_LOGGER="/usr/bin/logger"
+LOGGER_BIN="/usr/bin/logger"
 ARGS_LOGGER="-t fw-admin[$PID] --"
 
 ################################################################
 ################################################################
-# Funciones
-################################################################
-################################################################
+# Control functions
 
-# boolean start_in_restore_format_loop(string filename, string protocol)
-# Iterate over a file with iptables-restore format, doing variable replacement
-# and initialization.
-# protocol=ipv4|ipv6
-# JUST A POC
-start_in_restore_format_loop()
-{
-	local start_in_restore_format_loop_retval=0
-	local filename=$1
-	local protocol=$2
-
-	if [ ! -r "$filename" ]
-	then
-		message "E: File not found $filename"
-		do_exit 1
-	fi
-
-	case "$protocol" in
-		ipv4)
-			source $VARS_IPV4 || return 1
-			source $VARS_IPSETV4 || return 1
-			;;
-		ipv6)
-			source $VARS_IPV6 || return 1
-			source $VARS_IPSETV6 || return 1
-			;;
-		*)
-			message "E: Bad call to function start_in_restore_format_loop()."
-			do_exit 1
-	esac
-
-	local rules=""
-	case "$protocol" in
-		ipv4)
-			rules=$( cat $filename )
-			;;
-		ipv6)
-			rules=$( delete_nat_from_ruleset $filename )
-			[ $? -ne 0 ] && rules=$( cat $filename )
-			;;
-	esac
-	# Iterate over variables ($FOO) on file
-	for word in `grep -v ^[[:space:]]*# $filename | tr [[:space:]] '\n' | fgrep \$ | sort -u | grep -v ^[[:space:]]*$`
-	do
-		variable=$word
-		data=`eval "echo $word"`
-		data=$( echo $data | sed -e 's/\//\\\//g' ) #cleaning /
-		rules=$( sed s/"$variable"/"$data"/g <<< "$rules" 2>&1)
-		if [ $? -ne 0 ]
-		then
-			message "E: Errors found trying to replace with \`sed' the variable $variable in $protocol"
-			echo "Details:" >&2
-			echo " $rules" >&2
-			return 1
-		fi
-	done
-
-	case "$protocol" in
-		ipv4)
-			iptables-restore <<< "$rules" || start_in_restore_format_loop_retval=1
-			;;
-		ipv6)
-			# Delete NAT stuff
-			ip6tables-restore <<< "$rules" || start_in_restore_format_loop_retval=1
-			;;
-	esac
-
-	return $start_in_restore_format_loop_retval
-}
-
-# text delete_nat_from_ruleset(string filename)
-# Delete all from *nat to COMMIT to have the ruleset ip6tables compliant
-delete_nat_from_ruleset()
-{
-	local delete_nat_from_ruleset_retval=0
-	local filename=$1
-
-	if [ ! -r "$filename" ]
-	then
-		message "E: Function delete_nat_from_ruleset() called with invalid argument. File not found."
-		do_exit 1
-	fi
-
-	local headingline=$( cat $filename | nl -ba | grep -i ^[[:space:]]*[0-9]*[[:space:]]*"\*"nat | awk -F' ' '{print $1}' 2>/dev/null )
-	[[ $headingline =~ ^[0-9]$ ]] || delete_nat_from_ruleset_retval=1
-
-	if [ $delete_nat_from_ruleset_retval -eq 0 ]
-	then
-		# continue calcules
-		local list_of_tailingline=$( cat ruleset | nl -ba | grep ^[[:space:]]*[0-9]*[[:space:]]"COMMIT"$ | awk -F' ' '{print $1}' | tr '\n' ' ' 2>/dev/null )
-
-		# Calculate now what COMMIT line belongs to nat declaration
-		oldIFS=$IFS ; IFS=$' ' #control over IFS
-		local max_difference=$( wc -l $filename | cut -d' ' -f 1)
-		for num in $list_of_tailingline
-		do
-			local difference=$(( num - headingline ))
-			if [ $difference -lt $max_difference ]
-			then
-				max_difference=$difference
-				tailingline=$num
-			fi
-		done
-		IFS=$oldIFS
-		# When the for is over, whe know tailingline and headingline
-		sed ${headingline},${tailingline}d $filename # this is the text return
-		delete_nat_from_ruletes_retval=$?
-	fi
-
-	return $delete_nat_from_ruleset_retval
-}
-
-# boolean start_in_restore_format(string filename)
-start_in_restore_format()
-{
-	local start_in_restore_format_retval=0
-	local initial_time=`date +%s`
-	local filename=$1
-
-	if [ ! -r "$filename" ]
-	then
-		message "E: File not found $filename"
-		do_exit 1
-	fi
-
-	# Checking rulefile.
-	if ! check_rulefile $filename
-	then
-		message "E: Check failed. Don't starting."
-		do_exit 1 # Exit point
-	fi
-
-
-	# Start IPv4
-	message "I: Starting IPv4 ruleset."
-	if ! start_in_restore_format_loop $filename ipv4
-	then
-		start_in_restore_format_retval=$?
-		message "W: Errors found loading ruleset of $filename in IPv4"
-	fi
-
-	# Start IPv6
-	message "I: Starting IPv6 ruleset."
-	if ! start_in_restore_format_loop $filename ipv6
-	then
-		start_in_restore_format_retval=$?
-		message "W: Errors found loading ruleset of $filename in IPv6"
-	fi
-
-	# Finishing
-	message "I: Operation time: $(( `date +%s` - initial_time )) seconds."
-
-	return $start_in_restore_format_retval
-}
 # void message(string message)
-# Esta funcion pinta un mensaje por pantalla y quizás lo guarde en un log
+# Show a message to stdout and/or stderr. Maybe also to logger
 message()
 {
 
@@ -206,14 +48,14 @@ message()
 	fi
 
 	# solo se logean mensajes de error y warning
-	[ "$LOG_ERROR_MESSAGES" == "yes" ] && [[ $1 =~ ^"E:" ]] && $EJECUTABLE_LOGGER $ARGS_LOGGER $1
-	[ "$LOG_WARN_MESSAGES" == "yes" ] && [[ $1 =~ ^"W:" ]] && $EJECUTABLE_LOGGER $ARGS_LOGGER $1
+	[ "$LOG_ERROR_MESSAGES" == "yes" ] && [[ $1 =~ ^"E:" ]] && $LOGGER_BIN $ARGS_LOGGER $1
+	[ "$LOG_WARN_MESSAGES" == "yes" ] && [[ $1 =~ ^"W:" ]] && $LOGGER_BIN $ARGS_LOGGER $1
 
 	return 0
 }
 
 # void do_exit(int exit_code)
-# sale del programa borrando el lockfile y el fichero auxiliar
+# Exit the program, flushing LOCK_FILE and AUX_FILE
 do_exit()
 {
 	if [ -r "$LOCK_FILE" ]
@@ -230,25 +72,141 @@ do_exit()
 	exit $1
 }
 
-# boolean validar_ejecucion()
-# valida que no hay dos instancias de fw-admin en operacion critica
-validar_ejecucion() # Incluye punto de salida
+# boolean validate_execution()
+# Check if there are other instance in critical mode
+validate_execution()
 {
-	# Si no existe el lock file
-	# la ejecucion es nuestra, guardar nuestro pid
+	# If LOCK_FILE doesn't exist
+	# the execution is our's, so put pid to LOCK_FILE
 	if [ ! -r $LOCK_FILE ]
 	then
-		echo "${$}@${THIS}" > $LOCK_FILE 2> /dev/null
+		echo "${$}" > $LOCK_FILE 2> /dev/null
 	fi
 
 	local pid=`cat $LOCK_FILE`
-	if [ "$pid" != "${$}@${THIS}" ] 2> /dev/null
+	if [ "$pid" != "${$}" ] 2> /dev/null
 	then
-		message "E: Parece que ya hay una instancia en ejecucion. Existe lockfile [${LOCK_FILE}] con pid [${pid}]. Terminando..."
+		message "E: $LOCK_FILE LOCK_FILE already exist with pid: ${pid}. Ending..."
 		do_exit 1
 	fi
 	return 0
 }
+
+
+# boolean check_root()
+# Check if this is a root execution.
+check_root()
+{
+	local check_root_retval=0
+	if [ `id -u` -ne 0 ]
+	then
+		message "W: Not root!"
+		check_root_retval=1
+	fi
+	return $check_root_retval
+}
+
+# boolean check_files()
+# Check for all required files and bins.
+check_files()
+{
+	local check_files_retval=0
+	[ -x $IPT_SAVE ] || { message "E: Binary not found [$IPT_SAVE]" ; check_files_retval=1 ; }
+	[ -x $IP6T_SAVE ] || { message "E: Binary not found [$IP6T_SAVE]" ; check_files_retval=1 ; }
+	[ -w $AUX_FILE ] || { message "E: Fallo al crear el fichero auxiliar [$AUX_FILE]" ; check_files_retval=1 ; }
+	[ -d $CONF_DIR ] || { message "E: Dir not found [$CONF_DIR]" ; check_files_retval=1 ; }
+	[ -x $IPSET_CONF ] || { message "E: File not found [$IPSET_CONF]" ; check_files_retval=1 ; }
+	[ -d $DATA_DIR ] || { message "E: Dir not found [$DATA_DIR]" ; check_files_retval=1 ; }
+	[ -d ${WORKING_DIR}/run ] || { message "E: Dir not found [${WORKING_DIR}/run]" ; check_files_retval=1 ; }
+	[ -w $VARS_IPV6 ] || { message "E: File not found [$VARS_IPV6]" ; check_files_retval=1 ; }
+	[ -w $VARS_IPV4 ] || { message "E: File not found [$VARS_IPV4]" ; check_files_retval=1 ; }
+	[ -w $VARS_IPSETV6 ] || { message "E: File not found [$VARS_IPSETV6]" ; check_files_retval=1 ; }
+	[ -w $VARS_IPSETV4 ] || { message "E: File not found [$VARS_IPSETV4]" ; check_files_retval=1 ; }
+	[ -x $IPT ] || { message "E: Binary not found [$IPT]." ; check_files_retval=1 ; }
+	[ -x $IP6T ] || { message "E: Binary not found [$IP6T]." ; check_files_retval=1 ; }
+	[ -x $IPSET ] || { message "E: Binary not found [$IPSET]." ; check_files_retval=1 ; }
+	#[ -x $CONNTRACKD ] || { message "E: Binary not found [$CONNTRACKD]." ; check_files_retval=1 ; }
+	[ -x $DIG ] || { message "E: Binary not found [$DIG]" ; check_files_retval=1 ; }
+
+	# Only if neccesary
+	if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
+	then
+		[ -x $IPT_CLUSTER ] || { message "E: Binary not found [$IPT_CLUSTER]." ; check_files_retval=1 ; }
+		[ -x $IP6T_CLUSTER ] || { message "E: Binary not found [$IP6T_CLUSTER]." ; check_files_retval=1 ; }
+		[ -x $IPSET_CLUSTER ] || { message "E: Binary not found [$IPSET_CLUSTER]." ; check_files_retval=1 ; }
+	fi
+
+	return $check_files_retval
+}
+
+# string libprogressbar(int i, int max)
+# Forked from http://www.brianhare.com/wordpress/2011/03/02/bash-progress-bar/
+libprogressbar()
+{
+        local current=0
+        local max=100
+        local completed_char="#"
+        local uncompleted_char="."
+        local decimal=1
+        local prefix=" ["
+        local suffix="]"
+        local percent_sign="%"
+        local max_width=55
+        local complete remain subtraction width atleast percent chars
+        local padding=3
+
+        current=${1:-$current}
+        max=${2:-$max}
+
+	# Delete the bar now
+	if [ $max -eq $current ]
+	then
+		printf '%s\r' "                                                       "
+		return 0
+	fi
+
+        (( padding = padding + decimal + 1 ))
+
+        let subtraction=${#completed_char}+${#prefix}+${#suffix}+padding+${#percent_sign}
+        let width=max_width-subtraction
+
+	if (( width < 5 ))
+	then
+		(( atleast = 5 + subtraction ))
+		echo >&2 "libprogressbar: the max_width of ($max_width) is too small, must be atleast $atleast"
+		return 1
+        fi
+
+	if (( current > max ))
+	then
+		echo >&2 "libprogressbar: current value must be smaller than max. value"
+		return 1
+	fi
+
+	percent=$(awk -v "f=%${padding}.${decimal}f" -v "c=$current" -v "m=$max" 'BEGIN{printf('f', c / m * 100)}')
+	(( chars = current * width / max))
+
+	# sprintf n zeros into the var named as the arg to -v
+	printf -v complete '%0*.*d' '' "$chars" ''
+	printf -v remain '%0*.*d' '' "$((width - chars))" ''
+
+	# replace the zeros with the desired char
+	complete=${complete//0/"$completed_char"}
+	remain=${remain//0/"$uncompleted_char"}
+
+	printf '%s%s%s%s %s%s\r' "$prefix" "$complete" "$remain" "$suffix" "$percent" "$percent_sign"
+
+	if (( current >= max ))
+	then
+		echo ""
+	fi
+	return 0
+}
+
+
+################################################################
+################################################################
+# Datafile functions
 
 # boolean is_ipv4_valid(string ipv4)
 # Check if an ipv4 is a valid ipv4
@@ -327,62 +285,61 @@ is_domain_fqdn()
 	return $retval
 }
 
-# boolean check_root()
-# Esta funcion checkea que quien ejecuta es root
-check_root()
-{
-	local retval=0
-	if [ `id -u` -ne 0 ]
-	then
-		message "W: Not root!"
-		retval=1
-	fi
-	return $retval
-}
 
-# boolean check_files()
-# Esta funcion checkea y avisa de todos los ficheros necesarios para esta ejecucion
-check_files()
-{
-	local retval=0
-	[ -x $IPT_SAVE ] || { message "E: Incapaz de acceder a [$IPT_SAVE]" ; retval=1 ; }
-	[ -x $IP6T_SAVE ] || { message "E: Incapaz de acceder a [$IP6T_SAVE]" ; retval=1 ; }
-	[ -w $AUX_FILE ] || { message "E: Fallo al crear el fichero auxiliar [$AUX_FILE]" ; retval=1 ; }
-	[ -d $CONF_DIR ] || { message "E: Incapaz de acceder al directorio [$CONF_DIR]" ; retval=1 ; }
-	[ -x $IPSET_CONF ] || { message "E: Incapaz de acceder al fichero [$IPSET_CONF]" ; retval=1 ; }
-	[ -d $DATA_DIR ] || { message "E: Incapaz de acceder al directorio [$DATA_DIR]" ; retval=1 ; }
-	[ -d ${WORKING_DIR}/run ] || { message "E: Incapaz de acceder al directorio [${WORKING_DIR}/run]" ; retval=1 ; }
-	[ -w $VARS_IPV6 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPV6]" ; retval=1 ; }
-	[ -w $VARS_IPV4 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPV4]" ; retval=1 ; }
-	[ -w $VARS_IPSETV6 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPSETV6]" ; retval=1 ; }
-	[ -w $VARS_IPSETV4 ] || { message "E: Incapaz de acceder al fichero [$VARS_IPSETV4]" ; retval=1 ; }
-	[ -x $IPT ] || { message "E: El binario [$IPT] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
-	[ -x $IP6T ] || { message "E: El binario [$IP6T] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
-	[ -x $IPSET ] || { message "E: El binario [$IPSET] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
-	[ -x $CONNTRACKD ] || { message "E: El binario [$CONNTRACKD] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
-	[ -x $DIG ] || { message "E: El binario [$DIG] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
 
-	# Only if neccesary
-	if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
+# boolean reload_variable_values()
+# Esta funcion recorre todas las variables del sistema, reajustando su valor.
+reload_variable_values()
+{
+	local reload_variable_values_retval=0
+	echo -n "" > $AUX_FILE
+
+	message "I: Variables containing the tag \"##ignore##\" are ignored."
+
+	local lista_variables=`{ cat $VARS_IPV4 ; cat $VARS_IPV6 ; } | egrep -v "##ignorar##"\|"##ignore##"\|"@"\|^[[:space:]]*# \
+		| awk -F'#' '{print $2}' | sort -u | uniq | grep -v ^[[:space:]]*$`
+
+	oldIFS=$IFS ; IFS=$' \t\n' #control over IFS
+
+
+	# Evaluating if calcules regarding progress bar are neccesary
+	if [ "$USE_PROGRESS_BAR" == "yes" ]
 	then
-		[ -x $IPT_CLUSTER ] || { message "E: El binario [$IPT_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
-		[ -x $IP6T_CLUSTER ] || { message "E: El binario [$IP6T_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
-		[ -x $IPSET_CLUSTER ] || { message "E: El binario [$IPSET_CLUSTER] no tiene permisos de ejecucion o no se ha encontrado." ; retval=1 ; }
+		local total=`wc -w <<< $lista_variables`
+		local cont=0
 	fi
 
-	return $retval
-}
+	for variable in $lista_variables
+	do
+		# Evaluating if calcules regarding progress bar are neccesary
+		if [ "$USE_PROGRESS_BAR" == "yes" ]
+		then
+			((cont++))
+			libprogressbar $cont $total
+		fi
+		# Solo se mostraran luego los mensajes de error
+		add_ip_variable $variable | grep E: >> $AUX_FILE || reload_variable_values_retval=1
+	done
+	IFS=$oldIFS
 
+	local checklist=`cat $AUX_FILE`
+	if [ ! -z "$checklist" ]
+	then
+		message "I: Check:"
+		echo -e "$checklist"
+	fi
+	return $reload_variable_values_retval
+}
 
 # string get_variable_name(string data)
-# Esta funcion retorna el nombre que debe de tener la variable en funcion de su valor
+# Used to know what variable name correspond to the given data
 get_variable_name()
 {
 	# Check for empty argument
 	if [ -z "$1" ]
 	then
-		message "E: Calculating the name of the variable: empty argument to the function get_variable_name()."
-		return 1
+		message "E: empty argument in function get_variable_name()."
+		do_exit 1
 	fi
 
 	# Check if the data is IPv4
@@ -418,7 +375,7 @@ get_variable_name()
 }
 
 # ip get_ip_from_fqdn(string tipo_ip, string fqdn, int recursivityLevel)
-# recursive function.
+# recursive function. Used to know the final IP asociated with an FQDN.
 get_ip_from_fqdn()
 {
         local tipo_ip=$1
@@ -431,112 +388,69 @@ get_ip_from_fqdn()
 	[ "$recursivityLevel" -gt 100 ] && { message "E: Max recursion level reached in function get_ip_from_fqdn()." ; do_exit 1 ; }
 	((recursivityLevel++))
 
-        local resolucion=`$DIG +short $fqdn $tipo_ip`
-        if is_ipv6_valid $resolucion
+        local resolution=`$DIG +short $fqdn $tipo_ip`
+        if is_ipv6_valid $resolution
         then
-                echo "$resolucion" #punto de salida
+                echo "$resolution" #punto de salida
         else
-		if is_ipv4_valid $resolucion
+		if is_ipv4_valid $resolution
 		then
-			echo "$resolucion" #punto de salida
+			echo "$resolution" #punto de salida
 		else
 			oldIFS=$IFS
 			IFS=$' \t\n'
-	                for linea in $resolucion
+	                for linea in $resolution
 	                do
-	                        local resolucion2="$resolucion2 $(get_ip_from_fqdn $tipo_ip $linea $recursivityLevel)"
+	                        local resolution2="$resolution2 $(get_ip_from_fqdn $tipo_ip $linea $recursivityLevel)"
 	                done
 			IFS=$oldIFS
-	                local resolucion3=`echo "$resolucion2" | tr [[:space:]] '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq`
-	                echo "$resolucion3" #punto de salida
+	                local resolution3=`echo "$resolution2" | tr [[:space:]] '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq`
+	                echo "$resolution3" #punto de salida
 		fi
         fi
 	return 0
 }
 
-# boolean reload_variable_values()
-# Esta funcion recorre todas las variables del sistema, reajustando su valor.
-reload_variable_values()
-{
-	local reload_variable_values_retval=0
-	echo -n "" > $AUX_FILE
 
-	message "I: Variables containing the tag \"##ignore##\" are ignored."
-
-	local lista_variables=`{ cat $VARS_IPV4 ; cat $VARS_IPV6 ; } | egrep -v "##ignorar##"\|"##ignore##"\|"@"\|^[[:space:]]*# \
-		| awk -F'#' '{print $2}' | sort -u | uniq | grep -v ^[[:space:]]*$`
-
-	oldIFS=$IFS ; IFS=$' \t\n' #control over IFS
-
-
-	# Evaluating if calcules regarding progress bar are neccesary
-	if [ "$USE_PROGRESS_BAR" == "yes" ]
-	then
-		local total=`wc -w <<< $lista_variables`
-		local cont=0
-	fi
-
-	for variable in $lista_variables
-	do
-		# Evaluating if calcules regarding progress bar are neccesary
-		if [ "$USE_PROGRESS_BAR" == "yes" ]
-		then
-			((cont++))
-			libprogressbar $cont $total
-		fi
-		# Solo se mostraran luego los mensajes de error
-		agregar_variable $variable | grep E: >> $AUX_FILE || reload_variable_values_retval=1
-	done
-	IFS=$oldIFS
-
-	local checklist=`cat $AUX_FILE`
-	if [ ! -z "$checklist" ]
-	then
-		message "I: Check:"
-		echo -e "$checklist"
-	fi
-	return $reload_variable_values_retval
-}
-
-# Funcion que agrega una variable al sistema, IPv4, IPv6 o FQDN.
-# Puede ser llamada con o sin parametro de entrada con prompt.
-agregar_variable()
+# boolean add_ip_variable(string data)
+# Used to add a variale to IP datafiles
+add_ip_variable()
 {
 	# trap de cancelacion
 	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
-	local agregar_variable_retval=0
-	local dato_a_agregar=$1
+	local add_ip_variable_retval=0
+	local data_to_add=$1
 	local flag_es_ipv4=0
 	local flag_es_ipv6=0
 	local flag_es_fqdn=0
 
-	if [ -z $dato_a_agregar ]
+	if [ -z $data_to_add ]
 	then
 		# No hay parametro de entrada, usar menu
-		read -p "-> Define IPv4, IPv6 or FQDN: " dato_a_agregar
+		read -p "-> Define IPv4, IPv6 or FQDN: " data_to_add
 	fi
 
 	#
 	# Validacion del dato introducido (por parametro o prompt)
 	#
 
-	{ is_ipv4_valid $dato_a_agregar || is_ipv6_valid $dato_a_agregar || is_fqdn_valid $dato_a_agregar ; } \
-		|| { message "E: No se ha reconocido en [${dato_a_agregar}] una IP o FQDN que pueda usarse." ; agregar_variable_retval=1 ; }
+	{ is_ipv4_valid $data_to_add || is_ipv6_valid $data_to_add || is_fqdn_valid $data_to_add ; } \
+		|| { message "E: No se ha reconocido en [${data_to_add}] una IP o FQDN que pueda usarse." ; add_ip_variable_retval=1 ; }
 
 
 	# Procedemos solo si se ha validado el parametro
-	if [ $agregar_variable_retval -eq 0 ]
+	if [ $add_ip_variable_retval -eq 0 ]
 	then
 
 		#
 		# Obtener nombre definitivo que tendra la variable
 		#
 
-		variable_name=$( get_variable_name $dato_a_agregar )
+		variable_name=$( get_variable_name $data_to_add )
 		[ $? -ne 0 ] && { message "E: Unable to determine variable name." ; do_exit 1 ; }
 
-		echo "DEBUG: $variable_name=$dato_a_agregar #$dato_a_agregar" > /dev/null
+		echo "DEBUG: $variable_name=$data_to_add #$data_to_add" > /dev/null
 
 		if grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null && grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null
 		then
@@ -549,19 +463,19 @@ agregar_variable()
 		#
 		# Escribir las variables a los ficheros de datos
 		#
-		guardar_variable_en_fichero "ipv4" "$variable_name" "$dato_a_agregar" \
-			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV4}]" ; agregar_variable_retval=1 ; }
-		guardar_variable_en_fichero "ipv6" "$variable_name" "$dato_a_agregar" \
-			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV6}]" ; agregar_variable_retval=1 ; }
+		guardar_variable_en_fichero "ipv4" "$variable_name" "$data_to_add" \
+			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV4}]" ; add_ip_variable_retval=1 ; }
+		guardar_variable_en_fichero "ipv6" "$variable_name" "$data_to_add" \
+			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV6}]" ; add_ip_variable_retval=1 ; }
 
 		#
 		# Checkeo de que la escritura ha sido correcta
 		#
-		grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null || agregar_variable_retval=1
-		grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null || agregar_variable_retval=1
-		[ $agregar_variable_retval -ne 0 ] &&  message "E: No se pudo guardar la variable [${variable_name}]."
+		grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null || add_ip_variable_retval=1
+		grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null || add_ip_variable_retval=1
+		[ $add_ip_variable_retval -ne 0 ] &&  message "E: No se pudo guardar la variable [${variable_name}]."
 	fi
-	return $agregar_variable_retval
+	return $add_ip_variable_retval
 
 }
 
@@ -570,21 +484,21 @@ agregar_variable()
 agregar_set()
 {
 	local agregar_set_retval=0
-	local dato_a_agregar=$1
+	local data_to_add=$1
 
-	if [ -z $dato_a_agregar ]
+	if [ -z $data_to_add ]
 	then
 		# No hay parametro de entrada, usar menu
-		read -p "-> Definir nombre del conjunto (algo como W_ALL o S_NIS): " dato_a_agregar
+		read -p "-> Definir nombre del conjunto (algo como W_ALL o S_NIS): " data_to_add
 	fi
 
 	#
 	# Validacion del dato introducido (por parametro o prompt)
 	#
 	# Mayusculas
-	dato_a_agregar=`tr [:lower:] [:upper:] <<< $dato_a_agregar`
+	data_to_add=`tr [:lower:] [:upper:] <<< $data_to_add`
 	# No debe existir
-	( grep -i "${dato_a_agregar}_ipv4" $VARS_IPSETV4 > /dev/null && grep -i "${dato_a_agregar}_ipv6" $VARS_IPSETV6 > /dev/null ) \
+	( grep -i "${data_to_add}_ipv4" $VARS_IPSETV4 > /dev/null && grep -i "${data_to_add}_ipv6" $VARS_IPSETV6 > /dev/null ) \
 		&& { message "E: La variable ya existe." ; agregar_set_retval=1 ; }
 
 	# Procedemos solo si se ha validado el parametro
@@ -593,14 +507,14 @@ agregar_set()
 		#
 		# Escribir las variables a los ficheros de datos
 		#
-		echo "$dato_a_agregar=`tr [:upper:] [:lower:] <<< $dato_a_agregar`_ipv4" >> $VARS_IPSETV4 \
+		echo "$data_to_add=`tr [:upper:] [:lower:] <<< $data_to_add`_ipv4" >> $VARS_IPSETV4 \
 				|| { message "E: Fallo al escribir la variable en [$VARS_IPSETV4]" ; agregar_set_retval=1 ; }
-		echo "$dato_a_agregar=`tr [:upper:] [:lower:] <<< $dato_a_agregar`_ipv6" >> $VARS_IPSETV6 \
+		echo "$data_to_add=`tr [:upper:] [:lower:] <<< $data_to_add`_ipv6" >> $VARS_IPSETV6 \
 				|| { message "E: Fallo al escribir la variable en [$VARS_IPSETV6]" ; agregar_set_retval=1 ; }
 
 		echo "Los datos guardados: "
-		grep ^"${dato_a_agregar}=" $VARS_IPSETV4 2>/dev/null
-		grep ^"${dato_a_agregar}=" $VARS_IPSETV6 2>/dev/null
+		grep ^"${data_to_add}=" $VARS_IPSETV4 2>/dev/null
+		grep ^"${data_to_add}=" $VARS_IPSETV6 2>/dev/null
 	fi
 
 	return $agregar_set_retval
@@ -614,13 +528,13 @@ guardar_variable_en_fichero()
 	local guardar_variable_en_fichero_retval=0
 	local ip=$1
 	local nombre_variable=$2
-	local dato_a_agregar=$3
+	local data_to_add=$3
 
 	if [ -z $nombre_variable ]
 	then
 		guardar_variable_en_fichero_retval=1
 	fi
-	if [ -z $dato_a_agregar ]
+	if [ -z $data_to_add ]
 	then
 		guardar_variable_en_fichero_retval=1
 	fi
@@ -654,61 +568,61 @@ guardar_variable_en_fichero()
 	[ $guardar_variable_en_fichero_retval -ne 0 ] && return $guardar_variable_en_fichero_retval # punto de retorno
 
 	# Como guardar los datos si estamos trabajando con un FQDN
-	if is_fqdn_valid $dato_a_agregar
+	if is_fqdn_valid $data_to_add
 	then
 		case "$ip" in
 			"ipv4" )
 				#tirar del hilo
-				local resolucion="$(get_ip_from_fqdn A $dato_a_agregar 0)"
+				local resolution="$(get_ip_from_fqdn A $data_to_add 0)"
 				;;
 			"ipv6" )
 				#tirar del hilo
-				local resolucion="$(get_ip_from_fqdn AAAA $dato_a_agregar 0)"
+				local resolution="$(get_ip_from_fqdn AAAA $data_to_add 0)"
 				;;
 		esac
-		if [ -z "$resolucion" ]
+		if [ -z "$resolution" ]
 		then
-			# No hay resolucion DNS para este registro
-			echo "${nombre_variable}=\$FICTICIA #$dato_a_agregar" >> $fichero_trabajo
-			[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+			# No hay resolution DNS para este registro
+			echo "${nombre_variable}=\$FICTICIA #$data_to_add" >> $fichero_trabajo
+			[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 		else
-			# Hay resolucion DNS para el registro
-			if [ `echo "$resolucion" | wc -l` -gt 1 ]
+			# Hay resolution DNS para el registro
+			if [ `echo "$resolution" | wc -l` -gt 1 ]
 			then
-				# Resolucion compleja de este registro
-				echo "${nombre_variable}=${dato_a_agregar} #$dato_a_agregar" >> $fichero_trabajo
-				[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] de resolucion compleja a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+				# resolution compleja de este registro
+				echo "${nombre_variable}=${data_to_add} #$data_to_add" >> $fichero_trabajo
+				[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] de resolution compleja a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 			else
-				# Resolucion normal de este registro
-				echo "${nombre_variable}=$resolucion #$dato_a_agregar" >> $fichero_trabajo
-				[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] de resolucion normal a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+				# resolution normal de este registro
+				echo "${nombre_variable}=$resolution #$data_to_add" >> $fichero_trabajo
+				[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] de resolution normal a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 			fi
 		fi
 	else # dato de IP cruda (v4 o v6)
 		# Como guardar los datos si estamos trabajando con una IPv6
-		if is_ipv6_valid $dato_a_agregar
+		if is_ipv6_valid $data_to_add
 		then
 			case "$ip" in
 				"ipv4" )
-					echo "${nombre_variable}=\$FICTICIA #$dato_a_agregar" >> $fichero_trabajo
-					[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+					echo "${nombre_variable}=\$FICTICIA #$data_to_add" >> $fichero_trabajo
+					[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 					;;
 				"ipv6" )
-					echo "${nombre_variable}=${dato_a_agregar} #$dato_a_agregar" >> $fichero_trabajo
-					[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+					echo "${nombre_variable}=${data_to_add} #$data_to_add" >> $fichero_trabajo
+					[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 					;;
 			esac
 		else
 			# Como guardar los datos si estamos trabajando con una IPv4
-			if is_ipv4_valid $dato_a_agregar
+			if is_ipv4_valid $data_to_add
 			then
 				case "$ip" in
 					"ipv4" )
-						echo "${nombre_variable}=${dato_a_agregar} #$dato_a_agregar" >> $fichero_trabajo
-						[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${dato_a_agregar}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+						echo "${nombre_variable}=${data_to_add} #$data_to_add" >> $fichero_trabajo
+						[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 						;;
 					"ipv6" )
-						echo "${nombre_variable}=\$FICTICIA #$dato_a_agregar" >> $fichero_trabajo
+						echo "${nombre_variable}=\$FICTICIA #$data_to_add" >> $fichero_trabajo
 						[ $? -ne 0 ] && { message "E: Fallo al borrar el dato anterior en la actualizacion. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
 						;;
 				esac
@@ -721,8 +635,13 @@ guardar_variable_en_fichero()
 	return $guardar_variable_en_fichero_retval
 }
 
-# Esta funcion genera estadisticas cuando es llamada mediante `fw-admin -s'
-estadisticas()
+################################################################
+################################################################
+# Utilities functions
+
+# boolean stats()
+# Print stats to stdout.
+stats()
 {
 	local retval=0
 
@@ -803,38 +722,118 @@ estadisticas()
 
 }
 
-# boolean search_datafiles(string data, string result_return_file)
-# This function search for data in datafiles and return results to a file
-search_datafiles()
+# boolean check_datafile_format(string filename)
+# Check the format of a datafile
+check_datafile_format()
 {
-	local search_datafiles_retval=1
-	local data=$1 #dato a buscar
-	local result_return_file=$2 #fichero al que escribir mensaje en caso de acierto
+	local retval=0
+	# Format 1
+	# #comments
+	# VARIABLE=data #comment
+	# VAR1ABl3= data #comment
+	# blankline
+	# #comments
+	# VARIABLe= d4t4  ##comment
 
-	if [ ! -z "$data" ] && [ -e "$result_return_file" ]
+	# Format 2
+	# #comments
+	# VARIABLE=d4t4
+	# VAR1ABLe=data
+	# blankline
+	# #comments
+	# VARIABLE= data
+
+	if [ ! -z "$1" ] && [ -e $1 ]
 	then
+		if [ "$2" == "2" ]
+		then
+			# format 2 without trailing comment
 
-		oldIFS=$IFS ; IFS=$'\n' # control over IFS
+			# invalid lines
+			local invalid_lines=`\
+				cat $1 | nl -ba \
+				| egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$\|^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*`
+		else
+			# format 1 default, with trailing comment
+			# invalid lines
+			local invalid_lines=`\
+				cat $1 | nl -ba \
+				| egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$\|^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*[[:space:]]+#.*$`
+		fi
+		if [ ! -z "$invalid_lines" ]
+		then
+			retval=1
+			message "W: Check invalid lines detected in file ${1}:"
+			echo -e "  Line  Content"
+			echo "$invalid_lines"
 
-		local aux_data=`tr '.' '_' <<< $data | tr '-' '_'`
-		for line in `egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV4 2>/dev/null`
-		do
-			search_datafiles_retval=0
-			# WARNING! If you change this message, you must change also the function get_information()
-			echo -e "Related data found in ${C_BOLD}$VARS_IPV4${C_NORMAL}: ${line}" >> $2
-		done
-		for line in `egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV6 2>/dev/null`
-		do
-			search_datafiles_retval=0
-			# WARNING! If you change this message, you must change also the function get_information()
-			echo -e "Related data found in ${C_BOLD}$VARS_IPV6${C_NORMAL}: ${line}" >> $2
-		done
+		fi
 	else
-		message "E: Function search_datafiles() called with bad arguments."
+		message "E: Function check_datafile_format() called with bad arguments."
+		do_exit 1
+	fi
+	return $retval
+}
+
+# boolean check_datafile_sanity(string filename1, string filename2)
+# Check if all variables are the same in both files
+check_datafile_sanity()
+{
+	local retval=0
+	local AUX_FILE2="`mktemp`"
+
+
+	if [ -z "$1" ] || [ -z "$2" ]
+	then
+		message "E: Function check_datafile_sanity() called without arguments."
 		do_exit 1
 	fi
 
-	return $search_datafiles_retval
+	if [ ! -r "$1" ] || [ ! -r "$2" ]
+	then
+		message "E: Unable to read $1 or $2."
+		do_exit 1
+	fi
+
+	egrep -v ^[[:space:]]*#\|^[[:space:]]*$ $1 | awk -F'=' '{print $1}' | sort -n > $AUX_FILE
+	egrep -v ^[[:space:]]*#\|^[[:space:]]*$ $2 | awk -F'=' '{print $1}' | sort -n > $AUX_FILE2
+	result=`diff $AUX_FILE $AUX_FILE2`
+	if [ ! -z "$result" ]
+	then
+		retval=1
+		if [[ "$result" =~ ">" ]]
+		then
+			message "W: Missing variables in $1 from $2"
+			grep ">" <<< "$result"
+		fi
+		if [[ "$result" =~ "<" ]]
+		then
+			message "W: Missing variables in $2 from $1"
+			grep "<" <<< "$result"
+		fi
+	fi
+	rm -rf $AUX_FILE2 2>/dev/null
+	return $retval
+}
+
+# boolean check_datafiles()
+# Check what variables are missing in what datafiles and the format is correct.
+check_datafiles()
+{
+	local retval=0
+
+	# Checking format 1: trailing comment
+	check_datafile_format $VARS_IPV4 1 || retval=$?
+	check_datafile_format $VARS_IPV6 1 || retval=$?
+	# Checking format 2: no trailing comment
+	check_datafile_format $VARS_IPSETV4 2 || retval=$?
+	check_datafile_format $VARS_IPSETV6 2 || retval=$?
+
+	# Checking sanity
+	check_datafile_sanity $VARS_IPV4 $VARS_IPV6 || retval=$?
+	check_datafile_sanity $VARS_IPSETV4 $VARS_IPSETV6 || retval=$?
+
+	return $retval
 }
 
 # boolean get_information(string data)
@@ -1023,6 +1022,40 @@ get_information()
 	echo "DEBUG: $obtener_informacion_retval" > /dev/null
 	IFS=$oldIFS
 	return $obtener_informacion_retval
+}
+
+# boolean search_datafiles(string data, string result_return_file)
+# This function search for data in datafiles and return results to a file
+search_datafiles()
+{
+	local search_datafiles_retval=1
+	local data=$1 #dato a buscar
+	local result_return_file=$2 #fichero al que escribir mensaje en caso de acierto
+
+	if [ ! -z "$data" ] && [ -e "$result_return_file" ]
+	then
+
+		oldIFS=$IFS ; IFS=$'\n' # control over IFS
+
+		local aux_data=`tr '.' '_' <<< $data | tr '-' '_'`
+		for line in `egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV4 2>/dev/null`
+		do
+			search_datafiles_retval=0
+			# WARNING! If you change this message, you must change also the function get_information()
+			echo -e "Related data found in ${C_BOLD}$VARS_IPV4${C_NORMAL}: ${line}" >> $2
+		done
+		for line in `egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV6 2>/dev/null`
+		do
+			search_datafiles_retval=0
+			# WARNING! If you change this message, you must change also the function get_information()
+			echo -e "Related data found in ${C_BOLD}$VARS_IPV6${C_NORMAL}: ${line}" >> $2
+		done
+	else
+		message "E: Function search_datafiles() called with bad arguments."
+		do_exit 1
+	fi
+
+	return $search_datafiles_retval
 }
 
 
@@ -1230,6 +1263,12 @@ check_chain_exist()
 	return $check_table_exist_retval
 }
 
+################################################################
+################################################################
+# Operations functions
+
+# void start_controlled_exit()
+# To be used inside traps.
 start_controlled_exit()
 {
 	echo ""
@@ -1244,61 +1283,6 @@ start_controlled_exit()
 		message "W: Aborting the start operation for ${1}."
 	fi
 	do_exit 1
-}
-
-# boolean start_loop(string vlan_file, integer protocol)
-# Iterate over rulefile inserting rules in kernel
-start_in_script_format_loop()
-{
-	local start_loop_retval=0
-
-	local vlan=$1
-	local protocol=$2
-
-	if [ -z "$vlan" ] || [ ! -e "$CONF_DIR/$vlan" ] || [ -z "$protocol" ]
-	then
-		message "E: Invalid call to function start_in_script_format_loop(), invalid input arguments."
-	fi
-
-
-	# Evaluating if we need calcules related to the progress bar
-	if [ "$USE_PROGRESS_BAR" == "yes" ]
-	then
-		local amount_of_lines=`grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$ | wc -l`
-	fi
-	local cont=0
-
-	for line in `grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$`
-	do
-		((cont++))
-		# Evaluating if we need calcules related to the progress bar
-		[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
-
-		# Insert the rule in kernel and evaluate return code
-		error_msg=$( eval "${line} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
-		if [ $? -ne 0 ]
-		then
-			start_loop_retval=1
-			message "E: Error found adding rules to kernel in IPv${protocol}. Rule num (not line) [$cont]."
-			echo "Details:"
-			echo " ${line}"
-			for error_line in $error_msg
-			do
-				echo " $error_line"
-			done
-
-			# Behaviour when error at start operation
-			#FLUSH_WHEN_ERROR_START="no"
-
-			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
-			then
-				message "W: Flushing rules of $vlan ..."
-				flush_vlan $vlan
-				do_exit 1 # EXIT POINT
-			fi
-		fi
-	done
-	return $start_loop_retval
 }
 
 # boolean start_in_script_format(string vlan)
@@ -1395,6 +1379,62 @@ start_in_script_format()
 
 	return $start_retval
 }
+
+# boolean start_loop(string vlan_file, integer protocol)
+# Iterate over rulefile inserting rules in kernel
+start_in_script_format_loop()
+{
+	local start_loop_retval=0
+
+	local vlan=$1
+	local protocol=$2
+
+	if [ -z "$vlan" ] || [ ! -e "$CONF_DIR/$vlan" ] || [ -z "$protocol" ]
+	then
+		message "E: Invalid call to function start_in_script_format_loop(), invalid input arguments."
+	fi
+
+
+	# Evaluating if we need calcules related to the progress bar
+	if [ "$USE_PROGRESS_BAR" == "yes" ]
+	then
+		local amount_of_lines=`grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$ | wc -l`
+	fi
+	local cont=0
+
+	for line in `grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$`
+	do
+		((cont++))
+		# Evaluating if we need calcules related to the progress bar
+		[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
+
+		# Insert the rule in kernel and evaluate return code
+		error_msg=$( eval "${line} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
+		if [ $? -ne 0 ]
+		then
+			start_loop_retval=1
+			message "E: Error found adding rules to kernel in IPv${protocol}. Rule num (not line) [$cont]."
+			echo "Details:"
+			echo " ${line}"
+			for error_line in $error_msg
+			do
+				echo " $error_line"
+			done
+
+			# Behaviour when error at start operation
+			#FLUSH_WHEN_ERROR_START="no"
+
+			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
+			then
+				message "W: Flushing rules of $vlan ..."
+				flush_vlan $vlan
+				do_exit 1 # EXIT POINT
+			fi
+		fi
+	done
+	return $start_loop_retval
+}
+
 
 flush_vlan()
 {
@@ -1688,182 +1728,159 @@ ipset_reload()
 	return $ipset_reload_retval
 }
 
-# boolean check_datafile_format(string filename)
-# Check the format of a datafile
-check_datafile_format()
+# boolean start_in_restore_format_loop(string filename, string protocol)
+# Iterate over a file with iptables-restore format, doing variable replacement
+# and initialization.
+# protocol=ipv4|ipv6
+# JUST A POC
+start_in_restore_format_loop()
 {
-	local retval=0
-	# Format 1
-	# #comments
-	# VARIABLE=data #comment
-	# VAR1ABl3= data #comment
-	# blankline
-	# #comments
-	# VARIABLe= d4t4  ##comment
+	local start_in_restore_format_loop_retval=0
+	local filename=$1
+	local protocol=$2
 
-	# Format 2
-	# #comments
-	# VARIABLE=d4t4
-	# VAR1ABLe=data
-	# blankline
-	# #comments
-	# VARIABLE= data
-
-	if [ ! -z "$1" ] && [ -e $1 ]
+	if [ ! -r "$filename" ]
 	then
-		if [ "$2" == "2" ]
-		then
-			# format 2 without trailing comment
-
-			# invalid lines
-			local invalid_lines=`\
-				cat $1 | nl -ba \
-				| egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$\|^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*`
-		else
-			# format 1 default, with trailing comment
-			# invalid lines
-			local invalid_lines=`\
-				cat $1 | nl -ba \
-				| egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$\|^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*[[:space:]]+#.*$`
-		fi
-		if [ ! -z "$invalid_lines" ]
-		then
-			retval=1
-			message "W: Check invalid lines detected in file ${1}:"
-			echo -e "  Line  Content"
-			echo "$invalid_lines"
-
-		fi
-	else
-		message "E: Function check_datafile_format() called with bad arguments."
-		do_exit 1
-	fi
-	return $retval
-}
-
-# boolean check_datafile_sanity(string filename1, string filename2)
-# Check if all variables are the same in both files
-check_datafile_sanity()
-{
-	local retval=0
-	local AUX_FILE2="`mktemp`"
-
-
-	if [ -z "$1" ] || [ -z "$2" ]
-	then
-		message "E: Function check_datafile_sanity() called without arguments."
+		message "E: File not found $filename"
 		do_exit 1
 	fi
 
-	if [ ! -r "$1" ] || [ ! -r "$2" ]
+	case "$protocol" in
+		ipv4)
+			source $VARS_IPV4 || return 1
+			source $VARS_IPSETV4 || return 1
+			;;
+		ipv6)
+			source $VARS_IPV6 || return 1
+			source $VARS_IPSETV6 || return 1
+			;;
+		*)
+			message "E: Bad call to function start_in_restore_format_loop()."
+			do_exit 1
+	esac
+
+	local rules=""
+	case "$protocol" in
+		ipv4)
+			rules=$( cat $filename )
+			;;
+		ipv6)
+			rules=$( delete_nat_from_ruleset $filename )
+			[ $? -ne 0 ] && rules=$( cat $filename )
+			;;
+	esac
+	# Iterate over variables ($FOO) on file
+	for word in `grep -v ^[[:space:]]*# $filename | tr [[:space:]] '\n' | fgrep \$ | sort -u | grep -v ^[[:space:]]*$`
+	do
+		variable=$word
+		data=`eval "echo $word"`
+		data=$( echo $data | sed -e 's/\//\\\//g' ) #cleaning /
+		rules=$( sed s/"$variable"/"$data"/g <<< "$rules" 2>&1)
+		if [ $? -ne 0 ]
+		then
+			message "E: Errors found trying to replace with \`sed' the variable $variable in $protocol"
+			echo "Details:" >&2
+			echo " $rules" >&2
+			return 1
+		fi
+	done
+
+	case "$protocol" in
+		ipv4)
+			iptables-restore <<< "$rules" || start_in_restore_format_loop_retval=1
+			;;
+		ipv6)
+			# Delete NAT stuff
+			ip6tables-restore <<< "$rules" || start_in_restore_format_loop_retval=1
+			;;
+	esac
+
+	return $start_in_restore_format_loop_retval
+}
+
+# text delete_nat_from_ruleset(string filename)
+# Delete all from *nat to COMMIT to have the ruleset ip6tables compliant
+delete_nat_from_ruleset()
+{
+	local delete_nat_from_ruleset_retval=0
+	local filename=$1
+
+	if [ ! -r "$filename" ]
 	then
-		message "E: Unable to read $1 or $2."
+		message "E: Function delete_nat_from_ruleset() called with invalid argument. File not found."
 		do_exit 1
 	fi
 
-	egrep -v ^[[:space:]]*#\|^[[:space:]]*$ $1 | awk -F'=' '{print $1}' | sort -n > $AUX_FILE
-	egrep -v ^[[:space:]]*#\|^[[:space:]]*$ $2 | awk -F'=' '{print $1}' | sort -n > $AUX_FILE2
-	result=`diff $AUX_FILE $AUX_FILE2`
-	if [ ! -z "$result" ]
+	local headingline=$( cat $filename | nl -ba | grep -i ^[[:space:]]*[0-9]*[[:space:]]*"\*"nat | awk -F' ' '{print $1}' 2>/dev/null )
+	[[ $headingline =~ ^[0-9]$ ]] || delete_nat_from_ruleset_retval=1
+
+	if [ $delete_nat_from_ruleset_retval -eq 0 ]
 	then
-		retval=1
-		if [[ "$result" =~ ">" ]]
-		then
-			message "W: Missing variables in $1 from $2"
-			grep ">" <<< "$result"
-		fi
-		if [[ "$result" =~ "<" ]]
-		then
-			message "W: Missing variables in $2 from $1"
-			grep "<" <<< "$result"
-		fi
+		# continue calcules
+		local list_of_tailingline=$( cat ruleset | nl -ba | grep ^[[:space:]]*[0-9]*[[:space:]]"COMMIT"$ | awk -F' ' '{print $1}' | tr '\n' ' ' 2>/dev/null )
+
+		# Calculate now what COMMIT line belongs to nat declaration
+		oldIFS=$IFS ; IFS=$' ' #control over IFS
+		local max_difference=$( wc -l $filename | cut -d' ' -f 1)
+		for num in $list_of_tailingline
+		do
+			local difference=$(( num - headingline ))
+			if [ $difference -lt $max_difference ]
+			then
+				max_difference=$difference
+				tailingline=$num
+			fi
+		done
+		IFS=$oldIFS
+		# When the for is over, whe know tailingline and headingline
+		sed ${headingline},${tailingline}d $filename # this is the text return
+		delete_nat_from_ruletes_retval=$?
 	fi
-	rm -rf $AUX_FILE2 2>/dev/null
-	return $retval
+
+	return $delete_nat_from_ruleset_retval
 }
 
-# boolean check_datafiles()
-# Check what variables are missing in what datafiles and the format is correct.
-check_datafiles()
+# boolean start_in_restore_format(string filename)
+start_in_restore_format()
 {
-	local retval=0
+	local start_in_restore_format_retval=0
+	local initial_time=`date +%s`
+	local filename=$1
 
-	# Checking format 1: trailing comment
-	check_datafile_format $VARS_IPV4 1 || retval=$?
-	check_datafile_format $VARS_IPV6 1 || retval=$?
-	# Checking format 2: no trailing comment
-	check_datafile_format $VARS_IPSETV4 2 || retval=$?
-	check_datafile_format $VARS_IPSETV6 2 || retval=$?
+	if [ ! -r "$filename" ]
+	then
+		message "E: File not found $filename"
+		do_exit 1
+	fi
 
-	# Checking sanity
-	check_datafile_sanity $VARS_IPV4 $VARS_IPV6 || retval=$?
-	check_datafile_sanity $VARS_IPSETV4 $VARS_IPSETV6 || retval=$?
+	# Checking rulefile.
+	if ! check_rulefile $filename
+	then
+		message "E: Check failed. Don't starting."
+		do_exit 1 # Exit point
+	fi
 
-	return $retval
+
+	# Start IPv4
+	message "I: Starting IPv4 ruleset."
+	if ! start_in_restore_format_loop $filename ipv4
+	then
+		start_in_restore_format_retval=$?
+		message "W: Errors found loading ruleset of $filename in IPv4"
+	fi
+
+	# Start IPv6
+	message "I: Starting IPv6 ruleset."
+	if ! start_in_restore_format_loop $filename ipv6
+	then
+		start_in_restore_format_retval=$?
+		message "W: Errors found loading ruleset of $filename in IPv6"
+	fi
+
+	# Finishing
+	message "I: Operation time: $(( `date +%s` - initial_time )) seconds."
+
+	return $start_in_restore_format_retval
 }
 
-
-# Funcion para la barra de progreso, modificada por mi de la original:
-# http://www.brianhare.com/wordpress/2011/03/02/bash-progress-bar/
-# libprogressbar $i 100
-libprogressbar()
-{
-        local current=0
-        local max=100
-        local completed_char="#"
-        local uncompleted_char="."
-        local decimal=1
-        local prefix=" ["
-        local suffix="]"
-        local percent_sign="%"
-        local max_width=55
-        local complete remain subtraction width atleast percent chars
-        local padding=3
-
-        current=${1:-$current}
-        max=${2:-$max}
-
-	# Delete the bar now
-	if [ $max -eq $current ]
-	then
-		printf '%s\r' "                                                       "
-		return 0
-	fi
-
-        (( padding = padding + decimal + 1 ))
-
-        let subtraction=${#completed_char}+${#prefix}+${#suffix}+padding+${#percent_sign}
-        let width=max_width-subtraction
-
-	if (( width < 5 ))
-	then
-		(( atleast = 5 + subtraction ))
-		echo >&2 "libprogressbar: the max_width of ($max_width) is too small, must be atleast $atleast"
-		return 1
-        fi
-
-	if (( current > max ))
-	then
-		echo >&2 "libprogressbar: current value must be smaller than max. value"
-		return 1
-	fi
-
-	percent=$(awk -v "f=%${padding}.${decimal}f" -v "c=$current" -v "m=$max" 'BEGIN{printf('f', c / m * 100)}')
-	(( chars = current * width / max))
-
-	# sprintf n zeros into the var named as the arg to -v
-	printf -v complete '%0*.*d' '' "$chars" ''
-	printf -v remain '%0*.*d' '' "$((width - chars))" ''
-
-	# replace the zeros with the desired char
-	complete=${complete//0/"$completed_char"}
-	remain=${remain//0/"$uncompleted_char"}
-
-	printf '%s%s%s%s %s%s\r' "$prefix" "$complete" "$remain" "$suffix" "$percent" "$percent_sign"
-
-	if (( current >= max ))
-	then
-		echo ""
-	fi
-	return 0
-}
+# (@_@)

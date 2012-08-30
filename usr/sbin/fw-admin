@@ -3,8 +3,8 @@
 # Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio/Agosto 2012
 VERSION="0.5"
 
-CONF_FILE="etc/fw-admin.conf"
-LIB="usr/lib/libfw-admin"
+CONF_FILE="/etc/fw-admin.conf"
+LIB="/usr/lib/libfw-admin"
 
 C_RED="\E[31m"
 C_GREEN="\E[32m"
@@ -72,7 +72,7 @@ case "$1" in
 		loadlibrary
 		validar_ejecucion
 		message "I: Adding IP/FQDN variable."
-		agregar_variable $2 # data as a parameter
+		add_ip_variable $2 # data as a parameter
 		do_exit $?
 		;;
 	"-as" )
