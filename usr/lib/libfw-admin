@@ -686,13 +686,13 @@ stats()
 
 	[[ $num_of_sets =~ ^[0-9]+$ ]] || num_of_sets=0
 
-	local num_of_sets_nomatch=`$IPSET list 2>/dev/null | grep -v "References: 0" | wc -l`
+	local num_of_sets_nomatch=`$IPSET list 2>/dev/null | grep "References: 0" | wc -l`
 
 	[[ $num_of_sets_nomatch =~ ^[0-9]+$ ]] || num_of_sets_nomatch=0
 
-	echo -e " Sets referenced: \t $(( num_of_sets - num_of_sets_nomatch ))"
-	echo -e " Sets not referenced: \t $(( num_of_sets_nomatch ))"
-	echo -e " Sets in kernel: \t $num_of_sets"
+	echo -e " Sets referenced by rules: \t $(( num_of_sets - num_of_sets_nomatch ))"
+	echo -e " Sets not referenced by rules: \t $num_of_sets_nomatch"
+	echo -e " Sets in kernel: \t\t $num_of_sets"
 
 	echo ""
 
