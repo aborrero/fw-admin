@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio/Agosto 2012
+# Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio/Agosto/Septiembre 2012
 
 ################################################################
 ################################################################
@@ -155,8 +155,8 @@ libprogressbar()
         local complete remain subtraction width atleast percent chars
         local padding=3
 
-        current=${1:-$current}
-        max=${2:-$max}
+	current=${1:-$current}
+	max=${2:-$max}
 
 	# Delete the bar now
 	if [ $max -eq $current ]
@@ -1382,7 +1382,7 @@ start_in_script_format()
 	# Start the for loop only if success loading datafiles and flushing vlan
 	if source $VARS_IPV4 && source $VARS_IPSETV4
 	then
-		start_loop $vlan 4 || start_retval=$?
+		start_in_script_format_loop $vlan 4 || start_retval=$?
 	else
 		message "E: Error loading datafiles in IPv4."
 		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
@@ -1405,7 +1405,7 @@ start_in_script_format()
 		# Start the for loop only if success loading datafiles
 		if source $VARS_IPV6 && source $VARS_IPSETV6
 		then
-			start_loop $vlan 6 || start_retval=$?
+			start_in_script_format_loop $vlan 6 || start_retval=$?
 		else
 			message "E: Error loading datafiles in IPv6."
 			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
@@ -1662,28 +1662,40 @@ log_vlan()
 	return $log_vlan_retval
 }
 
-# boolean stop(string chain_name) 	# for FORMAT=script
-# boolean stop()			# for FORMAT=ruleset
-# Used to stop rules of the firewall
-stop()
+# boolean stop_in_restore_format()
+# Flush ruleset
+# for FORMAT=ruleset
+stop_in_restore_format()
+{
+	local stop_in_ruleset_format_retval=0
+
+	if [ "$PERMIT_TRAFFIC_WHEN_STOP" == "yes" ]
+	then
+		# Flush and insert permissive rules
+		message "E: Not implemented yet."
+		do_exit 1
+	else
+		# Just flush
+		$IPT_LOCAL -F
+		$IPT_LOCAL -F -t nat
+		$IPT_LOCAL -X
+		$IP6T_LOCAL -F
+		$IP6T_LOCAL -X
+	fi
+
+	return $stop_in_ruleset_format_retval
+}
+
+# boolean stop_in_script_format(string chain_name)
+# Used to stop rules of the given chain name
+# for FORMAT=script
+stop_in_script_format()
 {
 	local stop_retval=0
-
 
 	# CASE 1: When FORMAT=ruleset
 	if [ "$FORMAT" == "ruleset" ]
 	then
-		if [ "$PERMIT_TRAFFIC_WHEN_STOP" == "yes" ]
-		then
-			# Flush and insert permissive rules
-			message "E: Not implemented yet."
-			do_exit 1
-
-		else
-			# Just flush
-			message "E: Not implemented yet."
-			do_exit 1
-		fi
 		return $stop_retval
 	fi
 
@@ -1889,7 +1901,7 @@ delete_nat_from_ruleset()
 	if [ $delete_nat_from_ruleset_retval -eq 0 ]
 	then
 		# continue calcules
-		local list_of_tailingline=$( cat ruleset | nl -ba | grep ^[[:space:]]*[0-9]*[[:space:]]"COMMIT"$ | awk -F' ' '{print $1}' | tr '\n' ' ' 2>/dev/null )
+		local list_of_tailingline=$( cat $filename | nl -ba | grep ^[[:space:]]*[0-9]*[[:space:]]"COMMIT"$ | awk -F' ' '{print $1}' | tr '\n' ' ' 2>/dev/null )
 
 		# Calculate now what COMMIT line belongs to nat declaration
 		oldIFS=$IFS ; IFS=$' ' #control over IFS

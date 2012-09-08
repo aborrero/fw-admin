@@ -26,7 +26,7 @@ COMMIT
 -A FORWARD -p $P_ICMP $ICMP_TYPE 7 -j ACCEPT
 
 # Test cases
--A INPUT -s $TEST -j ACCEPT
+#-A INPUT -s $TEST -j ACCEPT
 
 COMMIT
 
