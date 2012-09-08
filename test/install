@@ -7,4 +7,4 @@ cp ../etc/fw-admin.conf /etc/fw-admin.conf
 [ ! -d /var/local/fw.d/run ] && mkdir -p /var/local/fw.d/run
 cp data/* /var/local/fw.d/data/
 cp rules/* /var/local/fw.d/rules/
-touch /var/local/fw.d/rules/sets ; chmod a+x /var/local/fw.d/rules/sets
+#touch /var/local/fw.d/rules/sets ; chmod a+x /var/local/fw.d/rules/sets

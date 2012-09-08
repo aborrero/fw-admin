@@ -657,8 +657,14 @@ stats()
 	[[ $num_of_ipv4_rules_nomatch =~ ^[0-9]+$ ]] || num_of_ipv4_rules_nomatch=0
 	[[ $num_of_ipv6_rules_nomatch =~ ^[0-9]+$ ]] || num_of_ipv6_rules_nomatch=0
 
-	echo -e " Rules with match: \t $(( num_of_ipv4_rules - num_of_ipv4_rules_nomatch)) \t $(( num_of_ipv6_rules - num_of_ipv6_rules_nomatch )) \t $(( num_of_ipv4_rules + num_of_ipv6_rules - num_of_ipv4_rules_nomatch - num_of_ipv6_rules_nomatch))"
-	echo -e " Rules not in use: \t $num_of_ipv4_rules_nomatch \t $num_of_ipv6_rules_nomatch \t $(( num_of_ipv4_rules_nomatch + num_of_ipv6_rules_nomatch))"
+
+	local num_of_ipv4_rules_match=$(( num_of_ipv4_rules - num_of_ipv4_rules_nomatch ))
+	local num_of_ipv6_rules_match=$(( num_of_ipv6_rules - num_of_ipv6_rules_nomatch ))
+	[[ $num_of_ipv4_rules_match =~ ^[0-9]+$ ]] || num_of_ipv4_rules_match=0
+	[[ $num_of_ipv6_rules_match =~ ^[0-9]+$ ]] || num_of_ipv6_rules_match=0
+
+	echo -e " Rules with match: \t $(( num_of_ipv4_rules_match )) \t $(( num_of_ipv6_rules_match )) \t $(( num_of_ipv4_rules_match + num_of_ipv6_rules_match ))"
+	echo -e " Rules not in use: \t $num_of_ipv4_rules_nomatch \t $num_of_ipv6_rules_nomatch \t $(( num_of_ipv4_rules_nomatch + num_of_ipv6_rules_nomatch ))"
 	echo -e " Amount of rules: \t $num_of_ipv4_rules \t $num_of_ipv6_rules \t $(( num_of_ipv4_rules + num_of_ipv6_rules ))"
 	echo " Use and default policy IPv4:"
 	$IPT -n -L -v 2>/dev/null | grep policy | while read linea
@@ -675,22 +681,18 @@ stats()
 	echo ""
 
 	# Info ipset
-	echo -e "### About ipset \tIPv4\tIPv6\ttotal"
-	local num_of_ipset_ipv4=`$IPSET list 2>/dev/null | grep "family inet " | wc -l`
-	local num_of_ipset_ipv6=`$IPSET list 2>/dev/null | grep "family inet6" | wc -l`
+	echo -e "### About ipset"
+	local num_of_sets=`$IPSET list -n 2>/dev/null | wc -l`
 
-	[[ $num_of_ipset_ipv4 =~ ^[0-9]+$ ]] || num_of_ipset_ipv4=0
-	[[ $num_of_ipset_ipv6 =~ ^[0-9]+$ ]] || num_of_ipset_ipv6=0
+	[[ $num_of_sets =~ ^[0-9]+$ ]] || num_of_sets=0
 
-	local num_of_ipset_ipv4_nomatch=`$IPSET list 2>/dev/null | grep "family inet " | grep "References: " | grep -v "References: 0" | wc -l`
-	local num_of_ipset_ipv6_nomatch=`$IPSET list 2>/dev/null | grep "family inet6" | grep "References: " | grep -v "References: 0" | wc -l`
+	local num_of_sets_nomatch=`$IPSET list 2>/dev/null | grep -v "References: 0" | wc -l`
 
-	[[ $num_of_ipset_ipv4_nomatch =~ ^[0-9]+$ ]] || num_of_ipset_ipv4=0
-	[[ $num_of_ipset_ipv6_nomatch =~ ^[0-9]+$ ]] || num_of_ipset_ipv6=0
+	[[ $num_of_sets_nomatch =~ ^[0-9]+$ ]] || num_of_sets_nomatch=0
 
-	echo -e " Sets used by kernel: \t $(( num_of_ipset_ipv4 - num_of_ipset_ipv4_nomatch )) \t $(( num_of_ipset_ipv6 - num_of_ipset_ipv6_nomatch)) \t $(( num_of_ipset_ipv4 + num_of_ipset_ipv6 - num_of_ipset_ipv6_nomatch - num_of_ipset_ipv4_notmach ))"
-	echo -e " Sets not used: \t $(( num_of_ipset_ipv4_nomatch )) \t $(( num_of_ipset_ipv6_nomatch )) \t $(( num_of_ipset_ipv4_nomatch + num_of_ipset_ipv6_nomatch ))"
-	echo -e " Sets in kernel: \t $num_of_ipset_ipv4 \t $num_of_ipset_ipv6 \t $(( num_of_ipset_ipv4 + num_of_ipset_ipv6 ))"
+	echo -e " Sets referenced: \t $(( num_of_sets - num_of_sets_nomatch ))"
+	echo -e " Sets not referenced: \t $(( num_of_sets_nomatch ))"
+	echo -e " Sets in kernel: \t $num_of_sets"
 
 	echo ""
 
@@ -1216,7 +1218,7 @@ check_iptables_syntax()
 # To check that variables of a rulefile are in datafiles and ip[6]?tables syntax
 check_rulefile()
 {
-	[ ! -z "$flag_no_check" ] && [ $flag_no_check -eq 1 ] && { message "W: No check [$1]." ; return 0 ; }
+	[ ! -z "$flag_no_check" ] && [ $flag_no_check -eq 1 ] && { message "W: No check [$1]" ; return 0 ; }
 
 	local check_rulefile_retval=0
 	local flag_wrong_variables=0
@@ -1478,14 +1480,17 @@ start_in_script_format_loop()
 	return $start_loop_retval
 }
 
-
+# boolean flush_vlan(string chain)
+# flush rules and add permissive rules if selected
 flush_vlan()
 {
 	local flush_vlan_retval=0
-	# Recibe como parametro una vlan o nat
-	if [ ! -z "$1" ]
+
+	local chain=$1
+
+	if [ ! -z "$chain" ]
 	then
-		if grep -i ^"core" <<< $1 > /dev/null
+		if [[ $chain =~ ^"core" ]]
 		then
 			if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
 			then
@@ -1551,7 +1556,7 @@ flush_vlan()
 				fi
 			fi
 		else
-			if grep -i nat <<< $1 > /dev/null
+			if [[ $chain =~ "nat" ]]
 			then
 				if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
 				then
@@ -1570,16 +1575,16 @@ flush_vlan()
 				if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
 				then
 					# No tenemos reglas de nat
-					$IPT_CLUSTER -F $1 2>/dev/null || flush_vlan_retval=1
-					$IPT_CLUSTER -A $1 -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_CLUSTER -F $1 2>/dev/null || flush_vlan_retval=1
-					$IP6T_CLUSTER -A $1 -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					$IPT_CLUSTER -F $chain 2>/dev/null || flush_vlan_retval=1
+					$IPT_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					$IP6T_CLUSTER -F $chain 2>/dev/null || flush_vlan_retval=1
+					$IP6T_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 				else
 					# No tenemos reglas de nat
-					$IPT_LOCAL -F $1 2>/dev/null || flush_vlan_retval=1
-					$IPT_LOCAL -A $1 -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_LOCAL -F $1 2>/dev/null || flush_vlan_retval=1
-					$IP6T_LOCAL -A $1 -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					$IPT_LOCAL -F $chain 2>/dev/null || flush_vlan_retval=1
+					$IPT_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					$IP6T_LOCAL -F $chain 2>/dev/null || flush_vlan_retval=1
+					$IP6T_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 				fi
 			fi
 		fi
@@ -1669,56 +1674,37 @@ stop_in_restore_format()
 {
 	local stop_in_ruleset_format_retval=0
 
-	if [ "$PERMIT_TRAFFIC_WHEN_STOP" == "yes" ]
-	then
-		# Flush and insert permissive rules
-		message "E: Not implemented yet."
-		do_exit 1
-	else
-		# Just flush
-		$IPT_LOCAL -F
-		$IPT_LOCAL -F -t nat
-		$IPT_LOCAL -X
-		$IP6T_LOCAL -F
-		$IP6T_LOCAL -X
-	fi
+	flush_vlan core || stop_in_ruleset_format_retval=$?
 
 	return $stop_in_ruleset_format_retval
 }
 
-# boolean stop_in_script_format(string chain_name)
+# boolean stop_in_script_format(string chain)
 # Used to stop rules of the given chain name
 # for FORMAT=script
 stop_in_script_format()
 {
-	local stop_retval=0
+	local stop_in_script_format_retval=0
 
-	# CASE 1: When FORMAT=ruleset
-	if [ "$FORMAT" == "ruleset" ]
-	then
-		return $stop_retval
-	fi
-
-	# CASE 2: When FORMAT=script
         if [ -z "$1" ]
         then
-                message "E: Es necesario especificar un nombre de vlan/nat/core (el nombre que debe tener el fichero en $CONF_DIR)"
-                stop_retval=1
+		message "E: A chain name (vlan|core|nat) is needed."
+                stop_in_script_format_retval=1
         else
                 local vlan=$1
                 if [ ! -x $CONF_DIR/$vlan ]
                 then
-                        message "E: No se encuentra fichero de vlan/nat/core o no tiene permisos de ejecucion."
-                        stop_retval=1
+                        message "E: File not found or not execution permission: $CONF_DIR/$vlan"
+                        stop_in_script_format_retval=1
                 fi
         fi
 
-	if [ $stop_retval -eq 0 ]
+	if [ $stop_in_script_format_retval -eq 0 ]
 	then
-		flush_vlan $vlan || message "W: Fallo al flushear las reglas de la vlan/nat/core"
+		flush_vlan $vlan || message "W: Unable to flush given rules."
 	fi
 
-	return $stop_retval
+	return $stop_in_script_format_retval
 }
 
 # Se llama sin parametros
