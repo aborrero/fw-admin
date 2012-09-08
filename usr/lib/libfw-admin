@@ -781,40 +781,77 @@ check_datafile_sanity()
 {
 	local retval=0
 	local AUX_FILE2="`mktemp`"
+	local filename1=$1
+	local filename2=$2
 
-
-	if [ -z "$1" ] || [ -z "$2" ]
+	if [ -z "$filename1" ] || [ -z "$filename2" ]
 	then
 		message "E: Function check_datafile_sanity() called without arguments."
 		do_exit 1
 	fi
 
-	if [ ! -r "$1" ] || [ ! -r "$2" ]
+	if [ ! -r "$filename1" ] || [ ! -r "$filename2" ]
 	then
-		message "E: Unable to read $1 or $2."
+		message "E: Unable to read $filename1 or $filename2."
 		do_exit 1
 	fi
 
-	egrep -v ^[[:space:]]*#\|^[[:space:]]*$ $1 | awk -F'=' '{print $1}' | sort -n > $AUX_FILE
-	egrep -v ^[[:space:]]*#\|^[[:space:]]*$ $2 | awk -F'=' '{print $1}' | sort -n > $AUX_FILE2
+	egrep -v ^[[:space:]]*#\|^[[:space:]]*$ $filename1 | awk -F'=' '{print $1}' | sort -n > $AUX_FILE
+	egrep -v ^[[:space:]]*#\|^[[:space:]]*$ $filename2 | awk -F'=' '{print $1}' | sort -n > $AUX_FILE2
 	result=`diff $AUX_FILE $AUX_FILE2`
 	if [ ! -z "$result" ]
 	then
 		retval=1
 		if [[ "$result" =~ ">" ]]
 		then
-			message "W: Missing variables in $1 from $2"
+			message "W: Missing variables in $filename1 from $filename2"
 			grep ">" <<< "$result"
 		fi
 		if [[ "$result" =~ "<" ]]
 		then
-			message "W: Missing variables in $2 from $1"
+			message "W: Missing variables in $filename2 from $filename1"
 			grep "<" <<< "$result"
 		fi
 	fi
 	rm -rf $AUX_FILE2 2>/dev/null
 	return $retval
 }
+
+# boolean check_datafile_unset_variables(string datafile)
+# check and print warnings for unset variables in datafiles
+check_datafile_unset_variables()
+{
+	local check_datafile_unset_variables_retval=0
+
+	local datafile=$1
+
+	if [ ! -r "$datafile" ]
+	then
+		message "E: Error in function check_datafile_unset_variables(), unable to read file $datafile"
+		do_exit 1
+	fi
+
+	# The warning trick
+	set -u
+	error_msg=$( source $datafile 2>&1 )
+	if [ $? -ne 0 ]
+	then
+		check_datafile_unset_variables_retval=1
+		message "W: Unset variables found in $datafile"
+
+		oldIFS=$IFS ; IFS=$'\n' # Control over IFS
+		for line in $error_msg
+		do
+			echo " $line" >&2
+		done
+		IFS=$oldIFS
+	fi
+	# Revert the warning trick
+	set +u
+
+	return $check_datafile_unset_variables_retval
+}
+
 
 # boolean check_datafiles()
 # Check what variables are missing in what datafiles and the format is correct.
@@ -832,6 +869,12 @@ check_datafiles()
 	# Checking sanity
 	check_datafile_sanity $VARS_IPV4 $VARS_IPV6 || retval=$?
 	check_datafile_sanity $VARS_IPSETV4 $VARS_IPSETV6 || retval=$?
+
+	# Check for unset variables
+	check_datafile_unset_variables $VARS_IPV4 || retval=$?
+	check_datafile_unset_variables $VARS_IPV6 || retval=$?
+	check_datafile_unset_variables $VARS_IPSETV4 || retval=$?
+	check_datafile_unset_variables $VARS_IPSETV6 || retval=$?
 
 	return $retval
 }
