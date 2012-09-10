@@ -163,7 +163,7 @@ libprogressbar()
 	# Delete the bar now
 	if [ $max -eq $current ]
 	then
-		printf '%s\r' "                                                       "
+		printf '%s\r' "                                                             "
 		return 0
 	fi
 
@@ -1878,10 +1878,12 @@ start_in_restore_format_loop()
 			then
 				message "E: Loading IPv4 ruleset."
 				echo "Details:" >&2
+				oldIFS=$IFS ; IFS=$'\n' #control over IFS
 				for line in $error_msg
 				do
 					echo " $line" >&2
 				done
+				IFS=$oldIFS
 				start_in_restore_format_loop_retval=1
 			fi
 			;;
@@ -1892,10 +1894,12 @@ start_in_restore_format_loop()
 			then
 				message "E: Loading IPv6 ruleset."
 				echo "Details:" >&2
+				oldIFS=$IFS ; IFS=$'\n' #control over IFS
 				for line in $error_msg
 				do
 					echo " $line" >&2
 				done
+				IFS=$oldIFS
 				start_in_restore_format_loop_retval=1
 			fi
 			;;
