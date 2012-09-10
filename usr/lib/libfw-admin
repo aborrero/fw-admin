@@ -18,7 +18,9 @@ IPSET_CLUSTER="/usr/sbin/ipset-cluster"
 IPT_CLUSTER="/usr/sbin/iptables-cluster"
 IP6T_CLUSTER="/usr/sbin/ip6tables-cluster"
 IPT_SAVE="/sbin/iptables-save"
+IPT_RESTORE="/sbin/iptables-restore"
 IP6T_SAVE="/sbin/ip6tables-save"
+IP6T_RESTORE="/sbin/ip6tables-restore"
 CONNTRACKD="/usr/sbin/conntrackd"
 CONNTRACK="/usr/sbin/conntrack"
 DIG="/usr/bin/dig"
@@ -113,6 +115,8 @@ check_files()
 	local check_files_retval=0
 	[ -x $IPT_SAVE ] || { message "E: Binary not found [$IPT_SAVE]" ; check_files_retval=1 ; }
 	[ -x $IP6T_SAVE ] || { message "E: Binary not found [$IP6T_SAVE]" ; check_files_retval=1 ; }
+	[ -x $IPT_RESTORE ] || { message "E: Binary not found [$IPT_RESTORE]" ; check_files_retval=1 ; }
+	[ -x $IP6T_RESTORE ] || { message "E: Binary not found [$IP6T_RESTORE]" ; check_files_retval=1 ; }
 	[ -w $AUX_FILE ] || { message "E: Fallo al crear el fichero auxiliar [$AUX_FILE]" ; check_files_retval=1 ; }
 	[ -d $CONF_DIR ] || { message "E: Dir not found [$CONF_DIR]" ; check_files_retval=1 ; }
 	[ -x $IPSET_CONF ] || { message "E: File not found [$IPSET_CONF]" ; check_files_retval=1 ; }
@@ -125,7 +129,6 @@ check_files()
 	[ -x $IPT ] || { message "E: Binary not found [$IPT]." ; check_files_retval=1 ; }
 	[ -x $IP6T ] || { message "E: Binary not found [$IP6T]." ; check_files_retval=1 ; }
 	[ -x $IPSET ] || { message "E: Binary not found [$IPSET]." ; check_files_retval=1 ; }
-	#[ -x $CONNTRACKD ] || { message "E: Binary not found [$CONNTRACKD]." ; check_files_retval=1 ; }
 	[ -x $DIG ] || { message "E: Binary not found [$DIG]" ; check_files_retval=1 ; }
 
 	# Only if neccesary
@@ -264,7 +267,6 @@ is_ip_fqdn_valid()
 	local retval=1
 	if [ ! -z $1 ]
 	then
-		# Es posible que tengamos una ipv4, una ipv6 o un fqdn
 		is_ipv6_valid $1 && retval=0
 		is_ipv4_valid $1 && retval=0
 		is_fqdn_valid $1 && retval=0
@@ -382,8 +384,8 @@ get_ip_from_fqdn()
         local fqdn=$2
 	local recursivityLevel=$3
 
-	[ -z "$tipo_ip" ] && { message "E: En la funcion get_ip_from_fqdn() (recursiva) llamada con parametro tipo_ip vacio." ; do_exit 1 ; }
-	[ -z "$fqdn" ] && { message "E: En la funcion get_ip_from_fqdn() (recursiva) llamada con parametro fqdn vacio." ; do_exit 1 ; }
+	[ -z "$tipo_ip" ] && { message "E: Function get_ip_from_fqdn() called with empty parameter (type)." ; do_exit 1 ; }
+	[ -z "$fqdn" ] && { message "E: Function get_ip_from_fqdn() called with empty parameter (fqdn)." ; do_exit 1 ; }
 	[ -z "$recursivityLevel" ] && recursivityLevel=0
 	[ "$recursivityLevel" -gt 100 ] && { message "E: Max recursion level reached in function get_ip_from_fqdn()." ; do_exit 1 ; }
 	((recursivityLevel++))
@@ -391,11 +393,11 @@ get_ip_from_fqdn()
         local resolution=`$DIG +short $fqdn $tipo_ip`
         if is_ipv6_valid $resolution
         then
-                echo "$resolution" #punto de salida
+                echo "$resolution" # return point
         else
 		if is_ipv4_valid $resolution
 		then
-			echo "$resolution" #punto de salida
+			echo "$resolution" # return point
 		else
 			oldIFS=$IFS
 			IFS=$' \t\n'
@@ -405,7 +407,7 @@ get_ip_from_fqdn()
 	                done
 			IFS=$oldIFS
 	                local resolution3=`echo "$resolution2" | tr [[:space:]] '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq`
-	                echo "$resolution3" #punto de salida
+	                echo "$resolution3" # return point
 		fi
         fi
 	return 0
@@ -1802,7 +1804,6 @@ ipset_reload()
 # Iterate over a file with iptables-restore format, doing variable replacement
 # and initialization.
 # protocol=ipv4|ipv6
-# JUST A POC
 start_in_restore_format_loop()
 {
 	local start_in_restore_format_loop_retval=0
@@ -1832,16 +1833,36 @@ start_in_restore_format_loop()
 	local rules=""
 	case "$protocol" in
 		ipv4)
+			# Keep the file in ram, so avoid overloading the HD
 			rules=$( cat $filename )
 			;;
 		ipv6)
+			# Keep the file in ram, so avoid overloading the HD
+			# Delete nat stuff, as is not supported... yet
 			rules=$( delete_nat_from_ruleset $filename )
+			# If deleting nat stuff failed, use the entire ruleset and let iptables-restore throw the error later
 			[ $? -ne 0 ] && rules=$( cat $filename )
 			;;
 	esac
+
 	# Iterate over variables ($FOO) on file
-	for word in `grep -v ^[[:space:]]*# $filename | tr [[:space:]] '\n' | fgrep \$ | sort -u | grep -v ^[[:space:]]*$`
+	local list_of_words=`grep -v ^[[:space:]]*# $filename | tr [[:space:]] '\n' | fgrep \$ | sort -u | grep -v ^[[:space:]]*$`
+
+	if [ "$USE_PROGRESS_BAR" == "yes" ]
+	then
+		local amount_of_words=`wc -l <<< $list_of_words`
+		local cont=0
+	fi
+
+	for word in $list_of_words
 	do
+
+		if [ "$USE_PROGRESS_BAR" == "yes" ]
+		then
+			libprogressbar $cont $amount_of_words
+			((cont++))
+		fi
+
 		variable=$word
 		data=`eval "echo $word"`
 		data=$( echo $data | sed -e 's/\//\\\//g' ) #cleaning /
@@ -1855,13 +1876,38 @@ start_in_restore_format_loop()
 		fi
 	done
 
+
+	# The loading operation is slow for rulesets bigger than 10K rules...
+	# Maybe adding a progressbar here would be nice
+	# but has to be while iptables-restore is running in background
+
 	case "$protocol" in
 		ipv4)
-			iptables-restore <<< "$rules" || start_in_restore_format_loop_retval=1
+			error_msg=$( $IPT_RESTORE <<< "$rules" 2>&1 )
+			if [ $? -ne 0 ]
+			then
+				message "E: Loading IPv4 ruleset."
+				echo "Details:" >&2
+				for line in $error_msg
+				do
+					echo " $line" >&2
+				done
+				start_in_restore_format_loop_retval=1
+			fi
 			;;
 		ipv6)
-			# Delete NAT stuff
-			ip6tables-restore <<< "$rules" || start_in_restore_format_loop_retval=1
+			# Maybe the NAT stuff was not deleted previously, so this is likely throwing errors
+			error_msg=$( $IP6T_RESTORE <<< "$rules" 2>&1 )
+			if [ $? -ne 0 ]
+			then
+				message "E: Loading IPv6 ruleset."
+				echo "Details:" >&2
+				for line in $error_msg
+				do
+					echo " $line" >&2
+				done
+				start_in_restore_format_loop_retval=1
+			fi
 			;;
 	esac
 
@@ -1937,6 +1983,11 @@ start_in_restore_format()
 	then
 		start_in_restore_format_retval=$?
 		message "W: Errors found loading ruleset of $filename in IPv4"
+		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
+		then
+			# do something to counter the fail
+			flush_vlan "core"
+		fi
 	fi
 
 	# Start IPv6
@@ -1945,6 +1996,12 @@ start_in_restore_format()
 	then
 		start_in_restore_format_retval=$?
 		message "W: Errors found loading ruleset of $filename in IPv6"
+		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
+		then
+			# do something to counter the fail
+			flush_vlan "core"
+
+		fi
 	fi
 
 	# Finishing
