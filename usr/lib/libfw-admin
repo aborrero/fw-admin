@@ -1976,7 +1976,7 @@ start_in_restore_format()
 	if ! start_in_restore_format_loop $filename ipv4
 	then
 		start_in_restore_format_retval=$?
-		message "W: Errors found loading ruleset of $filename in IPv4"
+		message "W: Errors found loading ruleset of \"$filename\" in IPv4"
 		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
 		then
 			# do something to counter the fail
@@ -1989,7 +1989,7 @@ start_in_restore_format()
 	if ! start_in_restore_format_loop $filename ipv6
 	then
 		start_in_restore_format_retval=$?
-		message "W: Errors found loading ruleset of $filename in IPv6"
+		message "W: Errors found loading ruleset of \"$filename\" in IPv6"
 		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
 		then
 			# do something to counter the fail
