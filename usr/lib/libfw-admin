@@ -144,19 +144,18 @@ check_files()
 
 # string libprogressbar(int i, int max)
 # Forked from http://www.brianhare.com/wordpress/2011/03/02/bash-progress-bar/
+
+# Use this for easily test
+# $ max=1000
+# $ for i in `seq 1 $max`; do libprogressbar $i $max ; done
 libprogressbar()
 {
         local current=0
         local max=100
-        local completed_char="#"
-        local uncompleted_char="."
         local decimal=1
-        local prefix=" ["
-        local suffix="]"
-        local percent_sign="%"
         local max_width=55
-        local complete remain subtraction width atleast percent chars
-        local padding=3
+        local subtraction width atleast percent chars
+        local padding=5
 
 	current=${1:-$current}
 	max=${2:-$max}
@@ -168,17 +167,8 @@ libprogressbar()
 		return 0
 	fi
 
-        (( padding = padding + decimal + 1 ))
-
         let subtraction=${#completed_char}+${#prefix}+${#suffix}+padding+${#percent_sign}
         let width=max_width-subtraction
-
-	if (( width < 5 ))
-	then
-		(( atleast = 5 + subtraction ))
-		echo >&2 "libprogressbar: the max_width of ($max_width) is too small, must be atleast $atleast"
-		return 1
-        fi
 
 	if (( current > max ))
 	then
@@ -186,7 +176,7 @@ libprogressbar()
 		return 1
 	fi
 
-	percent=$(awk -v "f=%${padding}.${decimal}f" -v "c=$current" -v "m=$max" 'BEGIN{printf('f', c / m * 100)}')
+	percent=$(awk -v "f=%5.1f" -v "c=$current" -v "m=$max" 'BEGIN{printf('f', c / m * 100)}')
 	(( chars = current * width / max))
 
 	# sprintf n zeros into the var named as the arg to -v
@@ -194,10 +184,10 @@ libprogressbar()
 	printf -v remain '%0*.*d' '' "$((width - chars))" ''
 
 	# replace the zeros with the desired char
-	complete=${complete//0/"$completed_char"}
-	remain=${remain//0/"$uncompleted_char"}
+	#complete=${complete//0/"#"} #completed char
+	#remain=${remain//0/"."} #uncompleted char
 
-	printf '%s%s%s%s %s%s\r' "$prefix" "$complete" "$remain" "$suffix" "$percent" "$percent_sign"
+	printf ' %s%s%s%s %s%s\r' " [" "${complete//0/#}" "${remain//0/.}" "]" "$percent" "%"
 
 	if (( current >= max ))
 	then
