@@ -1840,7 +1840,7 @@ start_in_restore_format_loop()
 
 	if [ "$USE_PROGRESS_BAR" == "yes" ]
 	then
-		local amount_of_words=`wc -l <<< $list_of_words`
+		local amount_of_words=`wc -l <<< "$list_of_words"`
 		local cont=0
 	fi
 
@@ -1849,8 +1849,8 @@ start_in_restore_format_loop()
 
 		if [ "$USE_PROGRESS_BAR" == "yes" ]
 		then
-			libprogressbar $cont $amount_of_words
 			((cont++))
+			libprogressbar $cont $amount_of_words
 		fi
 
 		variable=$word
@@ -1876,7 +1876,7 @@ start_in_restore_format_loop()
 			error_msg=$( $IPT_RESTORE <<< "$rules" 2>&1 )
 			if [ $? -ne 0 ]
 			then
-				message "E: Loading IPv4 ruleset."
+				message "E: Unable to load IPv4 ruleset."
 				echo "Details:" >&2
 				oldIFS=$IFS ; IFS=$'\n' #control over IFS
 				for line in $error_msg
@@ -1892,7 +1892,7 @@ start_in_restore_format_loop()
 			error_msg=$( $IP6T_RESTORE <<< "$rules" 2>&1 )
 			if [ $? -ne 0 ]
 			then
-				message "E: Loading IPv6 ruleset."
+				message "E: Unable to load IPv6 ruleset."
 				echo "Details:" >&2
 				oldIFS=$IFS ; IFS=$'\n' #control over IFS
 				for line in $error_msg
