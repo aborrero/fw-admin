@@ -28,7 +28,7 @@
 
 VERSION="0.5"
 
-CONF_FILE="/etc/fw-admin.conf"
+CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
 LIB="/usr/lib/libfw-admin"
 
 C_RED="\E[31m"
@@ -71,12 +71,24 @@ nofound()
 }
 
 
-
 loadlibrary()
 {
-	source $LIB 2>/dev/null || { echo "E: Unable to load library $LIB" >&2 ; exit 1 ; }
-	check_root
-	check_files || { message "Ending..." ; exit 1 ; }
+	if ! source $LIB 2>/dev/null
+	then
+		echo "E: Unable to load library $LIB" >&2
+		exit 1
+	fi
+
+	if ! check_root
+	then
+		message "W: Not root!"
+	fi
+
+	if ! check_files
+	then
+		do_exit 1
+	fi
+
 	return 0
 }
 
@@ -84,8 +96,34 @@ loadlibrary()
 ################################################################
 # Program
 ################################################################
-source $CONF_FILE 2>/dev/null || { echo "E: Unable to load config file $CONF_FILE" >&2 ; exit 1 ; }
+if ! source $CONF_FILE 2>/dev/null
+then
+	echo "E: Unable to load config file $CONF_FILE" >&2
+	exit 1
+fi
 
+# Use default values for config
+FORMAT=${FORMAT:-"script"}
+DOMAIN=${DOMAIN:-""}
+MINIMAL_AMOUNT_OF_RULES=${MINIMAL_AMOUT_OF_RULES:-"40"}
+CONF_DIR=${CONF_DIR:-"/etc/fw-admin.d/rules"}
+IPSET_CONF=${IPSET_CONF:-"$CONF_DIR/sets"}
+DATA_DIR=${DATA_DIR:-"/var/lib/fw-admin"}
+VARS_IPV6=${VARS_IPV6:-"$DATA_DIR/iptables_vars_ipv6.bash"}
+VARS_IPV4=${VARS_IPV4:-"$DATA_DIR/iptables_vars_ipv4.bash"}
+VARS_IPSETV4=${VARS_IPSETV4:-"$DATA_DIR/ipset_vars_ipv4.bash"}
+VARS_IPSETV6=${VARS_IPSETV6:-"$DATA_DIR/ipset_vars_ipv6.bash"}
+PID_FILE=${PID_FILE:-"/var/run/fw-admin.pid"}
+LOG_ERROR_MESSAGES=${LOG_ERROR_MESSAGES:-"yes"}
+LOG_WARN_MESSAGES=${LOG_WARN_MESSAGES:-"yes"}
+USE_COLORS=${USER_COLORS:-"yes"}
+USE_PROGRESS_BAR=${USE_PROGRESS_BAR:-"yes"}
+FLUSH_WHEN_ABORT_START=${FLUSH_WHEN_ABORT_START:-"yes"}
+FLUSH_WHEN_ERROR_START=${FLUSH_WHEN_ERROR_START:-"no"}
+PERMISSIVE_TRAFFIC_WHEN_STOP=${PERMISSIVE_TRAFFIC_WHEN_STOP:-"no"}
+USE_IPTABLES_CLUSTER=${USE_IPTABLES_CLUSTER:-"no"}
+
+# Consider input argument
 case "$1" in
 	"-s" )
 		loadlibrary
@@ -154,14 +192,13 @@ case "$1" in
 	"--ipset-reload" )
 		loadlibrary
 		validate_execution
-		message "I: Recargando conjuntos."
 		[ "$2" == "--nocheck" ] && flag_no_check=1
-		ipset_reload #sin parametros
+		ipset_reload # without parameters
 		do_exit $?
 		;;
 	"--check-datafiles" )
 		loadlibrary
-		check_datafiles #without parameters
+		check_datafiles # without parameters
 		do_exit $?
 		;;
 	"--help" )

@@ -95,14 +95,14 @@ message()
 }
 
 # void do_exit(int exit_code)
-# Exit the program, flushing LOCK_FILE and AUX_FILE
+# Exit the program, flushing PID_FILE and AUX_FILE
 do_exit()
 {
-	if [ -r "$LOCK_FILE" ]
+	if [ -r "$PID_FILE" ]
 	then
-		if [ "`cat $LOCK_FILE`" == "${$}" ] 2> /dev/null # Borramos el lock file solo si es nuestro
+		if [ "`cat $PID_FILE`" == "${$}" ] 2> /dev/null # Borramos el lock file solo si es nuestro
 		then
-			rm -f $LOCK_FILE 2> /dev/null
+			rm -f $PID_FILE 2> /dev/null
 		fi
 	fi
 	if [ -e "$AUX_FILE" ]
@@ -116,17 +116,17 @@ do_exit()
 # Check if there are other instance in critical mode
 validate_execution()
 {
-	# If LOCK_FILE doesn't exist
-	# the execution is our's, so put pid to LOCK_FILE
-	if [ ! -r $LOCK_FILE ]
+	# If PID_FILE doesn't exist
+	# the execution is our's, so put pid to PID_FILE
+	if [ ! -r $PID_FILE ]
 	then
-		echo "${$}" > $LOCK_FILE 2> /dev/null
+		echo "${$}" > $PID_FILE 2> /dev/null
 	fi
 
-	local pid=`cat $LOCK_FILE`
+	local pid=`cat $PID_FILE`
 	if [ "$pid" != "${$}" ] 2> /dev/null
 	then
-		message "E: $LOCK_FILE LOCK_FILE already exist with pid: ${pid}. Ending..."
+		message "E: $PID_FILE PID_FILE already exist with pid: ${pid}. Ending..."
 		do_exit 1
 	fi
 	return 0
@@ -140,7 +140,6 @@ check_root()
 	local check_root_retval=0
 	if [ `id -u` -ne 0 ]
 	then
-		message "W: Not root!"
 		check_root_retval=1
 	fi
 	return $check_root_retval
@@ -155,7 +154,7 @@ check_files()
 	[ -x $IP6T_SAVE ] || { message "E: Binary not found [$IP6T_SAVE]" ; check_files_retval=1 ; }
 	[ -x $IPT_RESTORE ] || { message "E: Binary not found [$IPT_RESTORE]" ; check_files_retval=1 ; }
 	[ -x $IP6T_RESTORE ] || { message "E: Binary not found [$IP6T_RESTORE]" ; check_files_retval=1 ; }
-	[ -w $AUX_FILE ] || { message "E: Fallo al crear el fichero auxiliar [$AUX_FILE]" ; check_files_retval=1 ; }
+	[ -w $AUX_FILE ] || { message "E: Unable to create aux file [$AUX_FILE]" ; check_files_retval=1 ; }
 	[ -d $CONF_DIR ] || { message "E: Dir not found [$CONF_DIR]" ; check_files_retval=1 ; }
 	[ -x $IPSET_CONF ] || { message "E: File not found [$IPSET_CONF]" ; check_files_retval=1 ; }
 	[ -d $DATA_DIR ] || { message "E: Dir not found [$DATA_DIR]" ; check_files_retval=1 ; }
@@ -182,7 +181,6 @@ check_files()
 
 # string libprogressbar(int i, int max)
 # Forked from http://www.brianhare.com/wordpress/2011/03/02/bash-progress-bar/
-
 # Use this for easily test
 # $ max=1000
 # $ for i in `seq 1 $max`; do libprogressbar $i $max ; done
@@ -493,9 +491,9 @@ add_ip_variable()
 		#
 		# Escribir las variables a los ficheros de datos
 		#
-		guardar_variable_en_fichero "ipv4" "$variable_name" "$data_to_add" \
+		store_in_ipdatafile "ipv4" "$variable_name" "$data_to_add" \
 			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV4}]" ; add_ip_variable_retval=1 ; }
-		guardar_variable_en_fichero "ipv6" "$variable_name" "$data_to_add" \
+		store_in_ipdatafile "ipv6" "$variable_name" "$data_to_add" \
 			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV6}]" ; add_ip_variable_retval=1 ; }
 
 		#
@@ -509,27 +507,24 @@ add_ip_variable()
 
 }
 
-# Funcion que agrega una variable IPSET al sistema
-# Puede ser llamada con o sin parametro de entrada con prompt.
-agregar_set()
+# boolean add_set_variable(string data_to_add)
+# To add a set variable to datafiles
+add_set_variable()
 {
 	local agregar_set_retval=0
 	local data_to_add=$1
 
-	if [ -z $data_to_add ]
+	if [ -z "$data_to_add" ]
 	then
-		# No hay parametro de entrada, usar menu
-		read -p "-> Definir nombre del conjunto (algo como W_ALL o S_NIS): " data_to_add
+		# No input data, use a prompt
+		read -p "-> Define set name: " data_to_add
 	fi
 
-	#
-	# Validacion del dato introducido (por parametro o prompt)
-	#
-	# Mayusculas
+	# Validation
 	data_to_add=`tr [:lower:] [:upper:] <<< $data_to_add`
-	# No debe existir
+	# Must not exist
 	( grep -i "${data_to_add}_ipv4" $VARS_IPSETV4 > /dev/null && grep -i "${data_to_add}_ipv6" $VARS_IPSETV6 > /dev/null ) \
-		&& { message "E: La variable ya existe." ; agregar_set_retval=1 ; }
+		&& { message "E: The variable already exist." ; agregar_set_retval=1 ; }
 
 	# Procedemos solo si se ha validado el parametro
 	if [ $agregar_set_retval -eq 0 ]
@@ -538,131 +533,168 @@ agregar_set()
 		# Escribir las variables a los ficheros de datos
 		#
 		echo "$data_to_add=`tr [:upper:] [:lower:] <<< $data_to_add`_ipv4" >> $VARS_IPSETV4 \
-				|| { message "E: Fallo al escribir la variable en [$VARS_IPSETV4]" ; agregar_set_retval=1 ; }
+				|| { message "E: Unable to write to [$VARS_IPSETV4]" ; agregar_set_retval=1 ; }
 		echo "$data_to_add=`tr [:upper:] [:lower:] <<< $data_to_add`_ipv6" >> $VARS_IPSETV6 \
-				|| { message "E: Fallo al escribir la variable en [$VARS_IPSETV6]" ; agregar_set_retval=1 ; }
+				|| { message "E: Unable to write to [$VARS_IPSETV6]" ; agregar_set_retval=1 ; }
 
-		echo "Los datos guardados: "
-		grep ^"${data_to_add}=" $VARS_IPSETV4 2>/dev/null
-		grep ^"${data_to_add}=" $VARS_IPSETV6 2>/dev/null
+		# Not very usefull
+		#echo "The stored data: "
+		#grep ^"${data_to_add}=" $VARS_IPSETV4 2>/dev/null
+		#grep ^"${data_to_add}=" $VARS_IPSETV6 2>/dev/null
 	fi
 
 	return $agregar_set_retval
 }
 
 
-# Esta funcion recibe tres parametros: {ipv4|ipv6} {variable} {dato}
-# y guarda en el fichero correspondiente
-guardar_variable_en_fichero()
+# boolean store_in_ipdatafile(string protocol, string variable_name, string data_to_add)
+# Store in the datafile a variable.
+# protocol: {ipv4|ipv6}
+store_in_ipdatafile()
 {
-	local guardar_variable_en_fichero_retval=0
-	local ip=$1
-	local nombre_variable=$2
+	local store_in_ipdatafile_retval=0
+	local protocol=$1
+	local variable_name=$2
 	local data_to_add=$3
 
-	if [ -z $nombre_variable ]
+	if [ -z "$variable_name" ]
 	then
-		guardar_variable_en_fichero_retval=1
+		store_in_ipdatafile_retval=1
 	fi
-	if [ -z $data_to_add ]
+	if [ -z "$data_to_add" ]
 	then
-		guardar_variable_en_fichero_retval=1
+		store_in_ipdatafile_retval=1
 	fi
-	# Eligiendo el fichero donde trabajaremos
-	if [ $ip = "ipv4" ]
+
+	case "$protocol" in
+		"ipv4")
+			local working_file=$VARS_IPV4
+			;;
+		"ipv6")
+			local working_file=$VARS_IPV6
+			;;
+		*)
+			store_in_ipdatafile_retval=1
+			;;
+	esac
+
+	# Exit point
+	if [ $store_in_ipdatafile_retval -ne 0 ]
 	then
-		local fichero_trabajo=$VARS_IPV4
-	else
-		if [ $ip = "ipv6" ]
+		message "E: Bad call to function store_in_ipdatafile() Invalid input arguments."
+		do_exit 1
+	fi
+
+	# Cleaning previous data
+	if grep ^"${variable_name}=" $working_file > /dev/null
+	then
+		local data=`grep -v ^"${variable_name}=" $working_file | grep -v ^[[:space:]]*$`
+		echo "$data" > $working_file
+		if [ $? -ne 0 ]
 		then
-			local fichero_trabajo=$VARS_IPV6
-		else
-			guardar_variable_en_fichero_retval=1
+			message "E: When cleaning the previous data. Dataloss is expected."
+			do_exit 1
 		fi
 	fi
-	# Punto de salida
-	if [ $guardar_variable_en_fichero_retval -ne 0 ]
-	then
-		message "E: Fallo al llamar a la funcion [guardar_variable_en_fichero()] Parametros de entrada invalidos."
-		return $guardar_variable_en_fichero_retval
-	fi
 
-	# Borrando posible dato anterior
-	if grep ^"${nombre_variable}=" $fichero_trabajo > /dev/null
-	then
-		local datos=`grep -v ^"${nombre_variable}=" $fichero_trabajo | grep -v ^[[:space:]]*$`
-		echo "$datos" > $fichero_trabajo
-		[ $? -ne 0 ] && { message "E: Fallo al borrar el dato anterior en la actualizacion. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
-	fi
+	[ $store_in_ipdatafile_retval -ne 0 ] && return $store_in_ipdatafile_retval # Return point
 
-	[ $guardar_variable_en_fichero_retval -ne 0 ] && return $guardar_variable_en_fichero_retval # punto de retorno
 
-	# Como guardar los datos si estamos trabajando con un FQDN
+	# How to store data if we are working with a FQDN
 	if is_fqdn_valid $data_to_add
 	then
-		case "$ip" in
+		case "$protocol" in
 			"ipv4" )
-				#tirar del hilo
+				# get the A
 				local resolution="$(get_ip_from_fqdn A $data_to_add 0)"
 				;;
 			"ipv6" )
-				#tirar del hilo
+				# get the AAAA
 				local resolution="$(get_ip_from_fqdn AAAA $data_to_add 0)"
 				;;
 		esac
+
 		if [ -z "$resolution" ]
 		then
-			# No hay resolution DNS para este registro
-			echo "${nombre_variable}=\$VOID #$data_to_add" >> $fichero_trabajo
-			[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+			# No resolution for this FQDN
+			echo "${variable_name}=\$VOID #$data_to_add" >> $working_file
+			if [ $? -ne 0 ]
+			then
+				message "E: Unable to store data [${data_to_add}] (void) to [$working_file]. Possible dataloss."
+				do_exit 1
+			fi
 		else
-			# Hay resolution DNS para el registro
+			# There is resolution for this FQDN
 			if [ `echo "$resolution" | wc -l` -gt 1 ]
 			then
-				# resolution compleja de este registro
-				echo "${nombre_variable}=${data_to_add} #$data_to_add" >> $fichero_trabajo
-				[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] de resolution compleja a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+				# Complex resolution.
+				echo "${variable_name}=${data_to_add} #$data_to_add" >> $working_file
+				if [ $? -ne 0 ]
+				then
+					message "E: Unable to store data [${data_to_add}] (complex) to [$working_file]. Possible dataloss."
+					do_exit 1
+				fi
 			else
-				# resolution normal de este registro
-				echo "${nombre_variable}=$resolution #$data_to_add" >> $fichero_trabajo
-				[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] de resolution normal a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+				# Standar resolution
+				echo "${variable_name}=$resolution #$data_to_add" >> $working_file
+				if [ $? -ne 0 ]
+				then
+					message "E: Unable to store data [${data_to_add}] (standar) to [$working_file]. Possible dataloss."
+					do_exit 1
+				fi
 			fi
 		fi
-	else # dato de IP cruda (v4 o v6)
-		# Como guardar los datos si estamos trabajando con una IPv6
+	else # Plain IP (v4 or v6)
+		# How to store data if we are working with an IPv6
 		if is_ipv6_valid $data_to_add
 		then
-			case "$ip" in
+			case "$protocol" in
 				"ipv4" )
-					echo "${nombre_variable}=\$VOID #$data_to_add" >> $fichero_trabajo
-					[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+					echo "${variable_name}=\$VOID #$data_to_add" >> $working_file
+					if [ $? -ne 0 ]
+					then
+						message "E: Unable to store data [${data_to_add}] (void) to [$working_file]. Possible dataloss."
+						do_exit 1
+					fi
 					;;
 				"ipv6" )
-					echo "${nombre_variable}=${data_to_add} #$data_to_add" >> $fichero_trabajo
-					[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+					echo "${variable_name}=${data_to_add} #$data_to_add" >> $working_file
+					if [ $? -ne 0 ]
+					then
+						message "E: Unable to store data [${data_to_add}] (void) to [$working_file]. Possible dataloss."
+						do_exit 1
+					fi
 					;;
 			esac
 		else
-			# Como guardar los datos si estamos trabajando con una IPv4
+			# How to store data if we are working with an IPv4
 			if is_ipv4_valid $data_to_add
 			then
-				case "$ip" in
+				case "$protocol" in
 					"ipv4" )
-						echo "${nombre_variable}=${data_to_add} #$data_to_add" >> $fichero_trabajo
-						[ $? -ne 0 ] && { message "E: Fallo al agregar dato [${data_to_add}] ficticio a [$fichero_trabajo]. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+						echo "${variable_name}=${data_to_add} #$data_to_add" >> $working_file
+						if [ $? -ne 0 ]
+						then
+							message "E: Unable to store data [${data_to_add}] (standar) to [$working_file]. Possible dataloss."
+							do_exit 1
+						fi
 						;;
 					"ipv6" )
-						echo "${nombre_variable}=\$VOID #$data_to_add" >> $fichero_trabajo
-						[ $? -ne 0 ] && { message "E: Fallo al borrar el dato anterior en la actualizacion. Posible perdida de datos." ; guardar_variable_en_fichero_retval=1 ; }
+						echo "${variable_name}=\$VOID #$data_to_add" >> $working_file
+						if [ $? -ne 0 ]
+						then
+							message "E: Unable to store data [${data_to_add}] (standar) to [$working_file]. Possible dataloss."
+							do_exit 1
+						fi
 						;;
 				esac
 			else
-				message "E: Funcion [guardar_datos_a_ficheros()] mal llamada: El dato no se ha detectado como valido."
-				guardar_variable_en_fichero_retval=1
+				message "E: Bad call to function [store_in_ipdatafile()]. Invalid data."
+				store_in_ipdatafile_retval=1
 			fi
 		fi
 	fi
-	return $guardar_variable_en_fichero_retval
+	return $store_in_ipdatafile_retval
 }
 
 ################################################################
