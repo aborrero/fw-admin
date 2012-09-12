@@ -1,6 +1,6 @@
 .TH FW-ADMIN 8 "12 Sep 2012"
 .SH NAME
-fw-admin \- Tool for managing an iptables-based firewall.
+fw-admin \- Herramienta para manejar un firewall basado en iptables.
 .SH SYNOPSIS
 \fBfw-admin -s\fP
 
@@ -14,15 +14,22 @@ fw-admin \- Tool for managing an iptables-based firewall.
 
 \fBfw-admin -c\fP \fIfichero\fP
 
-\fBfw-admin --start\fP {\fIvlan|nat|core\fP} [--nocheck]
-
-\fBfw-admin --stop\fP {\fIvlan|nat|core\fP}
-
 \fBfw-admin --ipset-reload\fP [--nocheck]
 
 \fBfw-admin --check-datafiles\fP
 
 \fBfw-admin --help\fP
+
+\fBfw-admin --start\fP \fIfichero\fP [--nocheck]
+
+\fBfw-admin --stop\fP [\fIfichero\fP]
+
+	fichero = Fichero en $CONF_DIR o con ruta absoluta.
+
+	ipv4 ipv6 fqdn = Una IPv4, IPv6 o un FQDN válido.
+
+	var nombreset = Una variable de ip o set guardara en los ficheros de datos.
+
 .SH DESCRIPCION
 \fBfw-admin\fP es una herramienta diseñada por y para CICA, que es el nucleo del firewall perimetral general de la red.
 Es un script escrito en \fBBash(1)\fP, que implementa controles y procedimientos para facilitar la administracion de un firewall de tecnología netfilter.
@@ -242,8 +249,7 @@ REPOS=repos_ipv6
 
 .SH CONFIGURATION
 
-Please read \fBfw-admin.conf(5)\fP.
-
+La configuración se describe en la página de manual \fBfw-admin.conf(5)\fP.
 
 .SH DEPENDENCIAS
 Este script necesita distintos binarios y herramientas en el sistema durante diferentes momentos de la ejecucion. 
@@ -312,13 +318,13 @@ En este ejemplo se vuelca al fichero \fI/root/debug\fP el comportamiento de la s
 root@debian:~# bash -x /etc/fw-admin.d/rules/INPUT 2> debug
 .RE
 
-.SH SEE ALSO
+.SH VÉASE TAMBIÉN
 \fBfw-admin.conf(5)\fP, \fBiptables-save(8)\fP
 
 .SH AUTOR, BUGS, COMENTARIOS Y CÓDIGO
-El código del sistema \fBfw-admin\fP es público y puede encontrarse en \fBhttps://github.com/aborrero/fw-admin\fP.
+El código del sistema \fBfw-admin\fP es público y puede encontrarse en \fBhttps://github.com/aborrero/fw-admin\fP. También hay una wiki con más información.
 
-Debe visitar ese sitio para reportar bugs y hacer comentarios.
+Debe visitar ese sitio para reportar bugs, contribuir y/o hacer comentarios.
 
 El autor original de esta herramienta y sistema (y página de manual) fue \fBArturo Borrero Gonzalez <aborrero@cica.es>\fP.
 
