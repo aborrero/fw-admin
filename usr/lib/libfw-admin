@@ -62,20 +62,34 @@ ARGS_LOGGER="-t fw-admin[$PID] --"
 # Show a message to stdout and/or stderr. Maybe also to logger
 message()
 {
+	# $1 is the raw message
 
-	# En el fichero /etc/fw-admin.conf puede configurarse
-	# que se muestren colores aqui o no.
-	# Se sustituiran las cadenas por la misma cadena con el código del color.
+	local message=${*}
+
+	# colour if configured
 	if [ "$USE_COLORS" == "yes" ]
 	then
-		echo -e $1 | sed s/"E:"/`echo -en ${C_RED}E:${C_NORMAL}`/ | sed s/"W:"/`echo -en ${C_YELLOW}W:${C_NORMAL}`/ | sed s/"I:"/`echo -en ${C_GREENBOLD}I:${C_NORMAL}`/
-	else
-		echo -e $1
+		message=${message/"E: "/"${C_RED}E:${C_NORMAL} "}
+		message=${message/"W: "/"${C_YELLOW}W:${C_NORMAL} "}
+		message=${message/"I: "/"${C_GREENBOLD}I:${C_NORMAL} "}
 	fi
 
-	# solo se logean mensajes de error y warning
-	[ "$LOG_ERROR_MESSAGES" == "yes" ] && [[ $1 =~ ^"E:" ]] && $LOGGER_BIN $ARGS_LOGGER $1
-	[ "$LOG_WARN_MESSAGES" == "yes" ] && [[ $1 =~ ^"W:" ]] && $LOGGER_BIN $ARGS_LOGGER $1
+	# what to do with the message
+	if [[ $1 =~ ^"E:" ]]
+	then
+		echo -e "$message" >&2
+		[ "$LOG_ERROR_MESSAGES" == "yes" ] && $LOGGER_BIN $ARGS_LOGGER $1
+		return 0
+	fi
+	if [[ $1 =~ ^"W:" ]]
+	then
+		echo -e "$message" >&2
+		[ "$LOG_WARN_MESSAGES" == "yes" ] && $LOGGER_BIN $ARGS_LOGGER $1
+		return 0
+	fi
+
+	# If not returned yet, the message wasn't E: or W:, so print it to stdout
+	echo -e "$message"
 
 	return 0
 }
