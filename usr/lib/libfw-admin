@@ -58,33 +58,6 @@ ARGS_LOGGER="-t fw-admin[$PID] --"
 ################################################################
 # Control functions
 
-# string get_absolute_path(string filename)
-# Obtain the absolute pathname to a given filename, first looking into $CONF_DIR
-get_absolute_path()
-{
-	local filename=$1
-	local get_absolute_path_retval=1
-
-	# Here we have 2 options.
-	#	1. The argument is a file in $CONF_DIR, so we return the absolute pathname as we know it.
-	#	2. The argument already is an absolute pathname, so return it.
-
-	# Check just for read permission. Don't need execution.
-
-	if [ -r "$CONF_DIR/$filename" ]
-	then
-		get_absolute_path_retval=0
-		echo "$CONF_DIR/$filename" # the string return
-	else
-		if [ -r "$filename" ]
-		then
-			get_absolute_path_retval=0
-			echo "$filename" # the string return
-		fi
-	fi
-	return $get_absolute_path_retval
-}
-
 # void message(string message)
 # Show a message to stdout and/or stderr. Maybe also to logger
 message()
@@ -204,6 +177,33 @@ check_files()
 	fi
 
 	return $check_files_retval
+}
+
+# string get_absolute_path(string filename)
+# Obtain the absolute pathname to a given filename, first looking into $CONF_DIR
+get_absolute_path()
+{
+	local filename=$1
+	local get_absolute_path_retval=1
+
+	# Here we have 2 options.
+	#	1. The argument is a file in $CONF_DIR, so we return the absolute pathname as we know it.
+	#	2. The argument already is an absolute pathname, so return it.
+
+	# Check just for read permission. Don't need execution.
+
+	if [ -r "$CONF_DIR/$filename" ]
+	then
+		get_absolute_path_retval=0
+		echo "$CONF_DIR/$filename" # the string return
+	else
+		if [ -r "$filename" ]
+		then
+			get_absolute_path_retval=0
+			echo "$filename" # the string return
+		fi
+	fi
+	return $get_absolute_path_retval
 }
 
 # string libprogressbar(int i, int max)
