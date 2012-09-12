@@ -134,27 +134,23 @@ case "$1" in
 	"-a" )
 		loadlibrary
 		validate_execution
-		message "I: Adding IP/FQDN variable."
 		add_ip_variable $2 # data as a parameter
 		do_exit $?
 		;;
 	"-as" )
 		loadlibrary
 		validate_execution
-		message "I: Adding setname variable."
 		add_set_variable $2 # data as a parameter
 		do_exit $?
 		;;
 	"-r" )
 		loadlibrary
 		validate_execution
-		message "I: Reloading variables."
 		reload_variable_values
 		do_exit $?
 		;;
 	"-i" )
 		loadlibrary
-		message "I: Gathering information."
 		get_information $2 # data as a parameter
 		do_exit $?
 		;;
