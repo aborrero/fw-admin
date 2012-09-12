@@ -453,28 +453,26 @@ add_ip_variable()
 	local flag_es_ipv6=0
 	local flag_es_fqdn=0
 
-	if [ -z $data_to_add ]
+	if [ -z "$data_to_add" ]
 	then
-		# No hay parametro de entrada, usar menu
+		# No input data, use prompt
 		read -p "-> Define IPv4, IPv6 or FQDN: " data_to_add
 	fi
 
 	#
-	# Validacion del dato introducido (por parametro o prompt)
+	# Validations
 	#
-
 	{ is_ipv4_valid $data_to_add || is_ipv6_valid $data_to_add || is_fqdn_valid $data_to_add ; } \
 		|| { message "E: No se ha reconocido en [${data_to_add}] una IP o FQDN que pueda usarse." ; add_ip_variable_retval=1 ; }
 
 
-	# Procedemos solo si se ha validado el parametro
+	# Continue only if parameter was validated
 	if [ $add_ip_variable_retval -eq 0 ]
 	then
 
 		#
-		# Obtener nombre definitivo que tendra la variable
+		# Calculate the name of the variable
 		#
-
 		variable_name=$( get_variable_name $data_to_add )
 		[ $? -ne 0 ] && { message "E: Unable to determine variable name." ; do_exit 1 ; }
 
@@ -482,26 +480,27 @@ add_ip_variable()
 
 		if grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null && grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null
 		then
-			# La variable ya esta guardada, actualizar
-			message "W: Actualizando la variable [${variable_name}]."
+			# The variable is already stored.
+			message "W: Refreshing... [${variable_name}]."
 		else
-			message "I: El nombre de la variable es [${variable_name}]."
+			message "I: The variable name is [${variable_name}]."
 		fi
 
 		#
-		# Escribir las variables a los ficheros de datos
+		# Write to datafiles
 		#
 		store_in_ipdatafile "ipv4" "$variable_name" "$data_to_add" \
-			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV4}]" ; add_ip_variable_retval=1 ; }
+			|| { message "E: Unable to store variable in file [${VARS_IPV4}]" ; do_exit 1 ; }
 		store_in_ipdatafile "ipv6" "$variable_name" "$data_to_add" \
-			|| { message "E: fallo al guardar la variable al fichero [${VARS_IPV6}]" ; add_ip_variable_retval=1 ; }
+			|| { message "E: Unable to store variable in file [${VARS_IPV6}]" ; do_exit 1 ; }
 
 		#
-		# Checkeo de que la escritura ha sido correcta
+		# Check if all went fine
 		#
 		grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null || add_ip_variable_retval=1
 		grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null || add_ip_variable_retval=1
-		[ $add_ip_variable_retval -ne 0 ] &&  message "E: No se pudo guardar la variable [${variable_name}]."
+
+		[ $add_ip_variable_retval -ne 0 ] &&  message "W: There is an error when storing in datafiles the variable [${variable_name}]."
 	fi
 	return $add_ip_variable_retval
 
@@ -524,13 +523,13 @@ add_set_variable()
 	data_to_add=`tr [:lower:] [:upper:] <<< $data_to_add`
 	# Must not exist
 	( grep -i "${data_to_add}_ipv4" $VARS_IPSETV4 > /dev/null && grep -i "${data_to_add}_ipv6" $VARS_IPSETV6 > /dev/null ) \
-		&& { message "E: The variable already exist." ; agregar_set_retval=1 ; }
+		&& { message "W: The variable already exist." ; agregar_set_retval=1 ; }
 
-	# Procedemos solo si se ha validado el parametro
+	# Continue only if parameter was validated.
 	if [ $agregar_set_retval -eq 0 ]
 	then
 		#
-		# Escribir las variables a los ficheros de datos
+		# Write to datafiles
 		#
 		echo "$data_to_add=`tr [:upper:] [:lower:] <<< $data_to_add`_ipv4" >> $VARS_IPSETV4 \
 				|| { message "E: Unable to write to [$VARS_IPSETV4]" ; agregar_set_retval=1 ; }

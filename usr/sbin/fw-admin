@@ -142,7 +142,7 @@ case "$1" in
 		loadlibrary
 		validate_execution
 		message "I: Adding setname variable."
-		agregar_set $2 # data as a parameter
+		add_set_variable $2 # data as a parameter
 		do_exit $?
 		;;
 	"-r" )
