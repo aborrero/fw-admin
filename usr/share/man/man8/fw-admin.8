@@ -1,4 +1,4 @@
-.TH FW-ADMIN 8 "28 Ago 2012"
+.TH FW-ADMIN 8 "12 Sep 2012"
 .SH NAME
 fw-admin \- Tool for managing an iptables-based firewall.
 .SH SYNOPSIS
@@ -93,7 +93,7 @@ La opción \fB-A\fP es la más común a la hora de añadir reglas de \fBiptables
 Este es el mismo algoritmo que se usa como paso previo de checkeo al usar la opcion \fB--start\fP.
 .TP
 \fB--start {vlan|nat|core} [--nocheck]\fP
-Se checkea que el fichero existe en la ruta especificada en la variable \fB$CONF_DIR\fP (generalmente \fB/var/local/fw.d/rules/\fP) y que tiene permisos de ejecucion.
+Se checkea que el fichero existe en la ruta especificada en la variable \fB$CONF_DIR\fP (generalmente \fB/etc/fw-admin.d/rules/\fP) y que tiene permisos de ejecucion.
 Luego, se checkea su sintaxis, de manera similar a la opción \fB-c\fP.
 
 Si el checkeo es positivo, se hará un \fB`source'\fP de los ficheros de vairables IPv4 y se ejecutarán las reglas una a una, valorando si hay algún error al insertarla en el Kernel.
@@ -240,84 +240,9 @@ REPOS=repos_ipv6
 .fi
 .RE
 
-.SH CONFIGURACIÓN
-El fichero principal de configuración es \fB/etc/fw-admin.conf\fP.
+.SH CONFIGURATION
 
-Durante todo el código de \fBfw-admin\fP se usan recurrentemente algunas variables, que pueden editarse y de las cuales algunas se detallan a continuación:
-.TP
-\fB$FORMAT\fP
-Al arrancar un fichero de reglas, el fichero de reglas puede estar en format script o en formato \fBiptables-save(8)\fP.
-
-Con esta directiva, \fBfw-admin\fP sabrá cómo tiene que tratar los ficheros de reglas. Todavía en estado de desarrollo.
-
-Valores: {restore|script} Por defecto: script
-.TP
-\fB$DOMAIN\fP
-El dominio principal sobre el que estamos trabajando. Por ejemplo, en CICA se usará: \fBDOMAIN="cica.es"\fP.
-.TP
-\fB$MINIMAL_AMOUNT_OF_RULES\fP
-El numero minimo de reglas que deben estar insertadas en el kernel para que el se considere que el firewall esta arrancado.
-Por defecto u oimisión se usa 40. Puede usarse cualquier numero entero positivo.
-
-En los mensajes de estadisticas se advierte cuando el firewall está arrancado en base a este numero.
-.TP
-\fB$FLUSH_WHEN_ABORT_START\fP
-Cuando se aborta una acción \fB--start\fP (por ejemplo, usando ^C o una orden \fBkill(1)\fP), si deben o no flushearse (borrarse) las reglas de iptables de esa vlan.
-
-Valores: {yes|no} Por defecto: no
-.TP
-\fB$FLUSH_WHEN_ERROR_START\fP
-Si deben o no flushearse (borrarse) las reglas de iptables de una determinada vlan cuando se encuentra un fallo en una acción \fB--start\fP.
-
-Valores: {yes|no} Por defecto: no
-.TP
-\fB$USE_IPTABLES_CLUSTER\fP
-Si se esta usando \fBiptables-cluster(8)\fP para sincronizar reglas de iptables entre nodos de un cluster.
-Esto producirá, por ejemplo, que la orden \fI--stop\fP ejecute \fBiptables-cluster(8)\fP para hacer los borrados de reglas en todos los nodos a la vez.
-
-Nótese que para activar o desactivar completamente \fBiptables-cluster(8)\fP debe editar a mano la linea de los ficheros de datos que contiene la variable \fBIPT\fP.
-
-Valores: {yes|no} Por defecto: no
-.TP
-\fB$WORKING_DIR\fP
-Directorio principal de trabajo. Se recomienda algo como: \fBWORKING_DIR="/var/local/fw.d"\fP.
-.TP
-\fB$CONF_DIR\fP
-El directorio de las reglas de filtrado. Se recomienda: \fBCONF_DIR="$WORKING_DIR/rules"\fP.
-.TP
-\fB$DATA_DIR\fP
-Directorio para los ficheros de datos. Se recomienda: \fBDATA_DIR="$WORKING_DIR/data"\fP.
-.TP
-\fB$LOCK_FILE\fP
-El fichero de LOCK. Algunas opciones no permiten más de una instancia de \fBfw-admin\fP, por lo que se usa este fichero.
-
-Se recomienda: \fBLOCK_FILE="$WORKING_DIR/fw-admin.lock"\fP.
-.TP
-\fB$USE_COLORS\fP
-Si \fBfw-admin\fP debe o no mostrar colores en su salida a stdout. Los valores son {yes|no}.
-.TP
-\fB$USE_PROGRESS_BAR\fP
-Si \fBfw-admin\fP debe o no mostrar barras de progreso en procesos largos. Los valores son {yes|no}.
-.TP
-\fB$LOG_ERROR_MESSAGES\fP
-Usando esta opción, todos los mensajes de error que se produzcan se logearan usando \fBlogger(1)\fP. Los valores son {yes|no}.
-.TP
-\fB$LOG_WARN_MESSAGES\fP
-Usando esta opción, todos los mensajes de warning que se produzcan se logearan usando \fBlogger(1)\fP. Los valores son {yes|no}.
-.TP 
-\fBOTRAS\fP
-Algunas otras variables son:
-
-\fBVARS_IPV6="$DATA_DIR/iptables_vars_ipv6.bash"\fP el fichero de datos de variables IPv6
-
-\fBVARS_IPV4="$DATA_DIR/iptables_vars_ipv4.bash"\fP el fichero de datos de variables IPv4
-
-\fBVARS_IPSETV4="$DATA_DIR/ipset_vars_ipv4.bash"\fP el fichero de datos de nombres de sets en IPv4
-
-\fBVARS_IPSETV6="$DATA_DIR/ipset_vars_ipv6.bash"\fP el fichero de datos de nombres de sets en IPv6
-
-
-Nótese que estos ficheros son \fInecesarios\fP para el funcionamiento de \fBfw-admin\fP.
+Please read \fBfw-admin.conf(5)\fP.
 
 
 .SH DEPENDENCIAS
@@ -371,8 +296,8 @@ Para debugear posibles fallos en los ficheros de reglas, se recomienda seguir el
 .RS
 .nf
 #!/bin/bash
-source /var/local/fw.d/data/iptables_vars_ipv4.bash
-source /var/local/fw.d/data/ipset_vars_ipv4.bash
+source /var/lib/fw-admin/iptables_vars_ipv4.bash
+source /var/lib/fw-admin/ipset_vars_ipv4.bash
 $IPT -A INPUT -m set --match-set $W_SIS src -p tcp --dport 22 -m state --state NEw -j ACCEPT
 [...]
 .fi
@@ -384,8 +309,11 @@ $IPT -A INPUT -m set --match-set $W_SIS src -p tcp --dport 22 -m state --state N
 En este ejemplo se vuelca al fichero \fI/root/debug\fP el comportamiento de la shell con las reglas del fichero \fBINPUT\fP:
 .RS
 .TP
-root@debian:~# bash -x /var/local/fw.d/rules/INPUT 2> debug
+root@debian:~# bash -x /etc/fw-admin.d/rules/INPUT 2> debug
 .RE
+
+.SH SEE ALSO
+\fBfw-admin.conf(5)\fP, \fBiptables-save(8)\fP
 
 .SH AUTOR, BUGS, COMENTARIOS Y CÓDIGO
 El código del sistema \fBfw-admin\fP es público y puede encontrarse en \fBhttps://github.com/aborrero/fw-admin\fP.
