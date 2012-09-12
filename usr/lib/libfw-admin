@@ -481,7 +481,7 @@ add_ip_variable()
 		if grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null && grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null
 		then
 			# The variable is already stored.
-			message "W: Refreshing... [${variable_name}]."
+			message "W: Refreshing variable data: ${variable_name}"
 		else
 			message "I: The variable name is: ${variable_name}"
 		fi
