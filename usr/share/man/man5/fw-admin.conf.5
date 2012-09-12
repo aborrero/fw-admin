@@ -17,6 +17,10 @@ Values: {restore|script} Default: script
 .TP
 \fB$DOMAIN\fP
 The main domain you are using. For example, in CICA we use: \fBDOMAIN="cica.es"\fP.
+
+This directive is mandatory to be set. Unexpected behaviour of \fBfw-admin\fP if unset.
+
+Values: string Default: example.com
 .TP
 \fB$MINIMAL_AMOUNT_OF_RULES\fP
 How many rules are needed to be in kernel to consider the firewall running.
