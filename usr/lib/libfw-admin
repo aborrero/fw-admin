@@ -58,6 +58,33 @@ ARGS_LOGGER="-t fw-admin[$PID] --"
 ################################################################
 # Control functions
 
+# string get_absolute_path(string filename)
+# Obtain the absolute pathname to a given filename, first looking into $CONF_DIR
+get_absolute_path()
+{
+	local filename=$1
+	local get_absolute_path_retval=1
+
+	# Here we have 2 options.
+	#	1. The argument is a file in $CONF_DIR, so we return the absolute pathname as we know it.
+	#	2. The argument already is an absolute pathname, so return it.
+
+	# Check just for read permission. Don't need execution.
+
+	if [ -r "$CONF_DIR/$filename" ]
+	then
+		get_absolute_path_retval=0
+		echo "$CONF_DIR/$filename" # the string return
+	else
+		if [ -r "$filename" ]
+		then
+			get_absolute_path_retval=0
+			echo "$filename" # the string return
+		fi
+	fi
+	return $get_absolute_path_retval
+}
+
 # void message(string message)
 # Show a message to stdout and/or stderr. Maybe also to logger
 message()
@@ -1174,21 +1201,24 @@ check_iptables_syntax_loop()
 	echo -n "" > $AUX_FILE
 
 	# Validations
-	[ ! -r "$1" ] && { message "E: Function check_iptables_syntax_loop() called with an unreadable filename as argument." ; return 1 ;}
-	[ "$2" != "4" ] && [ "$2" != "6" ] && { message "E: Function check_iptables_syntax_loop() called with bad protocol as argument." ; return 1 ; }
+	[ ! -r "$1" ] && { message "E: Function check_iptables_syntax_loop() called with an unreadable filename as argument." ; do_exit 1 ;}
+	[ "$2" != "4" ] && [ "$2" != "6" ] && { message "E: Function check_iptables_syntax_loop() called with bad protocol as argument." ; do_exit 1 ; }
 
 	# Using a more legible name
 	local file_being_checked=$1
 	local protocol=$2
 
+	# Store all lines in a variable, to avoid double disk read in: calculating the amount of lines and iterate over they.
+	local list_of_lines=`cat $file_being_checked | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$\|"IPSET" | egrep "IPT -A "\|"IPT -I "`
+
 	# Evaluating if we need calcules regarding progress bar
 	if [ "$USE_PROGRESS_BAR" == "yes" ]
 	then
-		local amount_of_lines=`grep -v ^[[:space:]]*# $file_being_checked | egrep "IPT -A "\|"IPT -I " | grep -v ^[[:space:]]*$ | wc -l`
+		local amount_of_lines=`wc -l <<< "$list_of_lines"`
 		local cont=0
 	fi
 
-	for line in `cat $file_being_checked | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$\|"IPSET" | egrep "IPT -A "\|"IPT -I "`
+	for line in $list_of_lines
 	do
 		# Evaluating if we need calcules regarding progress bar
 		if [ "$USE_PROGRESS_BAR" == "yes" ]
@@ -1227,49 +1257,51 @@ check_iptables_syntax_loop()
 	return $check_iptables_syntax_loop_retval
 }
 
-# Recibe un fichero
+# boolean check_iptables_syntax(string filename)
+# Source datafiles and launch loop over rules in a given file
 check_iptables_syntax()
 {
-	# Doing nothing
+	# Doing nothing if format restore
 	[ "$FORMAT" == "restore" ] && return 0
 
 	local check_iptables_syntax_retval=0
-	local fichero=$1
+	local filename=$1
 
-	if [[ "$fichero" =~ ^"core"$ ]] || [[ "$fichero" =~ /"core"$ ]] || [[ "$fichero" =~ ^"sets"$ ]] || [[ "$fichero" =~ /"sets"$ ]]
+	# Doing nothing if is the $IPSET_CONF file or if it is the core file.
+	if [[ "$filename" =~ ^"core"$ ]] || [[ "$filename" =~ /"core"$ ]] || [ "$filename" == "$IPSET_CONF" ]
 	then
-		# Doing nothing
 		return 0
 	fi
 
-
-	echo "" > $AUX_FILE
-
-	# punto de salida
-	if [ ! -r $fichero ]
+	# Exit point
+	if [ ! -r "$filename" ]
 	then
-		message "E: No se ha recibido un nombre de fichero correcto en la funcion check_iptables_syntax(). Terminando..."
-		return 1
+		message "E: Bad call to function check_iptables_syntax()"
+		do_exit 1
 	fi
 
-	oldIFS=$IFS
-	IFS=$'\n'
-	message "I: Checking iptables syntax [$fichero]"
+	# Clean the aux file
+	echo "" > $AUX_FILE
+
+	# If using progress bar, print a message so user know what means.
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Checking iptables syntax of $filename"
+
+	oldIFS=$IFS ; IFS=$'\n' # Control over IFS
 	source $VARS_IPV4 && source $VARS_IPSETV4 && { IPT=$IPT_LOCAL ; IPSET=$IPSET_LOCAL ; } \
-	|| { message "E: Unable to load datafiles in IPv4." ; return 1 ; } # punto de salida
+	|| { message "E: Unable to load datafiles in IPv4." ; do_exit 1 ; } # exit point
 
-	check_iptables_syntax_loop $fichero 4 || check_iptables_syntax_retval=1
+	check_iptables_syntax_loop $filename 4 || check_iptables_syntax_retval=1
 
-	# Si es fichero de nat, no comprobar IPv6
-	if grep -i nat <<< $fichero > /dev/null
+	# Aboid IPv6 checks if NAT
+	if [[ $filename =~ "nat"$ ]]
 	then
-		echo "DEBUG: No IPv6 syntax check because NAT." > /dev/null
+		: "DEBUG: No IPv6 syntax check because NAT."
 	else
-		message "I: Checking ip6tables syntax [$fichero]"
+		message "I: Checking ip6tables syntax of $filename"
 		source $VARS_IPV6 && source $VARS_IPSETV6 && { IPT=$IP6T_LOCAL ; IPSET=$IPSET_LOCAL ; } \
-		|| { message "E: Unable to load datafiles in IPv6." ; return 1 ; } # punto de salida
+		|| { message "E: Unable to load datafiles in IPv6." ; do_exit 1 ; } # exit point
 
-		check_iptables_syntax_loop $fichero 6 || check_iptables_syntax_retval=1
+		check_iptables_syntax_loop $filename 6 || check_iptables_syntax_retval=1
 	fi
 	IFS=$oldIFS
 	return $check_iptables_syntax_retval
@@ -1279,78 +1311,76 @@ check_iptables_syntax()
 # To check that variables of a rulefile are in datafiles and ip[6]?tables syntax
 check_rulefile()
 {
-	[ ! -z "$flag_no_check" ] && [ $flag_no_check -eq 1 ] && { message "W: No check [$1]" ; return 0 ; }
+	[ ! -z "$flag_no_check" ] && [ $flag_no_check -eq 1 ] && return 0
 
 	local check_rulefile_retval=0
 	local flag_wrong_variables=0
 	local flag_wrong_iptables=0
-	local file_to_check=$1
+
+	local file_to_check=$( get_absolute_path $1 )
+	if [ "$file_to_check" == "" ]
+	then
+		message "E: File not found $1"
+		do_exit 1
+	fi
+
+	# Clear aux file
 	echo "" > $AUX_FILE
 
-	if [ ! -z "$file_to_check" ] && [ -e "$file_to_check" ]
+
+	# If we are using progress bar, print a message so user know what means the progress bar
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Checking variables of $file_to_check"
+
+	oldIFS=$IFS ; IFS=$' \t\n' # control over IFS
+	# Do we need to do calcules related to progress bar?
+	if [ "$USE_PROGRESS_BAR" == "yes" ]
 	then
-		message "I: Checking variables of file [$file_to_check]"
+		local amount=`grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u | wc -l`
+		local cont=0
+	fi
 
-		oldIFS=$IFS ; IFS=$' \t\n' # control over IFS
-
+	# Iterate over variables ($FOO) on file
+	for word in `grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u`
+	do
 		# Do we need to do calcules related to progress bar?
 		if [ "$USE_PROGRESS_BAR" == "yes" ]
 		then
-			local amount=`grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u | wc -l`
-			local cont=0
+	                ((cont++))
+	       	        libprogressbar $cont $amount
 		fi
+		# If the word is IPT|IPSET|iptables|ip6tables, do nothing and continue
+		{ [[ "$word" =~ "IPT" ]] || [[ "$word" =~ "IPSET" ]] || [[ "$word" =~ "ip"[6]?"tables" ]] ; } && continue
+		# If not, look for the word in datafiles
+		local search=`echo $word | tr -d '$'`
 
-		# Iterate over variables ($FOO) on file
-		for word in `grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u`
-		do
-			# Do we need to do calcules related to progress bar?
-			if [ "$USE_PROGRESS_BAR" == "yes" ]
+		# the search. Must be in both datafiles of the same type to consider the variable valid.
+		if ! { grep ^[[:space:]]*"$search"=.*$ $VARS_IPV4 > /dev/null && grep ^[[:space:]]*"$search"=.*$ $VARS_IPV6 > /dev/null ; }
+		then
+			if ! { grep ^[[:space:]]*"$search"=.*$ $VARS_IPSETV4 > /dev/null && grep ^[[:space:]]*"$search"=.*$ $VARS_IPSETV6 > /dev/null ; }
 			then
-		                ((cont++))
-	        	        libprogressbar $cont $amount
+				message "W: Unknow variable ${C_BOLD}${search}${C_NORMAL}" >> $AUX_FILE
+				flag_wrong_variables=1
 			fi
+		fi
+	done
+	IFS=$oldIFS
 
-			# If the word is IPT|IPSET|iptables|ip6tables, do nothing and continue
-			{ [[ "$word" =~ "IPT" ]] || [[ "$word" =~ "IPSET" ]] || [[ "$word" =~ "ip"[6]?"tables" ]] ; } && continue
+	# Showing warnings now
+	grep -v ^[[:space:]]*$ $AUX_FILE
+	[ $flag_wrong_variables -ne 0 ] && return 1 # return point
 
-			# If not, look for the word in datafiles
-			local search=`echo $word | tr -d '$'`
+	# Check iptables syntax if all variables all fine
+	check_iptables_syntax $file_to_check || flag_wrong_iptables=$?
+	[ "$flag_wrong_variables" -ne 0 ] || [ "$flag_wrong_iptables" -ne 0 ] && check_rulefile_retval=1
 
-			# the search. Must be in both datafiles of the same type to consider the variable valid.
-			if ! { grep ^[[:space:]]*"$search"=.*$ $VARS_IPV4 > /dev/null && grep ^[[:space:]]*"$search"=.*$ $VARS_IPV6 > /dev/null ; }
-			then
-				if ! { grep ^[[:space:]]*"$search"=.*$ $VARS_IPSETV4 > /dev/null && grep ^[[:space:]]*"$search"=.*$ $VARS_IPSETV6 > /dev/null ; }
-				then
-					message "W: Check variable ${C_BOLD}${search}${C_NORMAL}" >> $AUX_FILE
-					flag_wrong_variables=1
-				fi
-			fi
-		done
-		IFS=$oldIFS
-
-		# Showing warnings now
-		grep -v ^[[:space:]]*$ $AUX_FILE
-
-		[ $flag_wrong_variables -ne 0 ] && return 1 # return point
-
-
-		# Check iptables syntax if all variables all fine
-		check_iptables_syntax $file_to_check || flag_wrong_iptables=$?
-
-		[ "$flag_wrong_variables" -ne 0 ] || [ "$flag_wrong_iptables" -ne 0 ] && check_rulefile_retval=1
-
-	else
-		message "E: File not found [$file_to_check]."
-		check_rulefile_retval=1
-	fi
 	return $check_rulefile_retval
 }
 
 # boolean check_chain_exist(string chainname)
-# Check if a chain is create in iptables/6tables
+# Check if a chain exists in iptables/6tables
 check_chain_exist()
 {
-	local check_table_exist_retval=1
+	local check_chain_exist_retval=1
 
 	# validating
 	[ -z "$1" ] && return 1
@@ -1362,11 +1392,11 @@ check_chain_exist()
 	then
 		if $IP6T_SAVE | grep ^: | grep $1 >/dev/null 2>/dev/null
 		then
-			check_table_exist_retval=0
+			check_chain_exist_retval=0
 		fi
 	fi
 
-	return $check_table_exist_retval
+	return $check_chain_exist_retval
 }
 
 ################################################################
@@ -1378,8 +1408,6 @@ check_chain_exist()
 start_controlled_exit()
 {
 	echo ""
-	# Behaviour when aborting start operation
-	#FLUSH_WHEN_ABORT_START="yes"
 
 	if [ "$FLUSH_WHEN_ABORT_START" == "yes" ]
 	then
@@ -1391,27 +1419,21 @@ start_controlled_exit()
 	do_exit 1
 }
 
-# boolean start_in_script_format(string vlan)
-# Check&start rules on vlan
+# boolean start_in_script_format(string filename)
+# Check&start rules on given vlan/filename
 start_in_script_format()
 {
-
 	local start_retval=0
 	local initial_time=`date +%s`
-
-	# Check input parameter
-	if [ -z "$1" ]
+	local filename=$( get_absolute_path $1 )
+	if [ "$filename" == "" ]
 	then
-		message "E: A name as an argument (corresponding to something in ${CONF_DIR}) is needed."
-		do_exit 1 # EXIT POINT
-	else
-		local vlan=$1
-		if [ ! -x "$CONF_DIR/$vlan" ]
-		then
-			message "E: File not found."
-			do_exit 1 # EXIT POINT
-		fi
+		message "E: File not found $1"
+		do_exit 1
 	fi
+
+	# Obtain vlan/chain name
+	local vlan=`awk -F'/' '{print $NF}' <<< $filename`
 
 	# Check that given chain exist
 	if ! check_chain_exist $vlan
@@ -1424,7 +1446,7 @@ start_in_script_format()
 	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	# Checking rulefile.
-	if ! check_rulefile $CONF_DIR/$vlan
+	if ! check_rulefile $filename
 	then
 		message "E: Check failed. Don't starting."
 		do_exit 1 # Exit point
@@ -1437,49 +1459,46 @@ start_in_script_format()
 		do_exit 1 # Exit point
 	fi
 
+	# Starting IPv4 rules. Show the msg if USE_PROGRESS_BAR == yes because when showing the bar, you need to know what it stands for.
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Starting IPv4 rules"
 
-	# Starting IPv4 rules
-	message "I: Starting IPv4 rules."
-	oldIFS=$IFS ; IFS=$'\n' # control over IFS
-
-	# Start the for loop only if success loading datafiles and flushing vlan
+	# Start the for loop only if success loading datafiles
 	if source $VARS_IPV4 && source $VARS_IPSETV4
 	then
 		start_in_script_format_loop $vlan 4 || start_retval=$?
 	else
-		message "E: Error loading datafiles in IPv4."
+		message "E: Error loading datafiles in IPv4"
 		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
 		then
 			flush_vlan $vlan
 		fi
 		do_exit 1 # EXIT POINT
 	fi
-	log_vlan $vlan || { message "E: Unable to insert LOGGING and RETURN rules in IPv4 for [$vlan]." ; do_exit 1 ; } # EXIT POINT
+	log_vlan $vlan || { message "E: Function log_vlan() failed for IPv4" ; do_exit 1 ; } # EXIT POINT
 
 
 	if grep -i nat <<< $vlan > /dev/null
 	then
-		echo "DEBUG: Not inserting rules in IPv6 because a nat file" > /dev/null
+		: "DEBUG: Not inserting rules in IPv6 because a nat file"
 	else
-		# Iniciando reglas en IPv6
-		message "I: Starting IPv6 rules."
-		oldIFS=$IFS ; IFS=$'\n' # control over IFS
+		# Starting IPv6 rules. Show the msg if USE_PROGRESS_BAR == yes because when showing the bar, you need to know what it stands for.
+		[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Starting IPv6 rules"
 
 		# Start the for loop only if success loading datafiles
 		if source $VARS_IPV6 && source $VARS_IPSETV6
 		then
 			start_in_script_format_loop $vlan 6 || start_retval=$?
 		else
-			message "E: Error loading datafiles in IPv6."
+			message "E: Error loading datafiles in IPv6"
 			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
 			then
 				flush_vlan $vlan
 			fi
 			do_exit 1 # EXIT POINT
 		fi
-		log_vlan $vlan || { message "E: Unable to insert LOGGING and RETURN rules in IPv6 for [$vlan]." ; do_exit 1 ; } # EXIT POINT
+		log_vlan $vlan || { message "E: Function log_vlan() failed for IPv6" ; do_exit 1 ; } # EXIT POINT
 	fi
-	IFS=$oldIFS
+
 	local final_time=`date +%s`
 	message "I: Operation time over ${vlan}: $(( final_time - initial_time )) seconds."
 
@@ -1492,25 +1511,30 @@ start_in_script_format_loop()
 {
 	local start_loop_retval=0
 
-	local vlan=$1
+	local vlan_file=$( get_absolute_path $1 )
 	local protocol=$2
 
-	if [ -z "$vlan" ] || [ ! -e "$CONF_DIR/$vlan" ] || [ -z "$protocol" ]
+	if [ ! -r "$vlan_file" ] || [ -z "$protocol" ]
 	then
-		message "E: Invalid call to function start_in_script_format_loop(), invalid input arguments."
+		message "E: Bad call to function start_in_script_format_loop(), invalid input arguments."
+		do_exit 1 # Exit point
 	fi
 
+	list_of_lines=`grep -v ^[[:space:]]*# $vlan_file | grep -v ^[[:space:]]*$`
 
 	# Evaluating if we need calcules related to the progress bar
 	if [ "$USE_PROGRESS_BAR" == "yes" ]
 	then
-		local amount_of_lines=`grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$ | wc -l`
+		local amount_of_lines=`wc -l <<< $list_of_lines`
 	fi
 	local cont=0
 
-	for line in `grep -v ^[[:space:]]*# $CONF_DIR/$vlan | grep -v ^[[:space:]]*$`
+
+	oldIFS=$IFS ; IFS=$'\n' # control over IFS
+	for line in "$list_of_lines"
 	do
 		((cont++))
+
 		# Evaluating if we need calcules related to the progress bar
 		[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
 
@@ -1519,7 +1543,7 @@ start_in_script_format_loop()
 		if [ $? -ne 0 ]
 		then
 			start_loop_retval=1
-			message "E: Error found adding rules to kernel in IPv${protocol}. Rule num (not line) [$cont]."
+			message "W: Error found adding rules to kernel in IPv${protocol}. Rule num (not line) $cont"
 			echo "Details:"
 			echo " ${line}"
 			for error_line in $error_msg
@@ -1538,6 +1562,8 @@ start_in_script_format_loop()
 			fi
 		fi
 	done
+	IFS=$oldIFS
+
 	return $start_loop_retval
 }
 
