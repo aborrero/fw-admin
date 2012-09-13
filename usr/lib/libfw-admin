@@ -216,7 +216,7 @@ libprogressbar()
         local current=0
         local max=100
         local decimal=1
-        local max_width=55
+        local max_width=50
         local subtraction width atleast percent chars
         local padding=5
 
@@ -250,7 +250,7 @@ libprogressbar()
 	#complete=${complete//0/"#"} #completed char
 	#remain=${remain//0/"."} #uncompleted char
 
-	printf ' %s%s%s%s %s%s\r' " [" "${complete//0/#}" "${remain//0/.}" "]" "$percent" "%"
+	printf ' %s%s%s%s %s%s\r' "[" "${complete//0/-}" "${remain//0/ }" "]" "$percent" "%"
 
 	if (( current >= max ))
 	then
@@ -354,9 +354,6 @@ reload_variable_values()
 	local lista_variables=`{ cat $VARS_IPV4 ; cat $VARS_IPV6 ; } | egrep -v "##ignorar##"\|"##ignore##"\|"@"\|^[[:space:]]*# \
 		| awk -F'#' '{print $2}' | sort -u | uniq | grep -v ^[[:space:]]*$`
 
-	oldIFS=$IFS ; IFS=$' \t\n' #control over IFS
-
-
 	# Evaluating if calcules regarding progress bar are neccesary
 	if [ "$USE_PROGRESS_BAR" == "yes" ]
 	then
@@ -364,6 +361,7 @@ reload_variable_values()
 		local cont=0
 	fi
 
+	oldIFS=$IFS ; IFS=$' \t\n' #control over IFS
 	for variable in $lista_variables
 	do
 		# Evaluating if calcules regarding progress bar are neccesary
@@ -373,14 +371,13 @@ reload_variable_values()
 			libprogressbar $cont $total
 		fi
 		# Solo se mostraran luego los mensajes de error
-		add_ip_variable $variable | grep E: >> $AUX_FILE || reload_variable_values_retval=1
+		add_ip_variable $variable >> $AUX_FILE 2>&1 || reload_variable_values_retval=1
 	done
 	IFS=$oldIFS
 
-	local checklist=`cat $AUX_FILE`
+	local checklist=`grep "E:" $AUX_FILE`
 	if [ ! -z "$checklist" ]
 	then
-		message "I: Check:"
 		echo -e "$checklist"
 	fi
 	return $reload_variable_values_retval
@@ -490,7 +487,7 @@ add_ip_variable()
 	# Validations
 	#
 	{ is_ipv4_valid $data_to_add || is_ipv6_valid $data_to_add || is_fqdn_valid $data_to_add ; } \
-		|| { message "E: No se ha reconocido en [${data_to_add}] una IP o FQDN que pueda usarse." ; add_ip_variable_retval=1 ; }
+		|| { message "E: Data is not a valid IP or FQDN: \"$data_to_add\"" ; add_ip_variable_retval=1 ; }
 
 
 	# Continue only if parameter was validated
@@ -517,9 +514,9 @@ add_ip_variable()
 		# Write to datafiles
 		#
 		store_in_ipdatafile "ipv4" "$variable_name" "$data_to_add" \
-			|| { message "E: Unable to store variable in file [${VARS_IPV4}]" ; do_exit 1 ; }
+			|| { message "E: Unable to store $data_to_add in file ${VARS_IPV4}" ; do_exit 1 ; }
 		store_in_ipdatafile "ipv6" "$variable_name" "$data_to_add" \
-			|| { message "E: Unable to store variable in file [${VARS_IPV6}]" ; do_exit 1 ; }
+			|| { message "E: Unable to store $data_to_add in file ${VARS_IPV6}" ; do_exit 1 ; }
 
 		#
 		# Check if all went fine
@@ -527,7 +524,7 @@ add_ip_variable()
 		grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null || add_ip_variable_retval=1
 		grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null || add_ip_variable_retval=1
 
-		[ $add_ip_variable_retval -ne 0 ] &&  message "W: There is an error when storing in datafiles the variable [${variable_name}]."
+		[ $add_ip_variable_retval -ne 0 ] &&  message "W: There is an error when storing in datafiles the variable ${variable_name}"
 	fi
 	return $add_ip_variable_retval
 
@@ -992,19 +989,17 @@ get_information()
 
 	# 2º Search the variable name the data should has
 	variable_name=$( get_variable_name $data )
-	if [ $? -ne 0 ] || [ -z "$variable_name" ]
+	if [ $? -eq 0 ] && [ ! -z "$variable_name" ]
 	then
-		message "E: Unable to determine variable name (Maybe FQDN not found in DNS servers, or invalid IPv4|IPv6)."
-		do_exit 1
+		search_datafiles $variable_name $AUX_FILE
 	fi
-	search_datafiles $variable_name $AUX_FILE
 
 
 	# 3º Search only if previous data has been found.
 	# Search in base a previous data found
 	#
 	# Take care of the message format produced by function search_datafiles()
-	# "Related data found in ${C_BOLD}$VARS_IPV4${C_NORMAL}: ${C_BOLD}${line}${C_NORMAL}" #--> ' VAR=dato #aclaracion'
+	# "$VARS_IPV4: ${C_BOLD}${line}${C_NORMAL}" #--> ' VAR=dato #aclaracion'
 	if [ `cat $AUX_FILE | wc -l` -gt 0 ]
 	then
 
@@ -1015,7 +1010,7 @@ get_information()
 			search_datafiles $i $AUX_FILE
 		done
 		# Search behind (=)
-		local new_data_search_list=`cat $AUX_FILE | awk -F' ' '{print $6}' | awk -F'=' '{print $1}' | sort -u | uniq`
+		local new_data_search_list=`cat $AUX_FILE | awk -F' ' '{print $2}' | awk -F'=' '{print $1}' | sort -u | uniq`
 		for i in $new_data_search_list
 		do
 			search_datafiles $i $AUX_FILE
@@ -1143,16 +1138,16 @@ get_information()
 	total_reglas=$((num_reglas_ipv4_nat + total_reglas))
 	total_reglas=$(( total_reglas + num_reglas_ipv4 ))
 	total_reglas=$(( total_reglas + num_reglas_ipv6 ))
-	message "I: Se han encontrado un total de ${C_BOLD}${total_reglas}${C_NORMAL} reglas coincidentes."
+	[ "$total_reglas" -gt 0 ] && message "I: Se han encontrado un total de ${C_BOLD}${total_reglas}${C_NORMAL} reglas coincidentes."
 
 
 	if [ "$flag_data_shown" != "true" ]
 	then
-		message "W: No se ha encontrado ninguna informacion relacionada."
+		message "W: No data found."
+		obtener_informacion_retval=1
 	else
 		obtener_informacion_retval=0
 	fi
-	echo "DEBUG: $obtener_informacion_retval" > /dev/null
 	IFS=$oldIFS
 	return $obtener_informacion_retval
 }
@@ -1175,13 +1170,13 @@ search_datafiles()
 		do
 			search_datafiles_retval=0
 			# WARNING! If you change this message, you must change also the function get_information()
-			echo -e "Related data found in ${C_BOLD}$VARS_IPV4${C_NORMAL}: ${line}" >> $2
+			echo -e "$VARS_IPV4: ${line}" >> $2
 		done
 		for line in `egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV6 2>/dev/null`
 		do
 			search_datafiles_retval=0
 			# WARNING! If you change this message, you must change also the function get_information()
-			echo -e "Related data found in ${C_BOLD}$VARS_IPV6${C_NORMAL}: ${line}" >> $2
+			echo -e "$VARS_IPV6: ${line}" >> $2
 		done
 	else
 		message "E: Function search_datafiles() called with bad arguments."
@@ -1598,15 +1593,9 @@ flush_vlan()
 
 				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 				then
-					$IPT_CLUSTER -P INPUT ACCEPT 2>/dev/null
-					$IPT_CLUSTER -P OUTPUT ACCEPT 2>/dev/null
-					$IPT_CLUSTER -P FORWARD ACCEPT 2>/dev/null
 					$IPT_CLUSTER -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 					$IPT_CLUSTER -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 					$IPT_CLUSTER -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_CLUSTER -P INPUT ACCEPT 2>/dev/null
-					$IP6T_CLUSTER -P OUTPUT ACCEPT 2>/dev/null
-					$IP6T_CLUSTER -P FORWARD ACCEPT 2>/dev/null
 					$IP6T_CLUSTER -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 					$IP6T_CLUSTER -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 					$IP6T_CLUSTER -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
@@ -1629,15 +1618,9 @@ flush_vlan()
 
 				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 				then
-					$IPT_LOCAL -P INPUT ACCEPT 2>/dev/null
-					$IPT_LOCAL -P OUTPUT ACCEPT 2>/dev/null
-					$IPT_LOCAL -P FORWARD ACCEPT 2>/dev/null
 					$IPT_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 					$IPT_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 					$IPT_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_LOCAL -P INPUT ACCEPT 2>/dev/null
-					$IP6T_LOCAL -P OUTPUT ACCEPT 2>/dev/null
-					$IP6T_LOCAL -P FORWARD ACCEPT 2>/dev/null
 					$IP6T_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 					$IP6T_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
 					$IP6T_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
