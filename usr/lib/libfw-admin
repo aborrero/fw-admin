@@ -1824,7 +1824,7 @@ ipset_reload()
 		[ "$USE_PROGRESS_BAR" == "yes" ] && local amount_of_lines=$( wc -l <<< "$list_of_lines" )
 
 		oldIFS=$IFS ; IFS=$'\n' # Controls over IFS
-		for linea in "$list_of_lines"
+		for linea in $list_of_lines
 		do
 			((cont++))
 			# evaluating in we need calcules related to the progress bar
@@ -1865,11 +1865,11 @@ ipset_reload()
 		fi
 
 		oldIFS=$IFS ; IFS=$'\n' # Controls over IFS
-		for line in "$list_of_lines"
+		for line in $list_of_lines
 		do
 			((cont++))
 			# evaluating in we need calcules related to the progress bar
-			[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $lineas
+			[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
 
 			# Evaluate the line of the file.
 			error_msg=$( eval "${line} 2>&1" 2>&1 )
