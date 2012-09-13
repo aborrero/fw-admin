@@ -1411,10 +1411,10 @@ start_controlled_exit()
 
 	if [ "$FLUSH_WHEN_ABORT_START" == "yes" ]
 	then
-		message "W: Aborting the start operation for ${1} and flushing rules."
+		message "W: Aborting the start operation for ${1} and flushing rules"
 		flush_vlan $1
 	else
-		message "W: Aborting the start operation for ${1}."
+		message "W: Aborting the start operation for ${1}"
 	fi
 	do_exit 1
 }
@@ -1812,28 +1812,29 @@ ipset_reload()
 
 	# Now IPv4
 	source $VARS_IPV4 && source $VARS_IPSETV4 \
-		|| { message "E: Unable to load IPv4 datafiles." ; ipset_reload_retval=1 ; }
+		|| { message "E: Unable to load IPv4 datafiles." ; do_exit 1 ; }
+
 	if [ $ipset_reload_retval -eq 0 ]
 	then
+		# We are going to iterate over the list of lines
+		local list_of_lines=$( grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ )
+
 		local cont=0
 		# evaluating in we need calcules related to the progress bar
-		if [ "$USE_PROGRESS_BAR" == "yes" ]
-		then
-			local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ | wc -l` #total de lineas ejecutables
-		fi
+		[ "$USE_PROGRESS_BAR" == "yes" ] && local amount_of_lines=$( wc -l <<< "$list_of_lines" )
 
 		oldIFS=$IFS ; IFS=$'\n' # Controls over IFS
-		for linea in `grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$` #recorriendo fichero linea a linea
+		for linea in "$list_of_lines"
 		do
 			((cont++))
 			# evaluating in we need calcules related to the progress bar
-			[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $lineas
+			[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
 
 			# Evaluate the line of the file.
 			error_msg=$( eval "${linea} 2>&1" 2>&1 )
 			if [ $? -ne 0 ]
 			then
-				message "E: Error found reloading sets in IPv4. Rule num (not line) [$cont]."
+				message "E: Error found reloading sets in IPv4. Rule num (not line) $cont"
 				echo "Details:"
 				echo " ${linea}"
 				for line in $error_msg
@@ -1850,33 +1851,36 @@ ipset_reload()
 	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Reloading now IPset IPv6 data"
 
 	source $VARS_IPV6 && source $VARS_IPSETV6 \
-		|| { message "E: Unable to load IPv6 datafiles." ; ipset_reload_retval=1 ; }
+		|| { message "E: Unable to load IPv6 datafiles." ; do_exit 1 ; }
 	if [ $ipset_reload_retval -eq 0 ]
 	then
+		# We are going to iterate over the list of lines
+		local list_of_lines=$( grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ )
+
 		local cont=0
 		# evaluating in we need calcules related to the progress bar
 		if [ "$USE_PROGRESS_BAR" == "yes" ]
 		then
-			local lineas=`grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ | wc -l` #total de lineas ejecutables
+			local amount_of_lines=$( wc -l <<< "$list_of_lines" )
 		fi
 
 		oldIFS=$IFS ; IFS=$'\n' # Controls over IFS
-		for linea in `grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$` #recorriendo fichero linea a linea
+		for line in "$list_of_lines"
 		do
 			((cont++))
 			# evaluating in we need calcules related to the progress bar
 			[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $lineas
 
 			# Evaluate the line of the file.
-			error_msg=$( eval "${linea} 2>&1" 2>&1 )
+			error_msg=$( eval "${line} 2>&1" 2>&1 )
 			if [ $? -ne 0 ]
 			then
-				message "E: Error found reloading sets in IPv6. Rule num (not line) [$cont]."
+				message "E: Error found reloading sets in IPv6. Rule num (not line) $cont"
 				echo "Details:"
-				echo " ${linea}"
-				for line in $error_msg
+				echo " ${line}"
+				for eline in $error_msg
 				do
-					echo " $line"
+					echo " $eline"
 				done
 				do_exit 1
 			fi
@@ -1886,8 +1890,7 @@ ipset_reload()
 
 	if [ "$SHOW_OP_TIME" == "yes" ]
 	then
-	        local tiempo_final="`date +%s`"
-	        message "I: Operation time: `expr $tiempo_final - $tiempo_inicio` seconds."
+	        message "I: Operation time: $(( `date +%s` - $tiempo_inicio )) seconds."
 	fi
 
 	return $ipset_reload_retval
