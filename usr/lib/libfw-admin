@@ -1796,11 +1796,23 @@ stop_in_script_format()
 	return $stop_in_script_format_retval
 }
 
+# void ipset_reload_controlled_exit()
+# Handle the exit trap of ipset_reload()
+ipset_reload_controlled_exit()
+{
+	echo ""
+	message "W: Reload aborted"
+	do_exit 1
+}
+
 # Se llama sin parametros
 # checkea y recarga los datos de conjuntos
 ipset_reload()
 {
 	[ "$SHOW_OP_TIME" == "yes" ] && local tiempo_inicio="`date +%s`"
+
+	# Trap for abort operation
+	trap "ipset_reload_controlled_exit " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	local ipset_reload_retval=0
 
