@@ -181,7 +181,6 @@ case "$1" in
 		then
 			stop_in_restore_format # no arguments
 		else
-			message "I: Flushing rules for [$2]."
 			stop_in_script_format $2 # vlan|core|nat as a parameter
 		fi
 		do_exit $?
