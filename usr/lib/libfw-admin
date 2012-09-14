@@ -1236,7 +1236,7 @@ check_iptables_syntax_loop()
 		error_msg=$( eval "${ejec} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
 		if [ $? -eq 2 ]
 		then
-			message "W: The rule in line \"`awk -F' ' '{print $1}' <<< $line`\" failed the check in IPv${protocol}." >> $AUX_FILE
+			message "W: The rule in line \"`awk -F' ' '{print $1}' <<< $line`\" failed the check in IPv${protocol}." >> $AUX_FILE 2>&1
 			echo "Details:" >> $AUX_FILE
 			awk -F' ' '{$1=""}1' <<< ${line} >> $AUX_FILE
 			# add a space to improve reading by the admin
