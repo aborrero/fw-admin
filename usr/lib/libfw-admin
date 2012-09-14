@@ -601,7 +601,7 @@ store_in_ipdatafile()
 			;;
 	esac
 
-	# Exit point
+	# EXIT POINT
 	if [ $store_in_ipdatafile_retval -ne 0 ]
 	then
 		message "E: Bad call to function store_in_ipdatafile() Invalid input arguments."
@@ -970,7 +970,6 @@ check_datafiles()
 # Search for information in datafiles, sets and iptables
 get_information()
 {
-	oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
 
 	local get_information_retval=1
         local data=$1
@@ -1002,7 +1001,7 @@ get_information()
 	# "$VARS_IPV4: ${C_BOLD}${line}${C_NORMAL}" #--> ' VAR=dato #aclaracion'
 	if [ `cat $AUX_FILE | wc -l` -gt 0 ]
 	then
-
+		oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
 		# Search after comment (#)
 		local new_data_searh_list=`cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq `
 		for i in $new_data_search_list
@@ -1024,6 +1023,7 @@ get_information()
 				search_datafiles $i $AUX_FILE
 			fi
 		done
+		IFS=$oldIFS
 	fi
 
 	# Querying now ipset
@@ -1031,6 +1031,7 @@ get_information()
 	local list_of_sets_with_match=""
 	local flag_set_added=0
 	local set_list=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^[[:space:]]*$`
+	oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
 	for sset in $lista_sets
 	do
 		if $IPSET -T $sset $data > /dev/null 2> /dev/null
@@ -1062,6 +1063,7 @@ get_information()
 			done
 		fi
 	done
+	IFS=$oldIFS
 
 	# Show or not sets where data was found
 	if [ ! -z "$list_of_sets_with_match" ]
@@ -1148,7 +1150,6 @@ get_information()
 	else
 		obtener_informacion_retval=0
 	fi
-	IFS=$oldIFS
 	return $obtener_informacion_retval
 }
 
@@ -1268,7 +1269,7 @@ check_iptables_syntax()
 		return 0
 	fi
 
-	# Exit point
+	# EXIT POINT
 	if [ ! -r "$filename" ]
 	then
 		message "E: Bad call to function check_iptables_syntax()"
@@ -1283,7 +1284,7 @@ check_iptables_syntax()
 
 	oldIFS=$IFS ; IFS=$'\n' # Control over IFS
 	source $VARS_IPV4 && source $VARS_IPSETV4 && { IPT=$IPT_LOCAL ; IPSET=$IPSET_LOCAL ; } \
-	|| { message "E: Unable to load datafiles in IPv4." ; do_exit 1 ; } # exit point
+	|| { message "E: Unable to load datafiles in IPv4." ; do_exit 1 ; } # EXIT POINT
 
 	check_iptables_syntax_loop $filename 4 || check_iptables_syntax_retval=1
 
@@ -1294,7 +1295,7 @@ check_iptables_syntax()
 	else
 		message "I: Checking ip6tables syntax of $filename"
 		source $VARS_IPV6 && source $VARS_IPSETV6 && { IPT=$IP6T_LOCAL ; IPSET=$IPSET_LOCAL ; } \
-		|| { message "E: Unable to load datafiles in IPv6." ; do_exit 1 ; } # exit point
+		|| { message "E: Unable to load datafiles in IPv6." ; do_exit 1 ; } # EXIT POINT
 
 		check_iptables_syntax_loop $filename 6 || check_iptables_syntax_retval=1
 	fi
@@ -1406,10 +1407,10 @@ start_controlled_exit()
 
 	if [ "$FLUSH_WHEN_ABORT_START" == "yes" ]
 	then
-		message "W: Aborting the start operation for ${1} and flushing rules"
-		flush_vlan $1
+		message "W: Aborting the start operation and flushing rules ${1}"
+		flush_chain $1
 	else
-		message "W: Aborting the start operation for ${1}"
+		message "W: Aborting the start operation ${1}"
 	fi
 	do_exit 1
 }
@@ -1444,14 +1445,14 @@ start_in_script_format()
 	if ! check_rulefile $filename
 	then
 		message "E: Check failed. Don't starting."
-		do_exit 1 # Exit point
+		do_exit 1 # EXIT POINT
 	fi
 
 	# Deletin previous rules
-	if ! flush_vlan $vlan
+	if ! flush_chain $vlan
 	then
 		message "E: Error flushing vlan."
-		do_exit 1 # Exit point
+		do_exit 1 # EXIT POINT
 	fi
 
 	# Starting IPv4 rules. Show the msg if USE_PROGRESS_BAR == yes because when showing the bar, you need to know what it stands for.
@@ -1465,11 +1466,11 @@ start_in_script_format()
 		message "E: Error loading datafiles in IPv4"
 		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
 		then
-			flush_vlan $vlan
+			flush_chain $vlan
 		fi
 		do_exit 1 # EXIT POINT
 	fi
-	log_vlan $vlan || { message "E: Function log_vlan() failed for IPv4" ; do_exit 1 ; } # EXIT POINT
+	delete_transaccional_rules $vlan || { message "E: Function delete_transaccional_rules() failed for IPv4" ; do_exit 1 ; } # EXIT POINT
 
 
 	if grep -i nat <<< $vlan > /dev/null
@@ -1487,11 +1488,11 @@ start_in_script_format()
 			message "E: Error loading datafiles in IPv6"
 			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
 			then
-				flush_vlan $vlan
+				flush_chain $vlan
 			fi
 			do_exit 1 # EXIT POINT
 		fi
-		log_vlan $vlan || { message "E: Function log_vlan() failed for IPv6" ; do_exit 1 ; } # EXIT POINT
+		delete_transaccional_rules $vlan || { message "E: Function delete_transaccional_rules() failed for IPv6" ; do_exit 1 ; } # EXIT POINT
 	fi
 
 	if [ "$SHOW_OP_TIME" == "yes" ]
@@ -1514,7 +1515,7 @@ start_in_script_format_loop()
 	if [ ! -r "$vlan_file" ] || [ -z "$protocol" ]
 	then
 		message "E: Bad call to function start_in_script_format_loop(), invalid input arguments."
-		do_exit 1 # Exit point
+		do_exit 1 # EXIT POINT
 	fi
 
 	list_of_lines=`grep -v ^[[:space:]]*# $vlan_file | grep -v ^[[:space:]]*$`
@@ -1522,13 +1523,13 @@ start_in_script_format_loop()
 	# Evaluating if we need calcules related to the progress bar
 	if [ "$USE_PROGRESS_BAR" == "yes" ]
 	then
-		local amount_of_lines=`wc -l <<< $list_of_lines`
+		local amount_of_lines=`wc -l <<< "$list_of_lines"`
 	fi
 	local cont=0
 
 
 	oldIFS=$IFS ; IFS=$'\n' # control over IFS
-	for line in "$list_of_lines"
+	for line in $list_of_lines
 	do
 		((cont++))
 
@@ -1554,7 +1555,7 @@ start_in_script_format_loop()
 			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
 			then
 				message "W: Flushing rules of $vlan ..."
-				flush_vlan $vlan
+				flush_chain $vlan
 				do_exit 1 # EXIT POINT
 			fi
 		fi
@@ -1564,11 +1565,11 @@ start_in_script_format_loop()
 	return $start_loop_retval
 }
 
-# boolean flush_vlan(string chain)
+# boolean flush_chain(string chain)
 # flush rules and add permissive rules if selected
-flush_vlan()
+flush_chain()
 {
-	local flush_vlan_retval=0
+	local flush_chain_retval=0
 
 	local chain=$1
 
@@ -1581,24 +1582,24 @@ flush_vlan()
 				# USING iptables-cluster
 
 				# Flushing entire firewall
-				$IPT_CLUSTER -F 2>/dev/null || flush_vlan_retval=1
-				$IPT_CLUSTER -F -t nat 2>/dev/null || flush_vlan_retval=1
-				$IPT_CLUSTER -X 2>/dev/null || flush_vlan_retval=1
-				$IP6T_CLUSTER -F 2>/dev/null || flush_vlan_retval=1
-				$IP6T_CLUSTER -X 2>/dev/null || flush_vlan_retval=1
+				$IPT_CLUSTER -F 2>/dev/null || flush_chain_retval=1
+				$IPT_CLUSTER -F -t nat 2>/dev/null || flush_chain_retval=1
+				$IPT_CLUSTER -X 2>/dev/null || flush_chain_retval=1
+				$IP6T_CLUSTER -F 2>/dev/null || flush_chain_retval=1
+				$IP6T_CLUSTER -X 2>/dev/null || flush_chain_retval=1
 
 				# Flushing SETS
-				$IPSET_CLUSTER flush 2>/dev/null || flush_vlan_retval=1
-				$IPSET_CLUSTER x 2>/dev/null || flush_vlan_retval=1
+				$IPSET_CLUSTER flush 2>/dev/null || flush_chain_retval=1
+				$IPSET_CLUSTER x 2>/dev/null || flush_chain_retval=1
 
 				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 				then
-					$IPT_CLUSTER -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IPT_CLUSTER -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IPT_CLUSTER -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_CLUSTER -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_CLUSTER -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_CLUSTER -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					$IPT_CLUSTER -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IPT_CLUSTER -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IPT_CLUSTER -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP6T_CLUSTER -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP6T_CLUSTER -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP6T_CLUSTER -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 
 				fi
 			else
@@ -1606,24 +1607,24 @@ flush_vlan()
 
 				# Flushing entire firewall
 
-				$IPT_LOCAL -F 2>/dev/null || flush_vlan_retval=1
-				$IPT_LOCAL -F -t nat 2>/dev/null || flush_vlan_retval=1
-				$IPT_LOCAL -X 2>/dev/null || flush_vlan_retval=1
-				$IP6T_LOCAL -F 2>/dev/null || flush_vlan_retval=1
-				$IP6T_LOCAL -X 2>/dev/null || flush_vlan_retval=1
+				$IPT_LOCAL -F 2>/dev/null || flush_chain_retval=1
+				$IPT_LOCAL -F -t nat 2>/dev/null || flush_chain_retval=1
+				$IPT_LOCAL -X 2>/dev/null || flush_chain_retval=1
+				$IP6T_LOCAL -F 2>/dev/null || flush_chain_retval=1
+				$IP6T_LOCAL -X 2>/dev/null || flush_chain_retval=1
 
 				# Flushing SETS
-				$IPSET_LOCAL flush 2>/dev/null || flush_vlan_retval=1
-				$IPSET_LOCAL x 2>/dev/null || flush_vlan_retval=1
+				$IPSET_LOCAL flush 2>/dev/null || flush_chain_retval=1
+				$IPSET_LOCAL x 2>/dev/null || flush_chain_retval=1
 
 				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 				then
-					$IPT_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IPT_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IPT_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					$IPT_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IPT_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IPT_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP6T_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP6T_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP6T_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 
 				fi
 			fi
@@ -1635,40 +1636,40 @@ flush_vlan()
 					# Using iptables-cluster
 
 					# Flushing nat rules
-					$IPT_CLUSTER -F -t nat 2>/dev/null || flush_vlan_retval=1
+					$IPT_CLUSTER -F -t nat 2>/dev/null || flush_chain_retval=1
 				else
 					# Not using iptables-cluster
 
 					# Flushing nat rules
-					$IPT_LOCAL -F -t nat 2>/dev/null || flush_vlan_retval=1
+					$IPT_LOCAL -F -t nat 2>/dev/null || flush_chain_retval=1
 
 				fi
 			else
 				if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
 				then
-					# No tenemos reglas de nat
-					$IPT_CLUSTER -F $chain 2>/dev/null || flush_vlan_retval=1
-					$IPT_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_CLUSTER -F $chain 2>/dev/null || flush_vlan_retval=1
-					$IP6T_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					# No tenemos reglas de nat1
+					$IPT_CLUSTER -F $chain 2>/dev/null || flush_chain_retval=1
+					$IPT_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP6T_CLUSTER -F $chain 2>/dev/null || flush_chain_retval=1
+					$IP6T_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 				else
 					# No tenemos reglas de nat
-					$IPT_LOCAL -F $chain 2>/dev/null || flush_vlan_retval=1
-					$IPT_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
-					$IP6T_LOCAL -F $chain 2>/dev/null || flush_vlan_retval=1
-					$IP6T_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_vlan_retval=1
+					$IPT_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
+					$IPT_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP6T_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
+					$IP6T_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 				fi
 			fi
 		fi
 	else
-		flush_vlan_retval=1
+		flush_chain_retval=1
 	fi
-	return $flush_vlan_retval
+	return $flush_chain_retval
 }
 
-log_vlan()
+delete_transaccional_rules()
 {
-	local log_vlan_retval=0
+	local delete_transaccional_rules_retval=0
 	local cont=0
 
 	# Recibe como parametro una vlan o nat
@@ -1676,11 +1677,9 @@ log_vlan()
 	then
 		if grep -i core <<< $1 > /dev/null
 		then
-			# Estamos en el fichero core. Como es posible que sea la primera vez que arranque, esto puede fallar
-			# Además, es necesario hacer un for, porque de anteriores ejecuciones fallidas es posible que haya mas reglas
 			while $IPT -C FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null
 			do
-				# se evita bucle infinito por un error
+				# avoid infitine loop
 				[ $cont -gt 1000 ] && break
 				(( cont++ ))
 
@@ -1691,7 +1690,7 @@ log_vlan()
 			cont=0
 			while $IPT -C INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null
 			do
-				# se evita bucle infinito por un error
+				# avoid infitine loop
 				[ $cont -gt 1000 ] && break
 				(( cont++ ))
 
@@ -1701,7 +1700,7 @@ log_vlan()
 			cont=0
 			while $IPT -C OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null
 			do
-				# se evita bucle infinito por un error
+				# avoid infitine loop
 				[ $cont -gt 1000 ] && break
 				(( cont++ ))
 
@@ -1709,34 +1708,23 @@ log_vlan()
 					|| message "W: Unable to remove transaccional rule (output)."
 			done
 		else
-			if grep -i nat <<< $1 > /dev/null
-			then
-				# Tenemos reglas de nat
-				echo "DEBUG: no haciendo nada de logeo, porque estamos en NAT" > /dev/null
-			else
-				# No tenemos reglas de nat
-
-				# No se hace log de los sets
-				grep -i set <<< $1 > /dev/null || $IPT -A $1 -j LOG --log-level debug --log-prefix "FILTER/${1}:" 2>/dev/null || log_vlan_retval=1
-				# El return se agrega siempre
-				$IPT -A $1 -j RETURN || log_vlan_retval=1
-
-				# Se borran las reglas transaccionales sobrantes
+			if ! grep -i nat <<< $1 > /dev/null
+			fi
 				cont=0
 				while $IPT -C $1 -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null
 				do
-					# se evita bucle infinito por un error
+					# avoid infitine loop
 					[ $cont -gt 1000 ] && break
 					(( cont++ ))
 					$IPT -D $1 -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null \
-						|| message "W: Al eliminar reglas transaccionales durante la operación de $1."
+						|| message "W: Unable to remove transaccional rule $1"
 				done
 			fi
 		fi
 	else
-		log_vlan_retval=1
+		delete_transaccional_rules_retval=1
 	fi
-	return $log_vlan_retval
+	return $delete_transaccional_rules_retval
 }
 
 # boolean stop_in_restore_format()
@@ -1746,7 +1734,7 @@ stop_in_restore_format()
 {
 	local stop_in_ruleset_format_retval=0
 
-	flush_vlan core || stop_in_ruleset_format_retval=$?
+	flush_chain core || stop_in_ruleset_format_retval=$?
 
 	return $stop_in_ruleset_format_retval
 }
@@ -1773,7 +1761,7 @@ stop_in_script_format()
 
 	if [ $stop_in_script_format_retval -eq 0 ]
 	then
-		flush_vlan $vlan || message "W: Unable to flush given rules."
+		flush_chain $vlan || message "W: Unable to flush given rules."
 	fi
 
 	return $stop_in_script_format_retval
@@ -2070,7 +2058,7 @@ start_in_restore_format()
 	if ! check_rulefile $filename
 	then
 		message "E: Check failed. Don't starting."
-		do_exit 1 # Exit point
+		do_exit 1 # EXIT POINT
 	fi
 
 
@@ -2083,7 +2071,7 @@ start_in_restore_format()
 		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
 		then
 			# do something to counter the fail
-			flush_vlan "core"
+			flush_chain "core"
 		fi
 	fi
 
@@ -2096,7 +2084,7 @@ start_in_restore_format()
 		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
 		then
 			# do something to counter the fail
-			flush_vlan "core"
+			flush_chain "core"
 
 		fi
 	fi
