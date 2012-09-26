@@ -1280,7 +1280,7 @@ check_iptables_syntax()
 	echo "" > $AUX_FILE
 
 	# If using progress bar, print a message so user know what means.
-	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Checking iptables syntax of $filename"
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Checking iptables syntax $filename"
 
 	oldIFS=$IFS ; IFS=$'\n' # Control over IFS
 	source $VARS_IPV4 && source $VARS_IPSETV4 && { IPT=$IPT_LOCAL ; IPSET=$IPSET_LOCAL ; } \
@@ -1293,7 +1293,7 @@ check_iptables_syntax()
 	then
 		: "DEBUG: No IPv6 syntax check because NAT."
 	else
-		message "I: Checking ip6tables syntax of $filename"
+		message "I: Checking ip6tables syntax $filename"
 		source $VARS_IPV6 && source $VARS_IPSETV6 && { IPT=$IP6T_LOCAL ; IPSET=$IPSET_LOCAL ; } \
 		|| { message "E: Unable to load datafiles in IPv6." ; do_exit 1 ; } # EXIT POINT
 
@@ -1325,7 +1325,7 @@ check_rulefile()
 
 
 	# If we are using progress bar, print a message so user know what means the progress bar
-	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Checking variables of $file_to_check"
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Checking variables $file_to_check"
 
 	oldIFS=$IFS ; IFS=$' \t\n' # control over IFS
 	# Do we need to do calcules related to progress bar?
@@ -1554,7 +1554,7 @@ start_in_script_format_loop()
 
 			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
 			then
-				message "W: Flushing rules of $vlan ..."
+				message "W: Flushing rules $vlan ..."
 				flush_chain $vlan
 				do_exit 1 # EXIT POINT
 			fi
