@@ -1746,20 +1746,19 @@ stop_in_script_format()
 {
 	local stop_in_script_format_retval=0
 
-	local filename=$( get_absolute_path $1 )
+	local chain=$1
 
-        if [ -z "filename" ]
-        then
-		message "E: File not found $filename"
-		do_exit 1
-        fi
-
-        # Obtain vlan/chain name
-        local vlan=`awk -F'/' '{print $NF}' <<< $filename`
-
-	if [ $stop_in_script_format_retval -eq 0 ]
+	if check_chain_exist $chain
 	then
-		flush_chain $vlan || message "W: Unable to flush given rules."
+		flush_chain $chain || stop_in_script_format_retval=1
+	else
+		flish_chain core || stop_in_script_format_retval=1
+	fi
+
+	if [ $stop_in_script_format_retval -ne 0 ]
+	then
+		message "E: Unable to flush rules $chain"
+		do_exit 1
 	fi
 
 	return $stop_in_script_format_retval
