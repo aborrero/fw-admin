@@ -2052,7 +2052,7 @@ start_in_restore_format()
 	fi
 
 	# Set trap
-	trap "start_controlled_exit" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+	trap "start_controlled_exit core" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	# Checking rulefile.
 	if ! check_rulefile $filename
