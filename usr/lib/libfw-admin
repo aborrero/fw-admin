@@ -126,7 +126,7 @@ validate_execution()
 	local pid=`cat $PID_FILE`
 	if [ "$pid" != "${$}" ] 2> /dev/null
 	then
-		message "E: $PID_FILE PID_FILE already exist with pid: ${pid}. Ending..."
+		message "E: PID_FILE already exist with pid ${pid} $PID_FILE"
 		do_exit 1
 	fi
 	return 0
@@ -2058,6 +2058,10 @@ start_in_restore_format()
 		message "E: Check failed. Don't starting."
 		do_exit 1 # EXIT POINT
 	fi
+
+
+	# Set trap
+	trap "start_controlled_exit" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 
 	# Start IPv4
