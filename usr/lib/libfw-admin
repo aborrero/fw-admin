@@ -1438,7 +1438,7 @@ start_in_script_format()
 		do_exit 1 # EXIT POINT
 	fi
 
-	# Trap de seguridad para la salida
+	# Exit trap
 	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	# Checking rulefile.
@@ -2051,17 +2051,15 @@ start_in_restore_format()
 		do_exit 1
 	fi
 
+	# Set trap
+	trap "start_controlled_exit" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
 	# Checking rulefile.
 	if ! check_rulefile $filename
 	then
 		message "E: Check failed. Don't starting."
 		do_exit 1 # EXIT POINT
 	fi
-
-
-	# Set trap
-	trap "start_controlled_exit" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
-
 
 	# Start IPv4
 	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Starting IPv4 ruleset"
