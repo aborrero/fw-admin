@@ -1,4 +1,4 @@
-.TH FW-ADMIN 8 "12 Sep 2012"
+.TH FW-ADMIN 8 "27 Sep 2012"
 .SH NAME
 fw-admin \- Herramienta para manejar un firewall basado en iptables.
 .SH SYNOPSIS
@@ -22,13 +22,15 @@ fw-admin \- Herramienta para manejar un firewall basado en iptables.
 
 \fBfw-admin --start\fP \fIfichero\fP [--nocheck]
 
-\fBfw-admin --stop\fP [\fIfichero\fP]
+\fBfw-admin --stop\fP [\fIchainname\fP]
 
 	fichero = Fichero en $CONF_DIR o con ruta absoluta.
 
 	ipv4 ipv6 fqdn = Una IPv4, IPv6 o un FQDN válido.
 
-	var nombreset = Una variable de ip o set guardara en los ficheros de datos.
+	var nombreset = Una variable de IP o Set en los ficheros de datos.
+
+	chainname = Nombre de una cadena de la tabla filter.
 
 .SH DESCRIPCION
 \fBfw-admin\fP es una herramienta diseñada por y para CICA, que es el nucleo del firewall perimetral general de la red.
@@ -53,10 +55,14 @@ Esto permite escribir una única regla y que valga para ambos protocolos (doble 
 .SH OPCIONES
 .TP 
 \fB-s\fP
-Muestra estadisticas del firewall. Al final de la lista de estadisticas, se calcula si el firewall está o no en funcionamiento según el número de reglas en el Kernel.
-Se mostrará un mensaje de tipo "[fw up]" o "[fw down]". Este mensaje es usado por otros scripts (y quizás por \fBPacemaker(8)\fP) para calcular si el firewall esta
-en funcionamiento localmente.
-Puede editarse el numero de reglas necesarias para considerar el firewall corriendo en el fichero \fB/etc/fw-admin.conf\fP en la variable \fB$MINIMAL_AMOUNT_OF_RULES\fP.
+Muestra estadisticas del firewall. 
+
+Al final de la lista de estadisticas, se calcula si el firewall está o no en funcionamiento según el número de reglas en el Kernel.
+
+Se mostrará un mensaje de tipo "\fB[fw up]\fP" o "\fB[fw down]\fP". Este mensaje es usado por otros scripts (por \fB/etc/init.d/firewall\fP y quizás por \fBPacemaker(8)\fP) 
+para calcular si el firewall esta en funcionamiento localmente.
+
+Puede editarse el numero de reglas necesarias para considerar el firewall corriendo en el fichero \fBfw-admin.conf(5)\fP en la variable \fB$MINIMAL_AMOUNT_OF_RULES\fP.
 .TP 
 \fB-a [ipv4|ipv6|fqdn]\fP
 Añade una variable al sistema de variables. Puede ser una IPv4, una IPv6 o un FQDN.
@@ -99,30 +105,61 @@ La opción \fB-A\fP es la más común a la hora de añadir reglas de \fBiptables
 
 Este es el mismo algoritmo que se usa como paso previo de checkeo al usar la opcion \fB--start\fP.
 .TP
-\fB--start {vlan|nat|core} [--nocheck]\fP
-Se checkea que el fichero existe en la ruta especificada en la variable \fB$CONF_DIR\fP (generalmente \fB/etc/fw-admin.d/rules/\fP) y que tiene permisos de ejecucion.
-Luego, se checkea su sintaxis, de manera similar a la opción \fB-c\fP.
+\fB--start fichero [--nocheck]\fP
+Se checkea que \fIfichero\fP existe en la ruta especificada en la variable \fB$CONF_DIR\fP (generalmente \fB/etc/fw-admin.d/rules/\fP) y que tiene permisos de ejecución.
 
-Si el checkeo es positivo, se hará un \fB`source'\fP de los ficheros de vairables IPv4 y se ejecutarán las reglas una a una, valorando si hay algún error al insertarla en el Kernel.
+La orden \fB--start\fP sirve como reload. 
 
-Luego un \fB`source'\fP de los ficheros de variables IPv6 y otra ejecución de las reglas.
+Si en el fichero de configuración (\fBfw-admin.conf\fP) se seleccionó \fBFORMAT=restore\fP:
+.nf
+	· Checkeo de variables usadas en \fBfichero\fP.
+	· Se sustituyen las variables por el valor IPv4 y se ejecuta \fBiptables-restore(8)\fP.
+	· Se eliminan las reglas de NAT del ruleset.
+	· Se sustituyen las variables por el valor IPv6 y se ejecuta \fBip6tables-restore(8)\fP.
+.fi
+
+Si en el fichero de configuración (\fBfw-admin.conf\fP) se seleccionó \fBFORMAT=script\fP:
+.nf
+
+	Se diferencian fichero de reglas standar (vlan), ficheros de nat y el fichero core, debido a las características concretas de cada tipo de regla.
+	Por ejemplo, en el fichero de core no se checkeará la sintaxis (aunque si las variables), y por ejemplo, los ficheros de nat no se ejecutarán en IPv6.
+
+	· Se checkean las variables usadas en \fBfichero\fP.
+	· Si procede, se hace un checkeo de sintaxis. (Solo si \fBfichero\fP no se llama 'core')
+	· Se hace un `source' de los ficheros de datos en IPv4.
+	· Se recorre \fBfichero\fP linea a linea ejecutando cada instrucción.
+	· Se hace un `source' de los ficheros de datos en IPv6.
+	· Se recorre \fBfichero\fP linea a linea ejecutando cada instrucción.
+.fi
 
 Antes de empezar a ejecutar las reglas descritas en los ficheros, se borraran todas, dejando una regla de tráfico permisivo. Si cuando se acaben de introducir las nuevas
 reglas, no hay ningun error, la regla de trafico permisivo es eliminada. 
-Esta regla esta identificada con un comentario y suele poner algo asi como "regla_transaccional_fw_admin"
+Esta regla esta identificada con un comentario y suele poner algo asi como "transaccional_rule_fw-admin"
 para su fácil identificación en caso de error.
 
-La orden \fB--start\fP sirve como reload. Se diferencian fichero de reglas standar (vlan), ficheros de nat y el fichero core, debido a las características concretas de cada tipo de regla.
-Por ejemplo, en el fichero de core no se checkeará la sintaxis (si las variables), y por ejemplo, los ficheros de nat no se ejecutarán en IPv6.
 
 La opción \fB--nocheck\fP evade los checkeos de sintaxis y variables. Esta pensada para casos donde es necesario hacer un start rápido.
 .TP
-\fB--stop {vlan|nat|core}\fP
-Se flushean las reglas y se deja una regla permisiva de tráfico.
+\fB--stop [chainname]\fP
+
+Si \fBFORMAT=restore\fP, la orden \fB--stop\fP no toma argumentos. Se eliminan todas las reglas de iptables, y si \fBPERMISSIVE_TRAFFIC_WHEN_STOP="yes"\fP, se insertarán
+reglas de tráfico permisivo con el comentario "transaccional_rule_fw-admin".
+
+Si \fBFORMAT=script\fP, la orden \fB--stop\fP puede o no tomar argumentos. Si no hay ningún argumento, el comportamiento es similar a cuando \fBFORMAT=restore\fP.
+
+Si \fIchainname\fP es el nombre de una cadena de la tabla filter, se borrará solo esa cadena. Si \fBPERMISSIVE_TRAFFIC_WHEN_STOP="yes"\fP, entonces además se insertarán 
+reglas de tráfico permisivo con el comentario "transaccional_rule_fw-admin" únicamente en esa cadena.
 .TP
-\fB--ipset-reload\fP
-Se recarga la información de \fBipset(8)\fP en el sistema. Se lee el fichero localizado en \fB$CONF_DIR\fP llamado "\fBsets\fP". No se comprueba sintaxis,
-aunque si que se checkean las variables.
+\fB--ipset-reload [--nocheck]\fP
+Se recarga la información de \fBipset(8)\fP en el sistema. Se lee el fichero especificado en la directiva \fB$IPSET_CONF\fP. No se comprueba sintaxis.
+
+El procedimiento es similar a la operacion \fB--start\fP
+.nf
+	· Se hace un `source' de los ficheros de datos en IPv4.
+	· Se recorre y ejecuta linea por linea el fichero \fB$IPSET_CONF\fP.
+	· Se hace un `source' de los ficheros de datos en IPv6.
+	· Se recorre y ejecuta linea por linea el fichero \fB$IPSET_CONF\fP.
+.fi
 
 La opción \fB--nocheck\fP evade los checkeos de variables. Esta pensada para casos donde es necesaria una operación rápida.
 .TP
@@ -135,34 +172,28 @@ Si no hay ningún error no se mostrará ningún mensaje.
 Muestra la ayuda, de rápida referencia.
 
 .SH ESTRUCTURA DE FICHEROS
-Ficheros importantes en el firewall:
+Ficheros importantes para \fBfw-admin\fP:
 .TP
-\fB/etc/fw-admin.conf\fR
-Fichero principal de configuración.
+\fB/etc/fw-admin.d/fw-admin.conf\fR
+Fichero principal de configuración. Ver \fBfw-admin.conf(5)\fP.
 .TP
 \fB/etc/init.d/firewall\fR
 Usando este script, se integra definitivamente \fBfw-admin\fP como servicio en el sistema.
 .TP
 \fB/usr/sbin/fw-admin\fR
-El binario principal de \fBfw-admin\fP. Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
+El binario principal de \fBfw-admin\fP.
 .TP
 \fB/usr/lib/libfw-admin\fR
 La libreria de funciones de \fBfw-admin\fP. Aqui se encuentra la mayor parte del contenido del software.
 Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
-Al principio de este fichero están declaradas todas las variables que no están declaradas en \fB/etc/fw-admin.conf\fP.
+Al principio de este fichero están declaradas todas las variables que no están declaradas en \fB/etc/fw-admin.d/fw-admin.conf\fP.
 .TP
-\fB$CONF_DIR/core\fR
-Se espera que exista este fichero, donde se declara el esqueleto netfilter interno del firewall. Debe tener permisos de ejecución.
+\fB$DATA_DIR\fR
+Donde se almacenan los ficheros de datos. Por defecto es /var/lib/fw-admin
 .TP
-\fB$CONF_DIR/nat\fR
-Aqui se declaran las reglas de nateo. Debe tener permisos de ejecucion.
-.TP
-\fB$CONF_DIR/vlan_x\fR
-Reglas generales del firewall, agrupadas por vlanes. Es posible cambiar el nombre y no usar "vlan_x", si no algo como "misreglas", siempre que no se use "core", "nat" y
-demás nombres que crean conflicto con los anteriores.
-.TP
-\fB$CONF_DIR/sets\fR
-Fichero de declaracion de \fBipset(8)\fP.
+\fB$PID_FILE\fR
+En operaciones críticas (todas salvo las de consultas y estadísticas) se guarda un PID de la instancia de \fBfw-admin\fP en el fichero
+al que apunte esta directiva. Por defecto es /var/run/fw-admin.pid
 
 .SH LOS FICHEROS DE DATOS
 Para cachear las consultas al DNS y para abstraer la diferencia entre protocolos IPv4 e IPv6 se usan los ficheros de datos.
@@ -294,10 +325,10 @@ En este ejemplo se vuelca al fichero \fI/root/debug\fP el funcionamiento interno
 root@debian:~# bash -x /usr/sbin/fw-admin -r 2> debug
 .RE
 
-Para debugear posibles fallos en los ficheros de reglas, se recomienda seguir el siguiente procedimiento.
+Para debugear posibles fallos en los ficheros de reglas (cuando \fBFORMAT=script\fP, se recomienda seguir el siguiente procedimiento:
 .RS
 .TP
-1º Forzar la carga de las variables al inicio del fichero de reglas:
+1º Forzar la carga de las variables al inicio del fichero de reglas.
 
 .RS
 .nf
@@ -310,7 +341,7 @@ $IPT -A INPUT -m set --match-set $W_SIS src -p tcp --dport 22 -m state --state N
 .RE
 
 .TP
-2º Ejecutar el fichero de reglas manualmente y con bash en modo debug.
+2º Ejecutar el fichero de reglas manualmente y con bash en modo debug:
 
 En este ejemplo se vuelca al fichero \fI/root/debug\fP el comportamiento de la shell con las reglas del fichero \fBINPUT\fP:
 .RS

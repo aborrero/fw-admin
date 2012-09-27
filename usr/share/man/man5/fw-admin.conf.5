@@ -1,4 +1,4 @@
-.TH fw-admin.conf 5 "12 Sep 2012"
+.TH fw-admin.conf 5 "27 Sep 2012"
 .SH NAME
 fw-admin.conf \- Main config file for the tool fw-admin
 .SH DESCRIPTION
@@ -47,7 +47,7 @@ Where datafiles are stored.
 Values: absolute dirname Default: /var/lib/fw-admin
 .TP
 \fB$PID_FILE\fP
-The pid file used by \fBfw-admin\fP. Some operations are critical (i.e. \fB--start\fP or \fB-s\fP) so in such cases there should be no more than one instance at time.
+The pid file used by \fBfw-admin\fP. Some operations are critical (i.e. \fB--start\fP or \fB-r\fP) so in such cases there should be no more than one instance at time.
 
 Values: absolute pahtname Default: /var/run/fw-admin.pid
 .TP
@@ -86,12 +86,20 @@ If \fBfw-admin\fP should flush rules when a \fB--start\fP action fails.
 
 Values: {yes|no} Default: no
 .TP
+\fB$PERMISSIVE_TRAFFIC_WHEN_STOP\fP
+If configured to 'yes', \fBfw-admin\fP will add permissive rules when a stop operation occurs, i.e. \fB--stop\fP or those 
+derived from \fB$FLUSH_WHEN_ABORT_START\fP and/or \fP$FLUSH_WHEN_ERROR_START\fP.
+
+Values: {yes|no} Default: no
+.TP
 \fB$USE_IPTABLES_CLUSTER\fP
 If \fBiptables-cluster(8)\fP is being used to sync rules between nodes of a firewall cluster.
 
 This will result, for example, in \fBfw-admin\fP flushing rules in all nodes instead of only the local node.
 
 Actually, datafiles need to be edited by hand (\fBIPT\fP variables) for completly activate or deactivate \fBiptables-cluster(8)\fP 
+
+WARNING: This is deprecated.
 
 Values: {yes|no} Default: no
 
@@ -101,7 +109,7 @@ from one config to other.
 
 · To have the clearest stdout, set \fB$SHOW_OP_TIME\fP, \fB$USE_PROGRESS_BAR\fP and \fB$USE_COLORS\fP to \fB"no"\fP.
 
-· If you want the faster execution time, set \fB$USE_PROGRESS_BAR\fB to \fB"no"\fP.
+· If you want the faster execution time, set \fB$USE_PROGRESS_BAR\fP to \fB"no"\fP.
 
 .SH AUTHOR, BUGS, COMENTS Y CODE
 Code is at \fBhttps://github.com/aborrero/fw-admin\fP (also a wiki page).
