@@ -28,13 +28,13 @@
 #
 # Main bin:			/usr/sbin/fw-admin
 # Logger:			/usr/bin/logger
-# Conf file:			/etc/fw-admin.conf
+# Conf file:			/etc/fw-admin.d/fw-admin.conf
 
 MAIN_BIN="/usr/sbin/fw-admin"
 PID=$$
 LOGGER_BIN="/usr/bin/logger"
 ARGS_LOGGER="-t firewall[$PID] --"
-CONF_FILE="/etc/fw-admin.conf"
+CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
 START_TIMEOUT=15
 
 C_RED="\E[31m"
@@ -52,7 +52,7 @@ C_BOLD="\E[1m"
 # Some functions
 #
 
-mensaje()
+message()
 {
 	echo -e $1 | sed s/"E:"/`echo -en ${C_RED}E:${C_NORMAL}`/ | sed s/"W:"/`echo -en ${C_YELLOW}W:${C_NORMAL}`/
 	$LOGGER_BIN $ARGS_LOGGER $1
@@ -70,9 +70,9 @@ is_running()
 	$MAIN_BIN -s | grep -i "\[fw up\]" > /dev/null 2> /dev/null
 	if [ $? -ne 0 ]
 	then
-		return 3 #parado
+		return 3 # stopped
 	else
-		return 0 #activo
+		return 0 # running
 	fi
 }
 kill_all()
@@ -96,7 +96,7 @@ start()
 		#	; $MAIN_BIN --start vlan_18 --nocheck >/dev/null 2>/dev/null \
 		#	; $MAIN_BIN --start vlan_54 --nocheck >/dev/null 2>/dev/null ) &
 
-		# esperando timeout de arranque
+		# waiting for start timeout
 		local cont=0
 		while [ $cont -lt $START_TIMEOUT ]
 		do
@@ -135,7 +135,7 @@ case "$1" in
 		then
 			start
 		else
-			mensaje "I: Already started."
+			message "I: Already started."
 		fi
 		exit $?
 		;;
@@ -152,9 +152,9 @@ case "$1" in
 		is_running ; rc=$?
 		if [ $rc -eq 0 ]
 		then
-			mensaje "I: Firewall parece activo."
+			message "I: Firewall running."
 		else
-			mensaje "I: Firewall parece parado."
+			message "I: Firewall stopped."
 		fi
 		exit $rc
 		;;
