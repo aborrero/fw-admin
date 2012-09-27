@@ -1752,7 +1752,7 @@ stop_in_script_format()
 	then
 		flush_chain $chain || stop_in_script_format_retval=1
 	else
-		flish_chain core || stop_in_script_format_retval=1
+		flush_chain core || stop_in_script_format_retval=1
 	fi
 
 	if [ $stop_in_script_format_retval -ne 0 ]
