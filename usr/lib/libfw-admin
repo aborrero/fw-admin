@@ -1645,19 +1645,24 @@ flush_chain()
 
 				fi
 			else
+				# No nat rules
 				if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
 				then
-					# No tenemos reglas de nat1
 					$IPT_CLUSTER -F $chain 2>/dev/null || flush_chain_retval=1
-					$IPT_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 					$IP6T_CLUSTER -F $chain 2>/dev/null || flush_chain_retval=1
-					$IP6T_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
+					then
+						$IPT_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+						$IP6T_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					fi
 				else
-					# No tenemos reglas de nat
 					$IPT_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
-					$IPT_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 					$IP6T_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
-					$IP6T_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
+					then
+						$IPT_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+						$IP6T_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					fi
 				fi
 			fi
 		fi
@@ -1752,7 +1757,8 @@ stop_in_script_format()
 	then
 		flush_chain $chain || stop_in_script_format_retval=1
 	else
-		flush_chain core || stop_in_script_format_retval=1
+		message "E: Chain doesn't exist $chain"
+		do_exit 1
 	fi
 
 	if [ $stop_in_script_format_retval -ne 0 ]

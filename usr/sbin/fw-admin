@@ -50,13 +50,16 @@ help()
 	echo -e " ${C_BOLD}-as${C_NORMAL} [setname]			Add an IPSET variable to datafiles."
 	echo -e " ${C_BOLD}-r${C_NORMAL}				Reload the value of all IP or FQDN variables in datafiles."
 	echo -e " ${C_BOLD}-i${C_NORMAL} [ipv4|ipv6|fqdn|var]	Get information about IP, FQDN, IPSET or variable."
-	echo -e " ${C_BOLD}-c${C_NORMAL} file			Check file."
+	echo -e " ${C_BOLD}-c${C_NORMAL} file			Check rule-file."
 	echo -e " ${C_BOLD}--start${C_NORMAL} arg [--nocheck]"
 	echo -e "	if FORMAT=restore	Start the selected ruleset"
 	echo -e "	--start ruleset [--nocheck]"
 	echo -e "	if FORMAT=script	Start the selected rulefile/vlan/nat"
 	echo -e "	--start {core|nat|vlan_name} [--nocheck]"
-	echo -e " ${C_BOLD}--stop${C_NORMAL} {vlan|nat|core}		Stop and/or flush rules."
+	echo -e " ${C_BOLD}--stop${C_NORMAL} [chainName]"
+	echo -e "	if FORMAT=restore	No arguments. Flush all the ruleset."
+	echo -e "	if FORMAT=script	chainName is the chain you would like to flush."
+	echo -e "				Using without arguments, flush entire ruleset."
 	echo -e " ${C_BOLD}--ipset-reload${C_NORMAL}			Reload IPSET kernel data."
 	echo -e " ${C_BOLD}--check-datafiles${C_NORMAL}		Check datafiles for errors."
 	echo -e " ${C_BOLD}--help${C_NORMAL}				Show this message."
@@ -181,7 +184,12 @@ case "$1" in
 		then
 			stop_in_restore_format # no arguments
 		else
-			stop_in_script_format $2 # vlan|core|nat as a parameter
+			if [ ! -z "$2" ]
+			then
+				stop_in_script_format $2 # chain name as a parameter
+			else
+				stop_in_restore_format # no arguments
+			fi
 		fi
 		do_exit $?
 		;;
