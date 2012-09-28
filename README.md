@@ -28,8 +28,10 @@ Working with `fw-admin` it's easy because you have two ways to implement the fir
 
 In a format like a shellscript, you usally set your ruleset in this way:  
 
-		$IPT -A INPUT -i $IF -s $INTERNET -d $MYSERVER -p tcp --dport $SSH_PORT -j ACCEPT
-		$IPT -A INPUT -o $IF -d $INTERNET -s $MYSERVER -p tcp --sport $SSH_PORT -j ACCEPT
+```bash
+$IPT -A INPUT -i $IF -s $INTERNET -d $MYSERVER -p tcp --dport $SSH_PORT -j ACCEPT
+$IPT -A INPUT -o $IF -d $INTERNET -s $MYSERVER -p tcp --sport $SSH_PORT -j ACCEPT
+```
 
 Using `fw-admin`, you will have a handy way of manage thousands of variables like `$MYSERVER`, with full support for FQDN variable declarations.
 
@@ -92,7 +94,7 @@ How to implement it
 
 The ideal way of working with `fw-admin` is:  
 
-1. Having a data directory with [datafiles](https://github.comf/aborrero/fw-admin/wiki/Datafiles), that contains all variables:
+1. Having a data directory with [datafiles](https://github.com/aborrero/fw-admin/wiki/Datafiles), that contains all variables:
 
 		/var/lib/fw-admin/iptables_vars_ipv4.bash
 		/var/lib/fw-admin/iptables_vars_ipv6.bash
@@ -100,10 +102,11 @@ The ideal way of working with `fw-admin` is:
 		/var/lib/fw-admin/ipset_vars_ipv4.bash
 
 	A datafile is a bash file with variable declaration (note trailing coments is for reloading the value of all variables against DNS or whatever when you request it):
-
-		R2D2_EXAMPLE_COM=192.168.2.2 #r2d2.example.com
-		C3PO_EXAMPLE_COM=192.168.2.3 #c3po.example.com
-		IF=eth0 ##ignore##
+```bash
+R2D2_EXAMPLE_COM=192.168.2.2 #r2d2.example.com
+C3PO_EXAMPLE_COM=192.168.2.3 #c3po.example.com
+IF=eth0 ##ignore##
+```
 
 2. If `FORMAT=script`, having a working directory with your ruleset, separed by vlans/subnets or whatever you like:
 
@@ -126,28 +129,29 @@ The ideal way of working with `fw-admin` is:
 
 	Here is the simple config file: 
 
-		# Values:{restore|script}, Default: script
-		FORMAT=script
+```bash
+# Values:{restore|script}, Default: script
+FORMAT=script
 
-		# Your company domain
-		DOMAIN="cica.es"
+# Your company domain
+DOMAIN="cica.es"
 
-		# Working dirs and data files
-		CONF_DIR="/etc/fw-admin.d/rules"
-		DATA_DIR="/var/lib/fw-admin"
-		VARS_IPV6="$DATA_DIR/iptables_vars_ipv6.bash"
-		VARS_IPV4="$DATA_DIR/iptables_vars_ipv4.bash"
-		VARS_IPSETV4="$DATA_DIR/ipset_vars_ipv4.bash"
-		VARS_IPSETV6="$DATA_DIR/ipset_vars_ipv6.bash"
+# Working dirs and data files
+CONF_DIR="/etc/fw-admin.d/rules"
+DATA_DIR="/var/lib/fw-admin"
+VARS_IPV6="$DATA_DIR/iptables_vars_ipv6.bash"
+VARS_IPV4="$DATA_DIR/iptables_vars_ipv4.bash"
+VARS_IPSETV4="$DATA_DIR/ipset_vars_ipv4.bash"
+VARS_IPSETV6="$DATA_DIR/ipset_vars_ipv6.bash"
 
-		# Some options. Values:{yes|no}
-		LOG_ERROR_MESSAGES="yes"
-		LOG_WARN_MESSAGES="yes"
-		USE_COLORS="no"
-		USE_PROGRESS_BAR="yes"
+# Some options. Values:{yes|no}
+LOG_ERROR_MESSAGES="yes"
+LOG_WARN_MESSAGES="yes"
+USE_COLORS="no"
+USE_PROGRESS_BAR="yes"
 
-		# [...]
-
+# [...]
+```
 
 5. Check an edit the `/etc/init.d/firewall` startup script.
 
