@@ -3,6 +3,8 @@ fw-admin
 
 Custom tool for admin netfilter-based firewalls in dual stack mode (IPv4 &amp;&amp; IPv6)
 
+Please, take a look at the [wiki](https://github.com/aborrero/fw-admin/wiki/).
+
 Features
 ========
 
@@ -20,7 +22,7 @@ Working with `fw-admin` it's easy because you have two ways to implement the fir
 	· script (a shell script with rules)
 	· ruleset for loading to iptables-restore
 
-`fw-admin` can afford both methods. Continue reading for more info.
+`fw-admin` can afford both methods
 
 ###Using a variable declaration system that avoid thousand of DNS queries
 
@@ -90,12 +92,12 @@ How to implement it
 
 The ideal way of working with `fw-admin` is:  
 
-1. Having a data directory with data-files, that contains all variables:
+1. Having a data directory with [datafiles](https://github.comf/aborrero/fw-admin/wiki/Datafiles), that contains all variables:
 
-		/var/local/fw.d/data/iptables_vars_ipv4.bash
-		/var/local/fw.d/data/iptables_vars_ipv6.bash
-		/var/local/fw.d/data/ipset_vars_ipv6.bash
-		/var/local/fw.d/data/ipset_vars_ipv4.bash
+		/var/lib/fw-admin/iptables_vars_ipv4.bash
+		/var/lib/fw-admin/iptables_vars_ipv6.bash
+		/var/lib/fw-admin/ipset_vars_ipv6.bash
+		/var/lib/fw-admin/ipset_vars_ipv4.bash
 
 	A datafile is a bash file with variable declaration (note trailing coments is for reloading the value of all variables against DNS or whatever when you request it):
 
@@ -116,9 +118,9 @@ The ideal way of working with `fw-admin` is:
 
 3. If `FORMAT=restore`, having a ruleset file with all your data:
 
-		/var/local/fw.d/rules/ruleset
+		/etc/fw-admin.d/rules/ruleset
 
-4. Simple configuration: `/etc/fw-admin.conf`
+4. Simple configuration: `/etc/fw-admin.d/fw-admin.conf`
 
 	`fw-admin` have some global variables to help you customize your experiencie: working directories, company domain, etc..
 
@@ -131,9 +133,8 @@ The ideal way of working with `fw-admin` is:
 		DOMAIN="cica.es"
 
 		# Working dirs and data files
-		WORKING_DIR="/var/local/fw.d"
-		CONF_DIR="$WORKING_DIR/rules"
-		DATA_DIR="$WORKING_DIR/data"
+		CONF_DIR="/etc/fw-admin.d/rules"
+		DATA_DIR="/var/lib/fw-admin"
 		VARS_IPV6="$DATA_DIR/iptables_vars_ipv6.bash"
 		VARS_IPV4="$DATA_DIR/iptables_vars_ipv4.bash"
 		VARS_IPSETV4="$DATA_DIR/ipset_vars_ipv4.bash"
@@ -148,7 +149,7 @@ The ideal way of working with `fw-admin` is:
 		# [...]
 
 
-5. Check the `/etc/init.d/firewall` startup script.
+5. Check an edit the `/etc/init.d/firewall` startup script.
 
 6. Run it.
 
