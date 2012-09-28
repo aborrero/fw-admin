@@ -129,29 +129,29 @@ IF=eth0 ##ignore##
 
 	Here is the simple config file: 
 
-```bash
-# Values:{restore|script}, Default: script
-FORMAT=script
+	```bash
+	# Values:{restore|script}, Default: script
+	FORMAT=script
 
-# Your company domain
-DOMAIN="cica.es"
+	# Your company domain
+	DOMAIN="cica.es"
 
-# Working dirs and data files
-CONF_DIR="/etc/fw-admin.d/rules"
-DATA_DIR="/var/lib/fw-admin"
-VARS_IPV6="$DATA_DIR/iptables_vars_ipv6.bash"
-VARS_IPV4="$DATA_DIR/iptables_vars_ipv4.bash"
-VARS_IPSETV4="$DATA_DIR/ipset_vars_ipv4.bash"
-VARS_IPSETV6="$DATA_DIR/ipset_vars_ipv6.bash"
+	# Working dirs and data files
+	CONF_DIR="/etc/fw-admin.d/rules"
+	DATA_DIR="/var/lib/fw-admin"
+	VARS_IPV6="$DATA_DIR/iptables_vars_ipv6.bash"
+	VARS_IPV4="$DATA_DIR/iptables_vars_ipv4.bash"
+	VARS_IPSETV4="$DATA_DIR/ipset_vars_ipv4.bash"
+	VARS_IPSETV6="$DATA_DIR/ipset_vars_ipv6.bash"
 
-# Some options. Values:{yes|no}
-LOG_ERROR_MESSAGES="yes"
-LOG_WARN_MESSAGES="yes"
-USE_COLORS="no"
-USE_PROGRESS_BAR="yes"
+	# Some options. Values:{yes|no}
+	LOG_ERROR_MESSAGES="yes"
+	LOG_WARN_MESSAGES="yes"
+	USE_COLORS="no"
+	USE_PROGRESS_BAR="yes"
 
-# [...]
-```
+	# [...]
+	```
 
 5. Check an edit the `/etc/init.d/firewall` startup script.
 
