@@ -1162,7 +1162,7 @@ get_information()
 		num_reglas_ipv6=0
 	fi
 
-	total_reglas=$((num_reglas_ipv4_nat + total_reglas))
+	total_reglas=$(( num_reglas_ipv4_nat + total_reglas ))
 	total_reglas=$(( total_reglas + num_reglas_ipv4 ))
 	total_reglas=$(( total_reglas + num_reglas_ipv6 ))
 	[ "$total_reglas" -gt 0 ] && message "I: Se han encontrado un total de ${C_BOLD}${total_reglas}${C_NORMAL} reglas coincidentes."
@@ -1566,7 +1566,7 @@ start_in_script_format_loop()
 		if [ $? -ne 0 ]
 		then
 			start_loop_retval=1
-			message "W: Error found adding rules to kernel in IPv${protocol}. Rule num (not line) $cont"
+			message "W: Error found adding rules to kernel in IPv${protocol}. Rule num (not line) $cont $vlan_file"
 			echo "Details:"
 			echo " ${line}"
 			for error_line in $error_msg
@@ -1613,10 +1613,6 @@ flush_chain()
 				$IP6T_CLUSTER -F 2>/dev/null || flush_chain_retval=1
 				$IP6T_CLUSTER -X 2>/dev/null || flush_chain_retval=1
 
-				# Flushing SETS
-				$IPSET_CLUSTER flush 2>/dev/null || flush_chain_retval=1
-				$IPSET_CLUSTER x 2>/dev/null || flush_chain_retval=1
-
 				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 				then
 					$IPT_CLUSTER -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
@@ -1637,10 +1633,6 @@ flush_chain()
 				$IPT_LOCAL -X 2>/dev/null || flush_chain_retval=1
 				$IP6T_LOCAL -F 2>/dev/null || flush_chain_retval=1
 				$IP6T_LOCAL -X 2>/dev/null || flush_chain_retval=1
-
-				# Flushing SETS
-				$IPSET_LOCAL flush 2>/dev/null || flush_chain_retval=1
-				$IPSET_LOCAL x 2>/dev/null || flush_chain_retval=1
 
 				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 				then
@@ -1804,11 +1796,11 @@ ipset_reload_controlled_exit()
 	do_exit 1
 }
 
-# Se llama sin parametros
-# checkea y recarga los datos de conjuntos
+# boolean ipset_reload()
+# Check and reload ipset data
 ipset_reload()
 {
-	[ "$SHOW_OP_TIME" == "yes" ] && local tiempo_inicio="`date +%s`"
+	[ "$SHOW_OP_TIME" == "yes" ] && local start_time="`date +%s`"
 
 	# Trap for abort operation
 	trap "ipset_reload_controlled_exit " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
@@ -1821,90 +1813,74 @@ ipset_reload()
 
 	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Reloading now IPset IPv4 data"
 
+	# Flushing SETS
+	$IPSET_LOCAL x 2>/dev/null
+
+	#
 	# Now IPv4
+	#
 	source $VARS_IPV4 && source $VARS_IPSETV4 \
 		|| { message "E: Unable to load IPv4 datafiles." ; do_exit 1 ; }
 
 	if [ $ipset_reload_retval -eq 0 ]
 	then
-		# We are going to iterate over the list of lines
-		local list_of_lines=$( grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ )
-
-		local cont=0
-		# evaluating in we need calcules related to the progress bar
-		[ "$USE_PROGRESS_BAR" == "yes" ] && local amount_of_lines=$( wc -l <<< "$list_of_lines" )
-
-		oldIFS=$IFS ; IFS=$'\n' # Controls over IFS
-		for linea in $list_of_lines
-		do
-			((cont++))
-			# evaluating in we need calcules related to the progress bar
-			[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
-
-			# Evaluate the line of the file.
-			error_msg=$( eval "${linea} 2>&1" 2>&1 )
-			if [ $? -ne 0 ]
-			then
-				message "E: Error found reloading sets in IPv4. Rule num (not line) $cont"
-				echo "Details:"
-				echo " ${linea}"
-				for line in $error_msg
-				do
-					echo " $line"
-				done
-				do_exit 1
-			fi
-		done
-		IFS=$oldIFS # Controls over IFS
+		ipset_reload_loop IPv4
 	fi
 
+	#
 	# Now IPv6
+	#
 	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Reloading now IPset IPv6 data"
 
 	source $VARS_IPV6 && source $VARS_IPSETV6 \
 		|| { message "E: Unable to load IPv6 datafiles." ; do_exit 1 ; }
 	if [ $ipset_reload_retval -eq 0 ]
 	then
-		# We are going to iterate over the list of lines
-		local list_of_lines=$( grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ )
-
-		local cont=0
-		# evaluating in we need calcules related to the progress bar
-		if [ "$USE_PROGRESS_BAR" == "yes" ]
-		then
-			local amount_of_lines=$( wc -l <<< "$list_of_lines" )
-		fi
-
-		oldIFS=$IFS ; IFS=$'\n' # Controls over IFS
-		for line in $list_of_lines
-		do
-			((cont++))
-			# evaluating in we need calcules related to the progress bar
-			[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
-
-			# Evaluate the line of the file.
-			error_msg=$( eval "${line} 2>&1" 2>&1 )
-			if [ $? -ne 0 ]
-			then
-				message "E: Error found reloading sets in IPv6. Rule num (not line) $cont"
-				echo "Details:"
-				echo " ${line}"
-				for eline in $error_msg
-				do
-					echo " $eline"
-				done
-				do_exit 1
-			fi
-		done
-		IFS=$oldIFS # Controls over IFS
+		ipset_reload_loop IPv6
 	fi
 
 	if [ "$SHOW_OP_TIME" == "yes" ]
 	then
-	        message "I: Operation time: $(( `date +%s` - $tiempo_inicio )) seconds."
+	        message "I: Operation time: $(( `date +%s` - $start_time )) seconds."
 	fi
 
 	return $ipset_reload_retval
+}
+
+# boolean ipset_reload_loop(string protocol)
+# Iterate over the ipset config file. Protocol={IPv4|IPv6}
+ipset_reload_loop()
+{
+	local protocol=$1
+	# We are going to iterate over the list of lines
+	local list_of_lines=$( grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ )
+
+	local cont=0
+	# evaluating in we need calcules related to the progress bar
+	[ "$USE_PROGRESS_BAR" == "yes" ] && local amount_of_lines=$( wc -l <<< "$list_of_lines" )
+
+	oldIFS=$IFS ; IFS=$'\n' # Controls over IFS
+	for linea in $list_of_lines
+	do
+		((cont++))
+		# evaluating in we need calcules related to the progress bar
+		[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
+
+		# Evaluate the line of the file.
+		error_msg=$( eval "${linea} 2>&1" 2>&1 )
+		if [ $? -ne 0 ]
+		then
+			message "E: Error found reloading sets in ${protocol}. Rule num (not line) $cont"
+			echo "Details:"
+			echo " ${linea}"
+			for line in $error_msg
+			do
+				echo " $line"
+			done
+			do_exit 1
+		fi
+	done
+	IFS=$oldIFS # Controls over IFS
 }
 
 # boolean start_in_restore_format_loop(string filename, string protocol)
