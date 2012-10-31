@@ -795,9 +795,9 @@ stats()
 	[[ $MINIMAL_AMOUNT_OF_RULES =~ ^[0-9]+$ ]] || MINIMAL_AMOUNT_OF_RULES=40
 	if [ $num_of_ipv4_rules -gt $MINIMAL_AMOUNT_OF_RULES ] || [ $num_of_ipv6_rules -gt $MINIMAL_AMOUNT_OF_RULES ]
 	then
-		echo " The firewall appears to be up and running (More than $MINIMAL_AMOUNT_OF_RULES rules in kernel). [fw up]"
+		echo " [fw up ] The firewall appears to be up and running (More than $MINIMAL_AMOUNT_OF_RULES rules in kernel)."
 	else
-		echo " The firewall appears to be down (Less than $MINIMAL_AMOUNT_OF_RULES rules in kernel). [fw down]"
+		echo " [fw down] The firewall appears to be down (Less than $MINIMAL_AMOUNT_OF_RULES rules in kernel)."
 	fi
 
 	if [ $vars_ipset_ipv4 -ne $vars_ipset_ipv6 ] || [ $vars_ipv4 -ne $vars_ipv6 ]
@@ -1379,7 +1379,7 @@ check_rulefile()
 		then
 			if ! { grep ^[[:space:]]*"$search"=.*$ $VARS_IPSETV4 > /dev/null && grep ^[[:space:]]*"$search"=.*$ $VARS_IPSETV6 > /dev/null ; }
 			then
-				message "W: Unknow variable ${C_BOLD}${search}${C_NORMAL}" >> $AUX_FILE
+				echo "W: Unknow variable \$${search} $file_to_check" >> $AUX_FILE
 				flag_wrong_variables=1
 			fi
 		fi
@@ -1387,7 +1387,13 @@ check_rulefile()
 	IFS=$oldIFS
 
 	# Showing warnings now
-	grep -v ^[[:space:]]*$ $AUX_FILE
+	oldIFS=$IFS ; IFS=$'\n'
+	for line in $( cat $AUX_FILE )
+	do
+		message "$line"
+	done
+	IFS=$oldIFS
+
 	[ $flag_wrong_variables -ne 0 ] && return 1 # return point
 
 	# Check iptables syntax if all variables all fine
