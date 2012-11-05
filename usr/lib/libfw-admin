@@ -1762,6 +1762,8 @@ stop_in_restore_format()
 {
 	local stop_in_ruleset_format_retval=0
 
+	message "W: Flushing all rules."
+
 	flush_chain core || stop_in_ruleset_format_retval=$?
 
 	return $stop_in_ruleset_format_retval
