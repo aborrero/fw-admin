@@ -1002,7 +1002,7 @@ get_information()
 
         if [ -z "$data" ]
         then
-                # No hay parametro de entrada, usar menu
+                # No input data, use menu
                 read -p "-> Define IPv4, IPv6 or FQDN: " data
         fi
 
@@ -1028,12 +1028,12 @@ get_information()
 	then
 		oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
 		# Search after comment (#)
-		local new_data_searh_list=`cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq `
+		local new_data_search_list=`cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq `
 		for i in $new_data_search_list
 		do
 			search_datafiles $i $AUX_FILE
 		done
-		# Search behind (=)
+		# Search before (=)
 		local new_data_search_list=`cat $AUX_FILE | awk -F' ' '{print $2}' | awk -F'=' '{print $1}' | sort -u | uniq`
 		for i in $new_data_search_list
 		do
@@ -1052,38 +1052,37 @@ get_information()
 	fi
 
 	# Querying now ipset
-
-	local list_of_sets_with_match=""
+	local list_of_matching_sets=""
 	local flag_set_added=0
 	local set_list=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^[[:space:]]*$`
 	oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
-	for sset in $lista_sets
+	for sset in $set_list
 	do
 		if $IPSET -T $sset $data > /dev/null 2> /dev/null
 		then
-			list_of_sets_with_match="$list_of_sets_with_match $sset"
+			list_of_matching_sets="$list_of_matching_sets $sset"
 			flag_set_added=1
 		fi
-		if ! $flag_set_added
+		if [ $flag_set_added -eq 0 ]
 		then
 	                # Searching with data behind # from data already found
 			for data in `cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq`
 			do
-				if $IPSET -T $un_set $data
+				if $IPSET -T $sset $data > /dev/null 2> /dev/null
 				then
-					list_of_sets_with_match="$list_of_sets_with_match $sset"
+					list_of_matching_sets="$list_of_matching_sets $sset"
 					flag_set_added=1
 				fi
 			done
 		fi
-		if ! $flag_set_added
+		if [ $flag_set_added -eq 0 ]
 		then
 			# Seach with data after (=) from data already found
 			for data in `cat $AUX_FILE | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
 			do
-				if $IPSET -T $un_set $data
+				if $IPSET -T $sset $data > /dev/null 2> /dev/null
 				then
-					list_of_sets_with_match="$list_of_sets_with_match $sset"
+					list_of_matching_sets="$list_of_matching_sets $sset"
 				fi
 			done
 		fi
@@ -1091,20 +1090,20 @@ get_information()
 	IFS=$oldIFS
 
 	# Show or not sets where data was found
-	if [ ! -z "$list_of_sets_with_match" ]
+	if [ ! -z "$list_of_matching_sets" ]
 	then
 		# Fix for printing
-		list_of_sets_witch_match=`echo $list_of_sets_with_match | tr ' ' '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq | tr '\n' ' '`
-		echo -e "I: Data ${C_BOLD}$data${C_NORMAL} is in set(s): ${list_of_sets_with_match}" >> $AUX_FILE
-		flag_data_shown=1
+		list_of_sets_witch_match=`echo $list_of_matching_sets | tr ' ' '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq | tr '\n' ' '`
+		echo -e "I: Data ${C_BOLD}$data${C_NORMAL} is in set(s): ${list_of_matching_sets}" >> $AUX_FILE
+		flag_data_shown=true
 	fi
 
 
 	#########################################################
-	# Ordenando y mostrando los datos que tenemos hasta ahora
+	# Ordering
 	if [ `cat $AUX_FILE | wc -l` -gt 0 ]
 	then
-		flag_data_shown=1
+		flag_data_shown=true
 		cat $AUX_FILE | sort -u | while read linea
 		do
 			message "$linea"
@@ -1112,70 +1111,71 @@ get_information()
 	fi
 
 	echo -n "" > $AUX_FILE
-	# Si habia set coincidente, mostrar ahora las reglas para ese set
-	if [ ! -z "$lista_de_set_con_coincidencias" ]
+
+	if [ ! -z "$list_of_matching_sets" ]
 	then
-		message "I: Reglas que hacen referencias a los sets relacionados:"
 		oldIFS=$IFS ; IFS=$' '
-		for i in $lista_de_set_con_coincidencias
+		for i in $list_of_matching_sets
 		do
-			$IPT_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE
-			$IP6T_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE
+			$IPT_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE && flag_data_shown=true
+			$IP6T_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE && flag_data_shown=true
 		done
 		IFS=$oldIFS
-		cat $AUX_FILE | sort -u | uniq
-		local total_reglas=`cat $AUX_FILE | wc -l`
+		local total_rules=`cat $AUX_FILE | wc -l`
+		if [ $total_rules -gt 0 ]
+		then
+			message "I: Rules regarding related sets:"
+			cat $AUX_FILE | sort -u | uniq
+		fi
 	fi
 
-	# Realizar la consulta a iptables
-	local consulta_iptables=`grep -i $data $VARS_IPV4 | grep -v VOID | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` #obtener valor
-	if is_ipv4_valid $consulta_iptables
+	local iptables_query=`grep -i $data $VARS_IPV4 | grep -v VOID | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` # get value
+	if is_ipv4_valid $iptables_query
 	then
-		local num_reglas_ipv4_nat=`$IPT_SAVE -t nat | grep "$consulta_iptables" | wc -l`
-		if [ $num_reglas_ipv4_nat -gt 0 ]
+		local rules_num_ipv4_nat=`$IPT_SAVE -t nat | grep "$iptables_query" | wc -l`
+		if [ $rules_num_ipv4_nat -gt 0 ]
 		then
-			message "I: Reglas en IPv4 (nat): $num_reglas_ipv4_nat"
-			$IPT_SAVE -c -t nat | grep $consulta_iptables && flag_data_shown=true
+			message "I: IPv4 (nat) rules: $rules_num_ipv4_nat"
+			$IPT_SAVE -c -t nat | grep $iptables_query && flag_data_shown=true
 		fi
-		local num_reglas_ipv4=`$IPT_SAVE | grep "$consulta_iptables" | wc -l`
-		if [ $num_reglas_ipv4 -gt 0 ]
+		local ipv4_rules_num=`$IPT_SAVE | grep "$iptables_query" | wc -l`
+		if [ $ipv4_rules_num -gt 0 ]
 		then
-			message "I: Reglas en IPv4: $num_reglas_ipv4"
-			$IPT_SAVE -c | grep $consulta_iptables && flag_data_shown=true
+			message "I: IPv4 rules: $ipv4_rules_num"
+			$IPT_SAVE -c | grep $iptables_query && flag_data_shown=true
 		fi
 	else
-		num_reglas_ipv4=0
-		num_reglas_ipv4_nat=0
+		ipv4_rules_num=0
+		rules_num_ipv4_nat=0
 	fi
-	# Volvemos a realizar la consulta a iptables, en este caso buscando nateo
-	consulta_iptables=`grep $data $VARS_IPV6 | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` #obtener valor
-	if is_ipv6_valid $consulta_iptables
+	iptables_query=`grep $data $VARS_IPV6 | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` # get value
+	if is_ipv6_valid $iptables_query
 	then
-		local num_reglas_ipv6=`$IP6T_SAVE | grep "$consulta_iptables" | wc -l`
-		if [ $num_reglas_ipv6 -gt 0 ]
+		local ipv6_rules_num=`$IP6T_SAVE | grep "$iptables_query" | wc -l`
+		if [ $ipv6_rules_num -gt 0 ]
 		then
-			message "I: Reglas en IPv6: $num_reglas_ipv6"
-			$IP6T_SAVE -c | grep $consulta_iptables
+			message "I: IPv6 rules: $ipv6_rules_num"
+			$IP6T_SAVE -c | grep $iptables_query
 			flag_data_shown=true
 		fi
 	else
-		num_reglas_ipv6=0
+		ipv6_rules_num=0
 	fi
 
-	total_reglas=$(( num_reglas_ipv4_nat + total_reglas ))
-	total_reglas=$(( total_reglas + num_reglas_ipv4 ))
-	total_reglas=$(( total_reglas + num_reglas_ipv6 ))
-	[ "$total_reglas" -gt 0 ] && message "I: Se han encontrado un total de ${C_BOLD}${total_reglas}${C_NORMAL} reglas coincidentes."
+	total_rules=$(( rules_num_ipv4_nat + total_rules ))
+	total_rules=$(( total_rules + ipv4_rules_num ))
+	total_rules=$(( total_rules + ipv6_rules_num ))
+	[ "$total_rules" -gt 0 ] && message "I: ${C_BOLD}${total_rules}${C_NORMAL} related rules found."
 
 
 	if [ "$flag_data_shown" != "true" ]
 	then
 		message "W: No data found."
-		obtener_informacion_retval=1
+		get_information_retval=1
 	else
-		obtener_informacion_retval=0
+		get_information_retval=0
 	fi
-	return $obtener_informacion_retval
+	return $get_information_retval
 }
 
 # boolean search_datafiles(string data, string result_return_file)
