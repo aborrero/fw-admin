@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio/Agosto/Septiembre 2012
+# Arturo Borrero <aborrero@cica.es>
 #
 # Copyright (c) 2012 Arturo Borrero
 # This file is released under the GPLv3 license.
@@ -214,3 +214,5 @@ case "$1" in
 		exit $?
 		;;
 esac
+
+exit 1

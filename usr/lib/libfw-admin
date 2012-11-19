@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Arturo Borrero <aborrero@cica.es> Marzo/Abril/Mayo/Junio/Julio/Agosto/Septiembre 2012
+# Arturo Borrero <aborrero@cica.es>
 #
 # Copyright (c) 2012 Arturo Borrero
 # This file is released under the GPLv3 license.
@@ -213,6 +213,9 @@ get_absolute_path()
 # $ for i in `seq 1 $max`; do libprogressbar $i $max ; done
 libprogressbar()
 {
+
+	# This needs strong optimization.
+
         local current=0
         local max=100
         local decimal=1
@@ -390,7 +393,7 @@ get_variable_name()
 	# Check for empty argument
 	if [ -z "$1" ]
 	then
-		message "E: empty argument in function get_variable_name()."
+		message "E: empty argument in function get_variable_name()"
 		do_exit 1
 	fi
 
@@ -434,10 +437,10 @@ get_ip_from_fqdn()
         local fqdn=$2
 	local recursivityLevel=$3
 
-	[ -z "$tipo_ip" ] && { message "E: Function get_ip_from_fqdn() called with empty parameter (type)." ; do_exit 1 ; }
-	[ -z "$fqdn" ] && { message "E: Function get_ip_from_fqdn() called with empty parameter (fqdn)." ; do_exit 1 ; }
+	[ -z "$tipo_ip" ] && { message "E: Function get_ip_from_fqdn() called with empty parameter (type)" ; do_exit 1 ; }
+	[ -z "$fqdn" ] && { message "E: Function get_ip_from_fqdn() called with empty parameter (fqdn)" ; do_exit 1 ; }
 	[ -z "$recursivityLevel" ] && recursivityLevel=0
-	[ "$recursivityLevel" -gt 100 ] && { message "E: Max recursion level reached in function get_ip_from_fqdn()." ; do_exit 1 ; }
+	[ "$recursivityLevel" -gt 100 ] && { message "E: Max recursion level reached in function get_ip_from_fqdn()" ; do_exit 1 ; }
 	((recursivityLevel++))
 
         local resolution=`$DIG +short $fqdn $tipo_ip`
@@ -498,7 +501,7 @@ add_ip_variable()
 		# Calculate the name of the variable
 		#
 		variable_name=$( get_variable_name $data_to_add )
-		[ $? -ne 0 ] && { message "E: Unable to determine variable name." ; do_exit 1 ; }
+		[ $? -ne 0 ] && { message "E: Unable to determine the variable name" ; do_exit 1 ; }
 
 		echo "DEBUG: $variable_name=$data_to_add #$data_to_add" > /dev/null
 
@@ -556,9 +559,9 @@ add_set_variable()
 		# Write to datafiles
 		#
 		echo "$data_to_add=`tr [:upper:] [:lower:] <<< $data_to_add`_ipv4" >> $VARS_IPSETV4 \
-				|| { message "E: Unable to write to [$VARS_IPSETV4]" ; agregar_set_retval=1 ; }
+				|| { message "E: Unable to write $VARS_IPSETV4" ; agregar_set_retval=1 ; }
 		echo "$data_to_add=`tr [:upper:] [:lower:] <<< $data_to_add`_ipv6" >> $VARS_IPSETV6 \
-				|| { message "E: Unable to write to [$VARS_IPSETV6]" ; agregar_set_retval=1 ; }
+				|| { message "E: Unable to write $VARS_IPSETV6" ; agregar_set_retval=1 ; }
 
 		# Not very usefull
 		#echo "The stored data: "
@@ -604,7 +607,7 @@ store_in_ipdatafile()
 	# EXIT POINT
 	if [ $store_in_ipdatafile_retval -ne 0 ]
 	then
-		message "E: Bad call to function store_in_ipdatafile() Invalid input arguments."
+		message "E: Bad call to function store_in_ipdatafile() Invalid input arguments"
 		do_exit 1
 	fi
 
@@ -615,7 +618,7 @@ store_in_ipdatafile()
 		echo "$data" > $working_file
 		if [ $? -ne 0 ]
 		then
-			message "E: When cleaning the previous data. Dataloss is expected."
+			message "E: When cleaning the previous data. Dataloss is expected"
 			do_exit 1
 		fi
 	fi
@@ -643,7 +646,7 @@ store_in_ipdatafile()
 			echo "${variable_name}=\$VOID #$data_to_add" >> $working_file
 			if [ $? -ne 0 ]
 			then
-				message "E: Unable to store data [${data_to_add}] (void) to [$working_file]. Possible dataloss."
+				message "E: Unable to store data [${data_to_add}] (void) to [$working_file]. Possible dataloss"
 				do_exit 1
 			fi
 		else
@@ -1165,12 +1168,12 @@ get_information()
 	total_rules=$(( rules_num_ipv4_nat + total_rules ))
 	total_rules=$(( total_rules + ipv4_rules_num ))
 	total_rules=$(( total_rules + ipv6_rules_num ))
-	[ "$total_rules" -gt 0 ] && message "I: ${C_BOLD}${total_rules}${C_NORMAL} related rules found."
+	[ "$total_rules" -gt 0 ] && message "I: ${C_BOLD}${total_rules}${C_NORMAL} related rules found"
 
 
 	if [ "$flag_data_shown" != "true" ]
 	then
-		message "W: No data found."
+		message "W: No data found"
 		get_information_retval=1
 	else
 		get_information_retval=0
@@ -2022,13 +2025,15 @@ delete_nat_from_ruleset()
 		do_exit 1
 	fi
 
-	local headingline=$( cat $filename | nl -ba | grep -i ^[[:space:]]*[0-9]*[[:space:]]*"\*"nat | awk -F' ' '{print $1}' 2>/dev/null )
+	# I saw in other code another implementation of this, more efficient. Lets see..
+
+	local headingline=$( nl -ba $filename | grep -i ^[[:space:]]*[0-9]*[[:space:]]*"\*"nat | awk -F' ' '{print $1}' 2>/dev/null )
 	[[ $headingline =~ ^[0-9]$ ]] || delete_nat_from_ruleset_retval=1
 
 	if [ $delete_nat_from_ruleset_retval -eq 0 ]
 	then
 		# continue calcules
-		local list_of_tailingline=$( cat $filename | nl -ba | grep ^[[:space:]]*[0-9]*[[:space:]]"COMMIT"$ | awk -F' ' '{print $1}' | tr '\n' ' ' 2>/dev/null )
+		local list_of_tailingline=$( nl -ba $filename | grep ^[[:space:]]*[0-9]*[[:space:]]"COMMIT"$ | awk -F' ' '{print $1}' | tr '\n' ' ' 2>/dev/null )
 
 		# Calculate now what COMMIT line belongs to nat declaration
 		oldIFS=$IFS ; IFS=$' ' #control over IFS
