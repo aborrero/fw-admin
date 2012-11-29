@@ -1,4 +1,4 @@
-.TH FW-ADMIN 8 "27 Sep 2012"
+.TH FW-ADMIN 8 "29 Nov 2012"
 .SH NAME
 fw-admin \- Herramienta para manejar un firewall basado en iptables.
 .SH SYNOPSIS
@@ -7,6 +7,8 @@ fw-admin \- Herramienta para manejar un firewall basado en iptables.
 \fBfw-admin -a\fP [\fIipv4|ipv6|fqdn\fP]
 
 \fBfw-admin -as\fP [\fInombreset\fP]
+
+\fBfw-admin -d\fP [\fIipv4|ipv6|fqdn|var\fP]
 
 \fBfw-admin -r\fP
 
@@ -82,6 +84,14 @@ Para guardar en el sistema un nombre de set. Debido al funcionamiento de \fBipse
 El nombre de variable resultante siempre será en mayúsculas.
 
 El nombre del set se guardara como: "NOMBRE=nombre_ipv4" y "NOMBRE=nombre_ipv6" en los ficheros de datos IPv4 e IPv6 respectivamente.
+
+.TP
+\fB-d [ipv4|ipv6|fqdn|var]\fP
+Se eliminarán de los ficheros de datos las variables correspondientes al argumento de entrada.
+
+\fBfw-admin\fP lo hará lo mejor que pueda para que tus ficheros de datos nos sufran. 
+Para ello, hará comprobaciones de hash antes y después del borrado del dato,
+trabajará con una copia del fichero de datos y al terminar, forzará un checkeo completo de los datafiles (lo mismo que se implementa en la opción \fB--check-datafiles\fP).
 
 .TP
 \fB-r\fP
