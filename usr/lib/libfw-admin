@@ -961,6 +961,28 @@ check_duplicate_variables()
 	return $check_duplicate_variables_retval
 }
 
+# boolean check_duplicate_ipset_ip_variables()
+# Check possible variables with the same name in both types of datafiles
+check_duplicate_ipset_ip_variables()
+{
+	local check_duplicate_ipset_ip_variables_retval=1
+
+	list_of_ip_variables=$( { awk -F'=' '{print $1}' $VARS_IPV4 ; awk -F'=' '{print $1}' $VARS_IPV6 ; } | egrep -v ^[[:space:]]*#\|^[[:space:]]*$ | sort | uniq )
+	list_of_ipset_variables=$( { awk -F'=' '{print $1}' $VARS_IPSETV4 ; awk -F'=' '{print $1}' $VARS_IPSETV6 ; } | egrep -v ^[[:space:]]*#\|^[[:space:]]*$ | sort | uniq )
+	result=$( comm -12 <(echo "$list_of_ip_variables") <(echo "$list_of_ipset_variables") 2> /dev/null )
+	if [ -z "$result" ]
+	then
+		check_duplicate_ipset_ip_variables_retval=0
+	else
+		message "W: Detected duplicate IP/IPSET variables. You may get some undesirable overrides"
+		for variable in "$result"
+		do
+			grep ^${variable}= $DATA_DIR/*
+		done
+	fi
+
+	return $check_duplicate_ipset_ip_variables_retval
+}
 
 # boolean check_datafiles()
 # Check what variables are missing in what datafiles and the format is correct.
@@ -990,6 +1012,9 @@ check_datafiles()
 	check_datafile_unset_variables $VARS_IPV6 || retval=$?
 	check_datafile_unset_variables $VARS_IPSETV4 || retval=$?
 	check_datafile_unset_variables $VARS_IPSETV6 || retval=$?
+
+	# Check for duplicates variables from one kind of datafiles to another
+	check_duplicate_ipset_ip_variables || retval=$?
 
 	return $retval
 }
