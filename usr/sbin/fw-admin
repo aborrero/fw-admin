@@ -48,6 +48,7 @@ help()
 	echo -e " ${C_BOLD}-s${C_NORMAL}				Show some stats."
 	echo -e " ${C_BOLD}-a${C_NORMAL} [ipv4|ipv6|fqdn]		Add an IP or FQDN variable to datafiles."
 	echo -e " ${C_BOLD}-as${C_NORMAL} [setname]			Add an IPSET variable to datafiles."
+	echo -e " ${C_BOLD}-d${C_NORMAL} [ipv4|ipv6|fqdn|var]	Delete given argument from datafiles."
 	echo -e " ${C_BOLD}-r${C_NORMAL}				Reload the value of all IP or FQDN variables in datafiles."
 	echo -e " ${C_BOLD}-i${C_NORMAL} [ipv4|ipv6|fqdn|var]	Get information about IP, FQDN, IPSET or variable."
 	echo -e " ${C_BOLD}-c${C_NORMAL} file			Check rule-file."
@@ -145,6 +146,12 @@ case "$1" in
 		loadlibrary
 		validate_execution
 		add_set_variable $2 # data as a parameter
+		do_exit $?
+		;;
+	"-d" )
+		loadlibrary
+		validate_execution
+		delete_data $2 # data as a parameter
 		do_exit $?
 		;;
 	"-r" )

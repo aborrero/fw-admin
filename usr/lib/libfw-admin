@@ -476,9 +476,6 @@ add_ip_variable()
 
 	local add_ip_variable_retval=0
 	local data_to_add=$1
-	local flag_es_ipv4=0
-	local flag_es_ipv6=0
-	local flag_es_fqdn=0
 
 	if [ -z "$data_to_add" ]
 	then
@@ -722,6 +719,101 @@ store_in_ipdatafile()
 	fi
 	return $store_in_ipdatafile_retval
 }
+
+# boolean delete_data(string data_to_delete)
+# Validate the given data and delete it from datafiles
+delete_data()
+{
+	local delete_data_retval=0
+	local data_to_delete=$1
+	local flag_something_deleted=0
+	echo -n "" > $AUX_FILE
+
+	# We don't know if data_to_delete is a variable of IPSET or IP/FQDN
+	# Try now to resolve to a VAR name
+	get_input_abstracted_of_type $data_to_delete $AUX_FILE
+
+	# AUX_FILE now contains a repeated and unordered list of matches (or not)
+	if [ $( cat $AUX_FILE | wc -l) -gt 0 ]
+	then
+		# Yes, is filled with lines like this:
+		#/path/to/datafile: VAR=data #comment
+
+		# Iterate over the list of vars
+		for var in $( awk -F'=' '{print $1}' $AUX_FILE | awk -F' ' '{print $2}' | sort | uniq )
+		do
+			read -p "-> Delete the IP/FQDN variable \"${var}\"? [y/N]: "
+			if [ "$REPLY" == "y" ] # REPLY is a special variable by read
+			then
+				delete_from_datafile $var $VARS_IPV4 \
+					|| { message "W: Something went wrong when deleting ${var} from $VARS_IPV4" ; delete_data_retval=1 ; break ; }
+				delete_from_datafile $var $VARS_IPV6 \
+					|| { message "W: Something went wrong when deleting ${var} from $VARS_IPV6" ; delete_data_retval=1 ; break ; }
+				message "W: Deleted IP/FQDN variable \"${var}\""
+				flag_something_deleted=1
+			fi
+		done
+	fi
+
+	# IP/FQDN variables were not found. Maybe we are triying to delete a IPSET variable?
+	if egrep ^[[:space:]]*${data_to_delete}= $VARS_IPSETV4 > /dev/null &&  egrep ^[[:space:]]*${data_to_delete}= $VARS_IPSETV6 > /dev/null
+	then
+		# We found data to delete in IPSET datafiles!!
+		read -p "-> Delete the ipset variable \"${data_to_delete}\"? [y/N]: "
+		if [ "$REPLY" == "y" ] # REPLY is a special variable by read
+		then
+			delete_from_datafile $data_to_delete $VARS_IPSETV4 \
+				|| { message "W: Something went wrong when deleting ${data_to_delete} from $VARS_IPSETV4" ; delete_data_retval=1 ; }
+			delete_from_datafile $data_to_delete $VARS_IPSETV6 \
+				|| { message "W: Something went wrong when deleting ${data_to_delete} from $VARS_IPSETV6" ; delete_data_retval=1 ; }
+			message "W: Deleted ipset variable \"${data_to_delete}\""
+			flag_something_deleted=1
+		fi
+	fi
+
+	if [ $flag_something_deleted -eq 0 ]
+	then
+		# Warning, nothing to do
+		message "W: No data found to delete"
+		delete_data_retval=1
+	else
+		# Force a check-datafiles
+		echo ""
+		message "I: Automatically checking datafiles because of the delete"
+		check_datafiles || delete_data_retval=$?
+	fi
+
+	return $delete_data_retval
+}
+
+# boolean delete_from_datafile(string variable_name, string datafile)
+# Delete the variable_name from the given datafile
+delete_from_datafile()
+{
+	local delete_from_dafatile_retval=1
+
+	local variable_name=$1
+	local datafile=$2
+	local hash=""
+
+	cp $datafile ${datafile}~ || { message "E: Unable to copy the datafile $datafile to operate" ; do_exit 1 ; }
+	local tmpfile=$( grep -v ^${variable_name}= ${datafile}~ 2>/dev/null )
+
+	hash=$( sha512sum <<< "$tmpfile" )
+	echo "$tmpfile" > ${datafile}~
+
+	if [ "$hash" == "$( sha512sum < ${datafile}~ )" ]
+	then
+		mv ${datafile}~ $datafile 2>/dev/null || { message "E: Unable to copy back $datafile" ; do_exit 1 ; }
+		delete_from_datafile_retval=0
+	else
+		message "E: Unable to operate. Bad integrity $datafile"
+		do_exit 1
+	fi
+
+	return $delete_from_datafile_retval
+}
+
 
 ################################################################
 ################################################################
@@ -1019,6 +1111,61 @@ check_datafiles()
 	return $retval
 }
 
+# void get_input_abstracted_of_type(string data, string outputfile)
+# Given a data, search datafiles and output results to outputfile.
+# No matter what is the type of the data: var, ip, fqdn, whatever.
+get_input_abstracted_of_type()
+{
+	data=$1
+	outputfile=$2
+
+
+	# 1º Search the data just typed
+	search_datafiles $data $outputfile
+
+
+	# 2º Search the variable name the data should has
+	variable_name=$( get_variable_name $data )
+	if [ $? -eq 0 ] && [ ! -z "$variable_name" ]
+	then
+		search_datafiles $variable_name $outputfile
+	fi
+
+
+	# 3º Search only if previous data has been found.
+	# Search in base a previous data found
+	#
+	# Take care of the message format produced by function search_datafiles()
+	# "$VARS_IPV4: ${C_BOLD}${line}${C_NORMAL}" #--> ' VAR=dato #text'
+	if [ `cat $outputfile | wc -l` -gt 0 ]
+	then
+		oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
+		# Search after comment (#)
+		local new_data_search_list=`cat $outputfile | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq `
+		for i in $new_data_search_list
+		do
+			search_datafiles $i $outputfile
+		done
+		# Search before (=)
+		local new_data_search_list=`cat $outputfile | awk -F' ' '{print $2}' | awk -F'=' '{print $1}' | sort -u | uniq`
+		for i in $new_data_search_list
+		do
+			search_datafiles $i $outputfile
+		done
+		# Seach after (=)
+		local new_data_search_list=`cat $outputfile | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
+		for i in $new_data_search_list
+		do
+			if [ "$i" != "\$VOID" ] || [ "$i" != "\$VOID" ]
+			then
+				search_datafiles $i $outputfile
+			fi
+		done
+		IFS=$oldIFS
+	fi
+	return 0
+}
+
 # boolean get_information(string data)
 # Search for information in datafiles, sets and iptables
 get_information()
@@ -1034,52 +1181,9 @@ get_information()
                 read -p "-> Define IPv4, IPv6 or FQDN: " data
         fi
 
+	get_input_abstracted_of_type $data $AUX_FILE
 
-	# 1º Search the data just typed
-	search_datafiles $data $AUX_FILE
-
-
-	# 2º Search the variable name the data should has
-	variable_name=$( get_variable_name $data )
-	if [ $? -eq 0 ] && [ ! -z "$variable_name" ]
-	then
-		search_datafiles $variable_name $AUX_FILE
-	fi
-
-
-	# 3º Search only if previous data has been found.
-	# Search in base a previous data found
-	#
-	# Take care of the message format produced by function search_datafiles()
-	# "$VARS_IPV4: ${C_BOLD}${line}${C_NORMAL}" #--> ' VAR=dato #aclaracion'
-	if [ `cat $AUX_FILE | wc -l` -gt 0 ]
-	then
-		oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
-		# Search after comment (#)
-		local new_data_search_list=`cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq `
-		for i in $new_data_search_list
-		do
-			search_datafiles $i $AUX_FILE
-		done
-		# Search before (=)
-		local new_data_search_list=`cat $AUX_FILE | awk -F' ' '{print $2}' | awk -F'=' '{print $1}' | sort -u | uniq`
-		for i in $new_data_search_list
-		do
-			search_datafiles $i $AUX_FILE
-		done
-		# Seach after (=)
-		local new_data_search_list=`cat $AUX_FILE | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
-		for i in $new_data_search_list
-		do
-			if [ "$i" != "\$VOID" ] || [ "$i" != "\$VOID" ]
-			then
-				search_datafiles $i $AUX_FILE
-			fi
-		done
-		IFS=$oldIFS
-	fi
-
-	# Querying now ipset
+ 	# Querying now ipset
 	local list_of_matching_sets=""
 	local flag_set_added=0
 	local set_list=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^[[:space:]]*$`
