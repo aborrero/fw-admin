@@ -316,16 +316,6 @@ Se detallan algunas variables y binarios:
 \fBDIG="/usr/bin/dig"\fP binario principal de la herramineta \fBdig(1)\fP.
 .RE
 
-Si en el fichero de configuración \fB/etc/fw-admin.conf\fP se configura la directiva \fBUSE_IPTABLES_CLUSTER=yes\fP, adicionalmente existirán estas dependencias:
-.RS
-.TP
-\fBIPSET_CLUSTER="/usr/sbin/ipset-cluster"\fP binario principal del wrapper \fBipset-cluster(8)\fP.
-.TP
-\fBIPT_CLUSTER="/usr/sbin/iptables-cluster"\fP binario principal del wrapper \fBiptables-cluster(8)\fP.
-.TP
-\fBIP6T_CLUSTER="/usr/sbin/ip6tables-cluster"\fP binario principal del wrapper \fBip6tables-cluster(8)\fP.
-.RE
-
 .SH DEBUGEANDO ERRORES
 Es posible debugear el funcionamiento completo de \fBfw-admin\fP usándo los métodos tradicionales de \fBBash(1)\fP.
 

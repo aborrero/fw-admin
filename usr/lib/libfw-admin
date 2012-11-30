@@ -38,9 +38,6 @@ IP6T="/sbin/ip6tables"
 IPSET_LOCAL="/usr/sbin/ipset"
 IPT_LOCAL="/sbin/iptables"
 IP6T_LOCAL="/sbin/ip6tables"
-IPSET_CLUSTER="/usr/sbin/ipset-cluster"
-IPT_CLUSTER="/usr/sbin/iptables-cluster"
-IP6T_CLUSTER="/usr/sbin/ip6tables-cluster"
 IPT_SAVE="/sbin/iptables-save"
 IPT_RESTORE="/sbin/iptables-restore"
 IP6T_SAVE="/sbin/ip6tables-save"
@@ -167,14 +164,6 @@ check_files()
 	[ -x $IP6T ] || { message "E: Binary not found [$IP6T]." ; check_files_retval=1 ; }
 	[ -x $IPSET ] || { message "E: Binary not found [$IPSET]." ; check_files_retval=1 ; }
 	[ -x $DIG ] || { message "E: Binary not found [$DIG]" ; check_files_retval=1 ; }
-
-	# Only if neccesary
-	if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
-	then
-		[ -x $IPT_CLUSTER ] || { message "E: Binary not found [$IPT_CLUSTER]." ; check_files_retval=1 ; }
-		[ -x $IP6T_CLUSTER ] || { message "E: Binary not found [$IP6T_CLUSTER]." ; check_files_retval=1 ; }
-		[ -x $IPSET_CLUSTER ] || { message "E: Binary not found [$IPSET_CLUSTER]." ; check_files_retval=1 ; }
-	fi
 
 	return $check_files_retval
 }
@@ -1740,84 +1729,36 @@ flush_chain()
 	then
 		if [[ $chain =~ ^"core" ]]
 		then
-			if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
+			# Flushing entire firewall
+			$IPT_LOCAL -F 2>/dev/null || flush_chain_retval=1
+			$IPT_LOCAL -F -t nat 2>/dev/null || flush_chain_retval=1
+			$IPT_LOCAL -X 2>/dev/null || flush_chain_retval=1
+			$IP6T_LOCAL -F 2>/dev/null || flush_chain_retval=1
+			$IP6T_LOCAL -X 2>/dev/null || flush_chain_retval=1
+
+			if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 			then
-				# USING iptables-cluster
-
-				# Flushing entire firewall
-				$IPT_CLUSTER -F 2>/dev/null || flush_chain_retval=1
-				$IPT_CLUSTER -F -t nat 2>/dev/null || flush_chain_retval=1
-				$IPT_CLUSTER -X 2>/dev/null || flush_chain_retval=1
-				$IP6T_CLUSTER -F 2>/dev/null || flush_chain_retval=1
-				$IP6T_CLUSTER -X 2>/dev/null || flush_chain_retval=1
-
-				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
-				then
-					$IPT_CLUSTER -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					$IPT_CLUSTER -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					$IPT_CLUSTER -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					$IP6T_CLUSTER -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					$IP6T_CLUSTER -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					$IP6T_CLUSTER -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-
-				fi
-			else
-				# NOT USING iptables-cluster
-
-				# Flushing entire firewall
-
-				$IPT_LOCAL -F 2>/dev/null || flush_chain_retval=1
-				$IPT_LOCAL -F -t nat 2>/dev/null || flush_chain_retval=1
-				$IPT_LOCAL -X 2>/dev/null || flush_chain_retval=1
-				$IP6T_LOCAL -F 2>/dev/null || flush_chain_retval=1
-				$IP6T_LOCAL -X 2>/dev/null || flush_chain_retval=1
-
-				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
-				then
-					$IPT_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					$IPT_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					$IPT_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					$IP6T_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					$IP6T_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					$IP6T_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-
-				fi
+				$IPT_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IPT_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IPT_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP6T_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP6T_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP6T_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 			fi
 		else
 			if [[ $chain =~ "nat" ]]
 			then
-				if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
-				then
-					# Using iptables-cluster
-
-					# Flushing nat rules
-					$IPT_CLUSTER -F -t nat 2>/dev/null || flush_chain_retval=1
-				else
-					# Not using iptables-cluster
-
-					# Flushing nat rules
-					$IPT_LOCAL -F -t nat 2>/dev/null || flush_chain_retval=1
-
-				fi
+				# Flushing nat rules
+				$IPT_LOCAL -F -t nat 2>/dev/null || flush_chain_retval=1
 			else
 				# No nat rules
-				if [ "$USE_IPTABLES_CLUSTER" == "yes" ]
+				$IPT_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
+				$IP6T_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
+
+				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 				then
-					$IPT_CLUSTER -F $chain 2>/dev/null || flush_chain_retval=1
-					$IP6T_CLUSTER -F $chain 2>/dev/null || flush_chain_retval=1
-					if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
-					then
-						$IPT_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-						$IP6T_CLUSTER -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					fi
-				else
-					$IPT_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
-					$IP6T_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
-					if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
-					then
-						$IPT_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-						$IP6T_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					fi
+					$IPT_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP6T_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 				fi
 			fi
 		fi

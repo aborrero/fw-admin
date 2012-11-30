@@ -91,18 +91,6 @@ If configured to 'yes', \fBfw-admin\fP will add permissive rules when a stop ope
 derived from \fB$FLUSH_WHEN_ABORT_START\fP and/or \fP$FLUSH_WHEN_ERROR_START\fP.
 
 Values: {yes|no} Default: no
-.TP
-\fB$USE_IPTABLES_CLUSTER\fP
-If \fBiptables-cluster(8)\fP is being used to sync rules between nodes of a firewall cluster.
-
-This will result, for example, in \fBfw-admin\fP flushing rules in all nodes instead of only the local node.
-
-Actually, datafiles need to be edited by hand (\fBIPT\fP variables) for completly activate or deactivate \fBiptables-cluster(8)\fP 
-
-WARNING: This is deprecated.
-
-Values: {yes|no} Default: no
-
 .SH HINTS
 · Differences between \fB$FORMAT=restore\fP and \fB$FORMAT=script\fP are hard. Most of your netfilter configuration migth not work
 from one config to other.
