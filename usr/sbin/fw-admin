@@ -29,7 +29,7 @@
 VERSION="0.7.1"
 
 CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
-LIB="/usr/lib/libfw-admin"
+LIB="/usr/lib/fw-admin.d/libfw-admin"
 
 C_RED="\E[31m"
 C_GREEN="\E[32m"
