@@ -26,18 +26,41 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-DIR_LIB="/usr/lib/fw-admin.d"
+################################################################
+################################################################
+# Variables
+PID=$$
+THIS="`uname -n`"
 
-LIB_VAR="libfw-admin-vars"
+IPSET="/usr/sbin/ipset"
+IPT="/sbin/iptables"
+IP6T="/sbin/ip6tables"
+IPSET_LOCAL="/usr/sbin/ipset"
+IPT_LOCAL="/sbin/iptables"
+IP6T_LOCAL="/sbin/ip6tables"
+IPT_SAVE="/sbin/iptables-save"
+IPT_RESTORE="/sbin/iptables-restore"
+IP6T_SAVE="/sbin/ip6tables-save"
+IP6T_RESTORE="/sbin/ip6tables-restore"
+CONNTRACKD="/usr/sbin/conntrackd"
+CONNTRACK="/usr/sbin/conntrack"
+DIG="/usr/bin/dig"
+
+AUX_FILE="`mktemp`"
+
+LOGGER_BIN="/usr/bin/logger"
+ARGS_LOGGER="-t fw-admin[$PID] --"
+
+
+DIR_LIB="/usr/lib/fw-admin.d"
 LIB_CONTROL="libfw-admin-control"
 LIB_DF="libfw-admin-datafiles"
 LIB_UTILS="libfw-admin-utils"
 LIB_CHECK="libfw-admin-check"
 LIB_OPER="libfw-admin-operations"
 
-. $DIR_LIB/$LIB_VAR
-. $DIR_LIB/$LIB_CONTROL
-. $DIR_LIB/$LIB_DF
-. $DIR_LIB/$LIB_UTILS
-. $DIR_LIB/$LIB_CHECK
-. $DIR_LIB/$LIB_OPER
+. $DIR_LIB/$LIB_CONTROL || { echo "E: Unable to load ${DIR_LIB}/${LIB_CONTROL}" >&2 ; exit 1 ; }
+. $DIR_LIB/$LIB_DF || { echo "E: Unable to load ${DIR_LIB}/${LIB_DF}" >&2 ; exit 1 ; }
+. $DIR_LIB/$LIB_UTILS || { echo "E: Unable to load ${DIR_LIB}/${LIB_UTILS}" >&2 ; exit 1 ; }
+. $DIR_LIB/$LIB_CHECK || { echo "E: Unable to load ${DIR_LIB}/${LIB_CHECK}" >&2 ; exit 1 ; }
+. $DIR_LIB/$LIB_OPER || { echo "E: Unable to load ${DIR_LIB}/${LIB_OPER}" >&2 ; exit 1 ; }
