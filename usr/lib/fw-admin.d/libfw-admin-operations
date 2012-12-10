@@ -1,0 +1,669 @@
+#!/bin/bash
+
+# Arturo Borrero <aborrero@cica.es>
+#
+# Copyright (c) 2012 Arturo Borrero
+# This file is released under the GPLv3 license.
+#
+# Can obtain a complete copy of the license at: http://www.gnu.org/licenses/gpl-3.0.html
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+#6
+
+################################################################
+################################################################
+# Operations functions
+
+# void start_controlled_exit()
+# To be used inside traps.
+start_controlled_exit()
+{
+	echo ""
+
+	if [ "$FLUSH_WHEN_ABORT_START" == "yes" ]
+	then
+		message "W: Aborting the start operation and flushing rules ${1}"
+		flush_chain $1
+	else
+		message "W: Aborting the start operation ${1}"
+	fi
+	do_exit 1
+}
+
+# boolean start_in_script_format(string filename)
+# Check&start rules on given vlan/filename
+start_in_script_format()
+{
+	[ "$SHOW_OP_TIME" == "yes" ] && local initial_time=`date +%s`
+	local start_retval=0
+	local filename=$( get_absolute_path $1 )
+	if [ "$filename" == "" ]
+	then
+		message "E: File not found $1"
+		do_exit 1
+	fi
+
+	# Obtain vlan/chain name
+	local vlan=`awk -F'/' '{print $NF}' <<< $filename`
+
+	# Check that given chain exist
+	if ! check_chain_exist $vlan
+	then
+		message "E: Given chain doesn't exist."
+		do_exit 1 # EXIT POINT
+	fi
+
+	# Exit trap
+	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
+	# Checking rulefile.
+	if ! check_rulefile $filename
+	then
+		message "E: Check failed. Don't starting."
+		do_exit 1 # EXIT POINT
+	fi
+
+	# Deletin previous rules
+	if ! flush_chain $vlan
+	then
+		message "E: Error flushing vlan."
+		do_exit 1 # EXIT POINT
+	fi
+
+	# Starting IPv4 rules. Show the msg if USE_PROGRESS_BAR == yes because when showing the bar, you need to know what it stands for.
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Starting IPv4 rules"
+
+	# Start the for loop only if success loading datafiles
+	if source $VARS_IPV4 && source $VARS_IPSETV4
+	then
+		start_in_script_format_loop $vlan 4 || start_retval=$?
+	else
+		message "E: Error loading datafiles in IPv4"
+		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
+		then
+			flush_chain $vlan
+		fi
+		do_exit 1 # EXIT POINT
+	fi
+	delete_transaccional_rules $vlan || { message "E: Function delete_transaccional_rules() failed for IPv4" ; do_exit 1 ; } # EXIT POINT
+
+
+	if grep -i nat <<< $vlan > /dev/null
+	then
+		: "DEBUG: Not inserting rules in IPv6 because a nat file"
+	else
+		# Starting IPv6 rules. Show the msg if USE_PROGRESS_BAR == yes because when showing the bar, you need to know what it stands for.
+		[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Starting IPv6 rules"
+
+		# Start the for loop only if success loading datafiles
+		if source $VARS_IPV6 && source $VARS_IPSETV6
+		then
+			start_in_script_format_loop $vlan 6 || start_retval=$?
+		else
+			message "E: Error loading datafiles in IPv6"
+			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
+			then
+				flush_chain $vlan
+			fi
+			do_exit 1 # EXIT POINT
+		fi
+		delete_transaccional_rules $vlan || { message "E: Function delete_transaccional_rules() failed for IPv6" ; do_exit 1 ; } # EXIT POINT
+	fi
+
+	if [ "$SHOW_OP_TIME" == "yes" ]
+	then
+		message "I: Operation time over ${vlan}: $(( `date +%s` - initial_time )) seconds."
+	fi
+
+	return $start_retval
+}
+
+# boolean start_loop(string vlan_file, integer protocol)
+# Iterate over rulefile inserting rules in kernel
+start_in_script_format_loop()
+{
+	local start_loop_retval=0
+
+	local vlan_file=$( get_absolute_path $1 )
+	local protocol=$2
+
+	if [ ! -r "$vlan_file" ] || [ -z "$protocol" ]
+	then
+		message "E: Bad call to function start_in_script_format_loop(), invalid input arguments."
+		do_exit 1 # EXIT POINT
+	fi
+
+	list_of_lines=`grep -v ^[[:space:]]*# $vlan_file | grep -v ^[[:space:]]*$`
+
+	# Evaluating if we need calcules related to the progress bar
+	if [ "$USE_PROGRESS_BAR" == "yes" ]
+	then
+		local amount_of_lines=`wc -l <<< "$list_of_lines"`
+	fi
+	local cont=0
+
+
+	oldIFS=$IFS ; IFS=$'\n' # control over IFS
+	for line in $list_of_lines
+	do
+		((cont++))
+
+		# Evaluating if we need calcules related to the progress bar
+		[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
+
+		# Insert the rule in kernel and evaluate return code
+		error_msg=$( eval "${line} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
+		if [ $? -ne 0 ]
+		then
+			start_loop_retval=1
+			message "W: Error found adding rules to kernel in IPv${protocol}. Rule num (not line) $cont $vlan_file"
+			echo "Details:"
+			echo " ${line}"
+			for error_line in $error_msg
+			do
+				echo " $error_line"
+			done
+
+			# Behaviour when error at start operation
+			#FLUSH_WHEN_ERROR_START="no"
+
+			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
+			then
+				message "W: Flushing rules $vlan ..."
+				flush_chain $vlan
+				do_exit 1 # EXIT POINT
+			fi
+		fi
+	done
+	IFS=$oldIFS
+
+	return $start_loop_retval
+}
+
+# boolean flush_chain(string chain)
+# flush rules and add permissive rules if selected
+flush_chain()
+{
+	local flush_chain_retval=0
+
+	local chain=$1
+
+	if [ ! -z "$chain" ]
+	then
+		if [[ $chain =~ ^"core" ]]
+		then
+			# Flushing entire firewall
+			$IPT_LOCAL -F 2>/dev/null || flush_chain_retval=1
+			$IPT_LOCAL -F -t nat 2>/dev/null || flush_chain_retval=1
+			$IPT_LOCAL -X 2>/dev/null || flush_chain_retval=1
+			$IP6T_LOCAL -F 2>/dev/null || flush_chain_retval=1
+			$IP6T_LOCAL -X 2>/dev/null || flush_chain_retval=1
+
+			if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
+			then
+				$IPT_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IPT_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IPT_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP6T_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP6T_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP6T_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+			fi
+		else
+			if [[ $chain =~ "nat" ]]
+			then
+				# Flushing nat rules
+				$IPT_LOCAL -F -t nat 2>/dev/null || flush_chain_retval=1
+			else
+				# No nat rules
+				$IPT_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
+				$IP6T_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
+
+				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
+				then
+					$IPT_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP6T_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				fi
+			fi
+		fi
+	else
+		flush_chain_retval=1
+	fi
+	return $flush_chain_retval
+}
+
+delete_transaccional_rules()
+{
+	local delete_transaccional_rules_retval=0
+	local cont=0
+
+	# Recibe como parametro una vlan o nat
+	if [ ! -z "$1" ]
+	then
+		if grep -i core <<< $1 > /dev/null
+		then
+			while $IPT -C FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null
+			do
+				# avoid infitine loop
+				[ $cont -gt 1000 ] && break
+				(( cont++ ))
+
+				$IPT -D FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null \
+					|| message "W: Unable to remove transaccional rule (forward)."
+			done
+
+			cont=0
+			while $IPT -C INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null
+			do
+				# avoid infitine loop
+				[ $cont -gt 1000 ] && break
+				(( cont++ ))
+
+				$IPT -D INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null \
+					|| message "W: Unable to remove transaccional rule (input)."
+			done
+			cont=0
+			while $IPT -C OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null
+			do
+				# avoid infitine loop
+				[ $cont -gt 1000 ] && break
+				(( cont++ ))
+
+				$IPT -D OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null \
+					|| message "W: Unable to remove transaccional rule (output)."
+			done
+		else
+			if ! grep -i nat <<< $1 > /dev/null
+			then
+				cont=0
+				while $IPT -C $1 -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null
+				do
+					# avoid infitine loop
+					[ $cont -gt 1000 ] && break
+					(( cont++ ))
+					$IPT -D $1 -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2> /dev/null \
+						|| message "W: Unable to remove transaccional rule $1"
+				done
+			fi
+		fi
+	else
+		delete_transaccional_rules_retval=1
+	fi
+	return $delete_transaccional_rules_retval
+}
+
+# boolean stop_in_restore_format()
+# Flush ruleset
+# for FORMAT=ruleset
+stop_in_restore_format()
+{
+	local stop_in_ruleset_format_retval=0
+
+	message "W: Flushing all rules."
+
+	flush_chain core || stop_in_ruleset_format_retval=$?
+
+	return $stop_in_ruleset_format_retval
+}
+
+# boolean stop_in_script_format(string chain)
+# Used to stop rules of the given chain name
+# for FORMAT=script
+stop_in_script_format()
+{
+	local stop_in_script_format_retval=0
+
+	local chain=$1
+
+	if check_chain_exist $chain
+	then
+		flush_chain $chain || stop_in_script_format_retval=1
+	else
+		message "E: Chain doesn't exist $chain"
+		do_exit 1
+	fi
+
+	if [ $stop_in_script_format_retval -ne 0 ]
+	then
+		message "E: Unable to flush rules $chain"
+		do_exit 1
+	fi
+
+	return $stop_in_script_format_retval
+}
+
+# void ipset_reload_controlled_exit()
+# Handle the exit trap of ipset_reload()
+ipset_reload_controlled_exit()
+{
+	echo ""
+	message "W: Reload aborted"
+	do_exit 1
+}
+
+# boolean ipset_reload()
+# Check and reload ipset data
+ipset_reload()
+{
+	[ "$SHOW_OP_TIME" == "yes" ] && local start_time="`date +%s`"
+
+	# Trap for abort operation
+	trap "ipset_reload_controlled_exit " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
+	local ipset_reload_retval=0
+
+	# Checkear el fichero de IPSET
+	check_rulefile $IPSET_CONF || return $?
+
+
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Reloading now IPset IPv4 data"
+
+	# Flushing SETS
+	$IPSET_LOCAL x 2>/dev/null
+
+	#
+	# Now IPv4
+	#
+	source $VARS_IPV4 && source $VARS_IPSETV4 \
+		|| { message "E: Unable to load IPv4 datafiles." ; do_exit 1 ; }
+
+	if [ $ipset_reload_retval -eq 0 ]
+	then
+		ipset_reload_loop IPv4
+	fi
+
+	#
+	# Now IPv6
+	#
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Reloading now IPset IPv6 data"
+
+	source $VARS_IPV6 && source $VARS_IPSETV6 \
+		|| { message "E: Unable to load IPv6 datafiles." ; do_exit 1 ; }
+	if [ $ipset_reload_retval -eq 0 ]
+	then
+		ipset_reload_loop IPv6
+	fi
+
+	if [ "$SHOW_OP_TIME" == "yes" ]
+	then
+	        message "I: Operation time: $(( `date +%s` - $start_time )) seconds."
+	fi
+
+	return $ipset_reload_retval
+}
+
+# boolean ipset_reload_loop(string protocol)
+# Iterate over the ipset config file. Protocol={IPv4|IPv6}
+ipset_reload_loop()
+{
+	local protocol=$1
+	# We are going to iterate over the list of lines
+	local list_of_lines=$( grep -v ^[[:space:]]*# $IPSET_CONF | grep -v ^[[:space:]]*$ )
+
+	local cont=0
+	# evaluating in we need calcules related to the progress bar
+	[ "$USE_PROGRESS_BAR" == "yes" ] && local amount_of_lines=$( wc -l <<< "$list_of_lines" )
+
+	oldIFS=$IFS ; IFS=$'\n' # Controls over IFS
+	for linea in $list_of_lines
+	do
+		((cont++))
+		# evaluating in we need calcules related to the progress bar
+		[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
+
+		# Evaluate the line of the file.
+		error_msg=$( eval "${linea} 2>&1" 2>&1 )
+		if [ $? -ne 0 ]
+		then
+			message "E: Error found reloading sets in ${protocol}. Rule num (not line) $cont"
+			echo "Details:"
+			echo " ${linea}"
+			for line in $error_msg
+			do
+				echo " $line"
+			done
+			do_exit 1
+		fi
+	done
+	IFS=$oldIFS # Controls over IFS
+}
+
+# boolean start_in_restore_format_loop(string filename, string protocol)
+# Iterate over a file with iptables-restore format, doing variable replacement
+# and initialization.
+# protocol=ipv4|ipv6
+start_in_restore_format_loop()
+{
+	local start_in_restore_format_loop_retval=0
+	local filename=$( get_absolute_path $1 )
+	local protocol=$2
+
+	if [ ! -r "$filename" ]
+	then
+		message "E: File not found $filename"
+		do_exit 1
+	fi
+
+	case "$protocol" in
+		ipv4)
+			source $VARS_IPV4 || return 1
+			source $VARS_IPSETV4 || return 1
+			;;
+		ipv6)
+			source $VARS_IPV6 || return 1
+			source $VARS_IPSETV6 || return 1
+			;;
+		*)
+			message "E: Bad call to function start_in_restore_format_loop()."
+			do_exit 1
+	esac
+
+	local rules=""
+	case "$protocol" in
+		ipv4)
+			# Keep the file in ram, so avoid overloading the HD
+			rules=$( cat $filename )
+			;;
+		ipv6)
+			# Keep the file in ram, so avoid overloading the HD
+			# Delete nat stuff, as is not supported... yet
+			rules=$( delete_nat_from_ruleset $filename )
+			# If deleting nat stuff failed, use the entire ruleset and let iptables-restore throw the error later
+			[ $? -ne 0 ] && rules=$( cat $filename )
+			;;
+	esac
+
+	# Iterate over variables ($FOO) on file
+	local list_of_words=`grep -v ^[[:space:]]*# $filename | tr [[:space:]] '\n' | fgrep \$ | sort -u | grep -v ^[[:space:]]*$`
+
+	if [ "$USE_PROGRESS_BAR" == "yes" ]
+	then
+		local amount_of_words=`wc -l <<< "$list_of_words"`
+		local cont=0
+	fi
+
+	for word in $list_of_words
+	do
+
+		if [ "$USE_PROGRESS_BAR" == "yes" ]
+		then
+			((cont++))
+			libprogressbar $cont $amount_of_words
+		fi
+
+		variable=$word
+		data=`eval "echo $word"`
+		data=$( echo $data | sed -e 's/\//\\\//g' ) #cleaning /
+		rules=$( sed s/"$variable"/"$data"/g <<< "$rules" 2>&1)
+		if [ $? -ne 0 ]
+		then
+			message "E: Errors found trying to replace with \`sed' the variable $variable in $protocol"
+			echo "Details:" >&2
+			echo " $rules" >&2
+			return 1
+		fi
+	done
+
+
+	# The loading operation is slow for rulesets bigger than 10K rules...
+	# Maybe adding a progressbar here would be nice
+	# but has to be while iptables-restore is running in background
+
+	case "$protocol" in
+		ipv4)
+			error_msg=$( $IPT_RESTORE <<< "$rules" 2>&1 )
+			if [ $? -ne 0 ]
+			then
+				message "E: Unable to load IPv4 ruleset."
+				echo "Details:" >&2
+				oldIFS=$IFS ; IFS=$'\n' #control over IFS
+				for line in $error_msg
+				do
+					echo " $line" >&2
+				done
+				IFS=$oldIFS
+				start_in_restore_format_loop_retval=1
+			fi
+			;;
+		ipv6)
+			# Maybe the NAT stuff was not deleted previously, so this is likely throwing errors
+			error_msg=$( $IP6T_RESTORE <<< "$rules" 2>&1 )
+			if [ $? -ne 0 ]
+			then
+				message "E: Unable to load IPv6 ruleset."
+				echo "Details:" >&2
+				oldIFS=$IFS ; IFS=$'\n' #control over IFS
+				for line in $error_msg
+				do
+					echo " $line" >&2
+				done
+				IFS=$oldIFS
+				start_in_restore_format_loop_retval=1
+			fi
+			;;
+	esac
+
+	return $start_in_restore_format_loop_retval
+}
+
+# text delete_nat_from_ruleset(string filename)
+# Delete all from *nat to COMMIT to have the ruleset ip6tables compliant
+delete_nat_from_ruleset()
+{
+	local delete_nat_from_ruleset_retval=0
+	local filename=$( get_absolute_path $1 )
+
+	if [ ! -r "$filename" ]
+	then
+		message "E: Function delete_nat_from_ruleset() called with invalid argument. File not found."
+		do_exit 1
+	fi
+
+	# I saw in other code another implementation of this, more efficient. Lets see..
+
+	local headingline=$( nl -ba $filename | grep -i ^[[:space:]]*[0-9]*[[:space:]]*"\*"nat | awk -F' ' '{print $1}' 2>/dev/null )
+	[[ $headingline =~ ^[0-9]$ ]] || delete_nat_from_ruleset_retval=1
+
+	if [ $delete_nat_from_ruleset_retval -eq 0 ]
+	then
+		# continue calcules
+		local list_of_tailingline=$( nl -ba $filename | grep ^[[:space:]]*[0-9]*[[:space:]]"COMMIT"$ | awk -F' ' '{print $1}' | tr '\n' ' ' 2>/dev/null )
+
+		# Calculate now what COMMIT line belongs to nat declaration
+		oldIFS=$IFS ; IFS=$' ' #control over IFS
+		local max_difference=$( wc -l $filename | cut -d' ' -f 1)
+		for num in $list_of_tailingline
+		do
+			local difference=$(( num - headingline ))
+			if [ $difference -lt $max_difference ]
+			then
+				max_difference=$difference
+				tailingline=$num
+			fi
+		done
+		IFS=$oldIFS
+		# When the for is over, whe know tailingline and headingline
+		sed ${headingline},${tailingline}d $filename # this is the text return
+		delete_nat_from_ruletes_retval=$?
+	fi
+
+	return $delete_nat_from_ruleset_retval
+}
+
+# boolean start_in_restore_format(string filename)
+start_in_restore_format()
+{
+
+	[ "$SHOW_OP_TIME" == "yes" ] && local initial_time=`date +%s`
+
+	local start_in_restore_format_retval=0
+	local filename=$( get_absolute_path $1 )
+
+	if [ ! -r "$filename" ]
+	then
+		message "E: File not found $filename"
+		do_exit 1
+	fi
+
+	# Set trap
+	trap "start_controlled_exit core" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
+	# Checking rulefile.
+	if ! check_rulefile $filename
+	then
+		message "E: Check failed. Don't starting."
+		do_exit 1 # EXIT POINT
+	fi
+
+	# Start IPv4
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Starting IPv4 ruleset"
+	if ! start_in_restore_format_loop $filename ipv4
+	then
+		start_in_restore_format_retval=$?
+		message "W: Errors found loading IPv4 ruleset $filename"
+		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
+		then
+			# do something to counter the fail
+			flush_chain "core"
+		fi
+	fi
+
+	# Start IPv6
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Starting IPv6 ruleset"
+	if ! start_in_restore_format_loop $filename ipv6
+	then
+		start_in_restore_format_retval=$?
+		message "W: Errors found loading IPv6 ruleset $filename"
+		if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
+		then
+			# do something to counter the fail
+			flush_chain "core"
+
+		fi
+	fi
+
+	# Finishing
+	if [ "$SHOW_OP_TIME" == "yes" ]
+	then
+		message "I: Operation time: $(( `date +%s` - initial_time )) seconds."
+	fi
+
+	return $start_in_restore_format_retval
+}
