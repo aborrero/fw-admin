@@ -155,7 +155,6 @@ check_files()
 	[ -d $CONF_DIR ] || { message "E: Dir not found [$CONF_DIR]" ; check_files_retval=1 ; }
 	[ -x $IPSET_CONF ] || { message "E: File not found [$IPSET_CONF]" ; check_files_retval=1 ; }
 	[ -d $DATA_DIR ] || { message "E: Dir not found [$DATA_DIR]" ; check_files_retval=1 ; }
-	[ -d ${WORKING_DIR}/run ] || { message "E: Dir not found [${WORKING_DIR}/run]" ; check_files_retval=1 ; }
 	[ -w $VARS_IPV6 ] || { message "E: File not found [$VARS_IPV6]" ; check_files_retval=1 ; }
 	[ -w $VARS_IPV4 ] || { message "E: File not found [$VARS_IPV4]" ; check_files_retval=1 ; }
 	[ -w $VARS_IPSETV6 ] || { message "E: File not found [$VARS_IPSETV6]" ; check_files_retval=1 ; }
