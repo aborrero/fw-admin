@@ -1,6 +1,22 @@
 src dir
 =======
 
-This dir contains all source code of fw-admin
+This dir contains all source code of `fw-admin`
 
 Includes: main binary, libs of functions, conffiles and man pages.
+
+
+To build the project, run:
+
+	$ make
+
+This will generate a tar.gz package with the code ordered and ready to be installed (under `/usr/local hierarchy`)
+
+To install the project, run:
+
+	# make install
+
+This will install libs, binarys, config files, and all other stuff in your system.
+
+In the other hand, if you are using a Debian system, it's recommended to build a debian binary package (.deb) and install it.
+See the dir `debian` for more info on this.
