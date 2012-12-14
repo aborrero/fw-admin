@@ -395,6 +395,11 @@ get_information()
         fi
 
 	get_input_abstracted_of_type $data $AUX_FILE
+	# Now, in $AUX_FILE we have:
+	#	/path/to/datafile: VAR=value #tag
+	#	/path/to/datafile: VAR=value #tag
+	#	/path/to/datafile: VAR=value #tag
+	#	/path/to/datafile: VAR=value #tag
 
  	# Querying now ipset
 	local list_of_matching_sets=""
@@ -403,6 +408,7 @@ get_information()
 	oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
 	for sset in $set_list
 	do
+		# Searching raw data inserted in fw-admin -i foo
 		if $IPSET -T $sset $data > /dev/null 2> /dev/null
 		then
 			list_of_matching_sets="$list_of_matching_sets $sset"
@@ -411,9 +417,9 @@ get_information()
 		if [ $flag_set_added -eq 0 ]
 		then
 	                # Searching with data behind # from data already found
-			for data in `cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq`
+			for comment_data in `cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq`
 			do
-				if $IPSET -T $sset $data > /dev/null 2> /dev/null
+				if $IPSET -T $sset $comment_data > /dev/null 2> /dev/null
 				then
 					list_of_matching_sets="$list_of_matching_sets $sset"
 					flag_set_added=1
@@ -423,9 +429,9 @@ get_information()
 		if [ $flag_set_added -eq 0 ]
 		then
 			# Seach with data after (=) from data already found
-			for data in `cat $AUX_FILE | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
+			for real_data in `cat $AUX_FILE | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
 			do
-				if $IPSET -T $sset $data > /dev/null 2> /dev/null
+				if $IPSET -T $sset $real_data > /dev/null 2> /dev/null
 				then
 					list_of_matching_sets="$list_of_matching_sets $sset"
 				fi
@@ -449,29 +455,10 @@ get_information()
 	if [ `cat $AUX_FILE | wc -l` -gt 0 ]
 	then
 		flag_data_shown=true
-		cat $AUX_FILE | sort -u | while read linea
+		cat $AUX_FILE | sort -u | while read line
 		do
-			message "$linea"
+			message "$line"
 		done
-	fi
-
-	echo -n "" > $AUX_FILE
-
-	if [ ! -z "$list_of_matching_sets" ]
-	then
-		oldIFS=$IFS ; IFS=$' '
-		for i in $list_of_matching_sets
-		do
-			$IPT_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE && flag_data_shown=true
-			$IP6T_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE && flag_data_shown=true
-		done
-		IFS=$oldIFS
-		local total_rules=`cat $AUX_FILE | wc -l`
-		if [ $total_rules -gt 0 ]
-		then
-			message "I: Rules regarding related sets:"
-			cat $AUX_FILE | sort -u | uniq
-		fi
 	fi
 
 	local iptables_query=`grep -i $data $VARS_IPV4 | grep -v VOID | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` # get value
@@ -507,10 +494,30 @@ get_information()
 		ipv6_rules_num=0
 	fi
 
+
 	total_rules=$(( rules_num_ipv4_nat + total_rules ))
 	total_rules=$(( total_rules + ipv4_rules_num ))
 	total_rules=$(( total_rules + ipv6_rules_num ))
 	[ "$total_rules" -gt 0 ] && message "I: ${C_BOLD}${total_rules}${C_NORMAL} related rules found"
+
+	echo -n "" > $AUX_FILE
+
+	if [ ! -z "$list_of_matching_sets" ]
+	then
+		oldIFS=$IFS ; IFS=$' '
+		for i in $list_of_matching_sets
+		do
+			$IPT_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE && flag_data_shown=true
+			$IP6T_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE && flag_data_shown=true
+		done
+		IFS=$oldIFS
+		local total_rules=$( wc -l $AUX_FILE )
+		if [ $total_rules -gt 0 ]
+		then
+			message "I: Rules regarding related sets:"
+			cat $AUX_FILE | sort -u | uniq
+		fi
+	fi
 
 
 	if [ "$flag_data_shown" != "true" ]
