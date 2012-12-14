@@ -1,0 +1,38 @@
+VERSION := 0.8
+TAR := fw-admin_$(VERSION).tar.gz
+INSTALL_PREFIX := usr/local
+ROOT := build/$(INSTALL_PREFIX)
+
+.PHONY : clean install
+
+install : $(TAR)
+	tar xzf $(TAR) -C /$(INSTALL_PREFIX)/
+
+$(TAR) : clean
+	# Deal with libs and bins
+	mkdir -p $(ROOT)/sbin/
+	mkdir -p $(ROOT)/lib/fw-admin.d/
+	cp fw-admin $(ROOT)/sbin/
+	cp lib/libfw-admin* $(ROOT)/lib/fw-admin.d/
+
+	# Deal with conffiles
+	mkdir -p $(ROOT)/etc/fw-admin.d/
+	mkdir -p $(ROOT)/etc/init.d/
+	cp conf/fw $(ROOT)/etc/init.d/
+	cp conf/fw-admin.conf $(ROOT)/etc/fw-admin.d/
+
+	# Deal with man pages
+	mkdir -p $(ROOT)/share/man/man5
+	mkdir -p $(ROOT)/share/man/man8
+	cp man/fw-admin.conf.5 $(ROOT)/share/man/man5/
+	gzip -9 $(ROOT)/share/man/man5/fw-admin.conf.5
+	cp man/fw-admin.8 $(ROOT)/share/man/man8/
+	gzip -9 $(ROOT)/share/man/man8/fw-admin.8
+
+	# Finishing
+	tar czf $(TAR) build/*
+	rm -rf build
+
+clean :
+	rm -rf build
+	rm -f $(TAR)
