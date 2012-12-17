@@ -16,6 +16,16 @@ VARS_IPV4=${VARS_IPV4:-"$DATA_DIR/iptables_vars_ipv4.bash"}
 VARS_IPSETV4=${VARS_IPSETV4:-"$DATA_DIR/ipset_vars_ipv4.bash"}
 VARS_IPSETV6=${VARS_IPSETV6:-"$DATA_DIR/ipset_vars_ipv6.bash"}
 
+if [ ! -d $DATA_DIR ]
+then
+	mkdir -p $DATA_DIR
+fi
+
+if [ ! -d $CONF_DIR ]
+then
+	mkdir -p $CONF_DIR
+fi
+
 if [ ! -e $VARS_IPV6 ]
 then
 	touch $VARS_IPV6
