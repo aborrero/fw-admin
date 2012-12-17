@@ -1,3 +1,16 @@
+fw-admin (0.9-1) stable; urgency=low
+
+  * Changed init.d script name to `fw'
+
+  * Added fw-admin --check-datafiles --install option, that will install
+  basic datafiles if not found.
+
+  * MINIMAL_AMOUNT_OF_RULES default is set to 0.
+
+  * Small tiny fixes, please see git commit history.
+
+ -- Arturo Borrero <aborrero@cica.es>  Mon, 17 Dec 2012 20:00:00 +0001
+
 fw-admin (0.8-1) stable; urgency=low
 
   * Deleted obsolete check.
