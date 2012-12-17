@@ -208,8 +208,24 @@ case "$1" in
 		do_exit $?
 		;;
 	"--check-datafiles" )
+		if [ ! -z "$2" ]
+		then
+			# If called: fw-admin --check-datafiles --install
+			if [ "$2" == "--install" ]
+			then
+				[ ! -d $DATA_DIR ] && mkdir -p $DATA_DIR
+				[ ! -d $CONF_DIR ] && mkdir -p $CONF_DIR
+				[ ! -e $VARS_IPV6 ] && touch $VARS_IPV6
+				[ ! -e $VARS_IPV4 ] && touch $VARS_IPV4
+				[ ! -e $VARS_IPSETV4 ] && touch $VARS_IPSETV4
+				[ ! -e $VARS_IPSETV6 ] && touch $VARS_IPSETV6
+			else
+				# If called with unknow argument
+				echo "W: Unknow argument $2" >&2
+			fi
+		fi
 		loadlibrary
-		check_datafiles $2 # --install
+		check_datafiles
 		do_exit $?
 		;;
 	"--help" )
