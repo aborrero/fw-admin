@@ -1,7 +1,8 @@
 VERSION := 0.8
 TAR := fw-admin_$(VERSION).tar.gz
-INSTALL_PREFIX := /usr/local
-ROOT := build/$(INSTALL_PREFIX)
+INSTALL_PREFIX := /
+ROOT := build
+
 
 .PHONY : clean install
 
@@ -19,17 +20,15 @@ $(TAR) : clean
 	cp conf/fw-admin.conf $(ROOT)/etc/fw-admin.d/
 
 	# Deal with man pages
-	mkdir -p $(ROOT)/share/man/man5
-	mkdir -p $(ROOT)/share/man/man8
-	cp man/fw-admin.conf.5 $(ROOT)/share/man/man5/
-	gzip -9 $(ROOT)/share/man/man5/fw-admin.conf.5
-	cp man/fw-admin.8 $(ROOT)/share/man/man8/
-	gzip -9 $(ROOT)/share/man/man8/fw-admin.8
+	mkdir -p $(ROOT)/usr/share/man/man5
+	mkdir -p $(ROOT)/usr/share/man/man8
+	cp man/fw-admin.conf.5 $(ROOT)/usr/share/man/man5/
+	gzip -9 $(ROOT)/usr/share/man/man5/fw-admin.conf.5
+	cp man/fw-admin.8 $(ROOT)/usr/share/man/man8/
+	gzip -9 $(ROOT)/usr/share/man/man8/fw-admin.8
 
 	# Finishing
-	cd build
-	tar czf $(TAR) *
-	cd ..
+	cd build && tar czf $(TAR) * && mv $(TAR) ../ && cd ..
 	rm -rf build
 
 clean :
@@ -37,5 +36,4 @@ clean :
 	rm -f $(TAR)
 
 install : $(TAR)
-	tar xzf $(TAR) -C $(INSTALL_PREFIX)/
-
+	tar xzf $(TAR) -C $(INSTALL_PREFIX)
