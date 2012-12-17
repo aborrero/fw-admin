@@ -1,12 +1,9 @@
 VERSION := 0.8
 TAR := fw-admin_$(VERSION).tar.gz
-INSTALL_PREFIX := usr/local
+INSTALL_PREFIX := /usr/local
 ROOT := build/$(INSTALL_PREFIX)
 
 .PHONY : clean install
-
-install : $(TAR)
-	tar xzf $(TAR) -C /$(INSTALL_PREFIX)/
 
 $(TAR) : clean
 	# Deal with libs and bins
@@ -30,9 +27,15 @@ $(TAR) : clean
 	gzip -9 $(ROOT)/share/man/man8/fw-admin.8
 
 	# Finishing
-	tar czf $(TAR) build/*
+	cd build
+	tar czf $(TAR) *
+	cd ..
 	rm -rf build
 
 clean :
 	rm -rf build
 	rm -f $(TAR)
+
+install : $(TAR)
+	tar xzf $(TAR) -C $(INSTALL_PREFIX)/
+
