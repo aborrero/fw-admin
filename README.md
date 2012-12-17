@@ -5,6 +5,23 @@ Custom tool for admin netfilter-based firewalls in dual stack mode (IPv4 &amp;&a
 
 Please, take a look at the [wiki](https://github.com/aborrero/fw-admin/wiki/).
 
+Install
+=======
+
+git-clone the repository and do make:
+
+	$ git clone git://github.com/aborrero/fw-admin.git
+	$ cd fw-admin/src
+	$ make
+	# make install
+
+If you are using a Debian-based system, you can build a `.deb` package, and then install it
+
+	$ git clone git://github.com/aborrero/fw-admin.git
+	$ cd fw-admin/debian
+	# make
+	# dpkg -i fw-admin_version_all.deb
+
 Features
 ========
 
