@@ -1,5 +1,4 @@
 #!/bin/bash
-IPT=/sbin/iptables ##ignore##
 VOID=255.255.255.255 ##ignore##
 ICMP_TYPE=--icmp-type ##ignore##
 P_ICMP=icmp ##ignore##

@@ -1,5 +1,4 @@
 #!/bin/bash
-IPT=/sbin/ip6tables ##ignore##
 VOID=ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ##ignore##
 ICMP_TYPE=--icmpv6-type ##ignore##
 P_ICMP=icmpv6 ##ignore##
