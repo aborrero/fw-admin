@@ -26,7 +26,7 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-VERSION="0.8"
+VERSION="0.9"
 
 CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
 LIB="/usr/lib/fw-admin.d/libfw-admin"
@@ -63,7 +63,7 @@ help()
 	echo -e "				Using without arguments, flush entire ruleset."
 	echo -e " ${C_BOLD}--ipset-reload${C_NORMAL}			Reload IPSET kernel data."
 	echo -e " ${C_BOLD}--check-datafiles${C_NORMAL} [--install]	Check datafiles for errors."
-	echo -e "							Using --install will produce a basic datafile installation."
+	echo -e "				Using --install will produce a basic datafile installation."
 	echo -e " ${C_BOLD}--help${C_NORMAL}				Show this message."
 	return 0
 }
