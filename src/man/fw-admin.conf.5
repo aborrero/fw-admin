@@ -1,4 +1,4 @@
-.TH fw-admin.conf 5 "27 Sep 2012"
+.TH fw-admin.conf 5 "17 Dec 2012"
 .SH NAME
 fw-admin.conf \- Main config file for the tool fw-admin
 .SH DESCRIPTION
@@ -29,7 +29,7 @@ When calling \fBfw-admin -s\fP it will show a message ([fw-up] or [fw-down]) fro
 
 Also, that message is used by the init.d script.
 
-Values: integer > 0 Default: 40
+Values: integer >= 0 Default: 0
 .TP
 \fB$CONF_DIR\fP
 The directory for rules.
