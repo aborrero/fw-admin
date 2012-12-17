@@ -7,11 +7,12 @@ update-rc.d fw defaults >/dev/null
 
 if [ "$1" == "configure" ] && [ -z "$2" ]
 then
-	# Only start service if is a new installation, no update.
-	invoke-rc.d fw start
-
 	# Do a basic installation of datafiles
 	fw-admin --check-datafiles --install
+
+	# Only start service if is a new installation, no update.
+	invoke-rc.d fw start
 fi
+
 
 exit 0

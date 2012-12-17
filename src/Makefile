@@ -19,6 +19,7 @@ $(TAR) : clean
 	mkdir -p $(ROOT)/etc/init.d/
 	cp conf/fw $(ROOT)/etc/init.d/
 	cp conf/fw-admin.conf $(ROOT)/etc/fw-admin.d/
+	cp -R conf/rules $(ROOT)/etc/fw-admin.d/
 
 	# Deal with man pages
 	mkdir -p $(ROOT)/usr/share/man/man5
