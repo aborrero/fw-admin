@@ -215,10 +215,10 @@ case "$1" in
 			then
 				[ ! -d $DATA_DIR ] && mkdir -p $DATA_DIR
 				[ ! -d $CONF_DIR ] && mkdir -p $CONF_DIR
-				[ ! -e $VARS_IPV6 ] && touch $VARS_IPV6
-				[ ! -e $VARS_IPV4 ] && touch $VARS_IPV4
-				[ ! -e $VARS_IPSETV4 ] && touch $VARS_IPSETV4
-				[ ! -e $VARS_IPSETV6 ] && touch $VARS_IPSETV6
+				[ ! -e $VARS_IPV6 ] && echo "#!/bin/bash" > $VARS_IPV6 && echo "VOID=ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ##ignore##" >> $VARS_IPV6
+				[ ! -e $VARS_IPV4 ] && echo "#!/bin/bash" > $VARS_IPV4 && echo "VOID=255.255.255.255 ##ignore##" >> $VARS_IPV4
+				[ ! -e $VARS_IPSETV4 ] && echo "#!/bin/bash" > $VARS_IPSETV4
+				[ ! -e $VARS_IPSETV6 ] && echo "#!/bin/bash" > $VARS_IPSETV6
 			else
 				# If called with unknow argument
 				echo "W: Unknow argument $2" >&2
