@@ -1,4 +1,4 @@
-.TH FW-ADMIN 8 "29 Nov 2012"
+.TH FW-ADMIN 8 "17 Dec 2012"
 .SH NAME
 fw-admin \- Herramienta para manejar un firewall basado en iptables.
 .SH SYNOPSIS
@@ -18,7 +18,7 @@ fw-admin \- Herramienta para manejar un firewall basado en iptables.
 
 \fBfw-admin --ipset-reload\fP [--nocheck]
 
-\fBfw-admin --check-datafiles\fP
+\fBfw-admin --check-datafiles\fP [--install]
 
 \fBfw-admin --help\fP
 
@@ -173,10 +173,14 @@ El procedimiento es similar a la operacion \fB--start\fP
 
 La opción \fB--nocheck\fP evade los checkeos de variables. Esta pensada para casos donde es necesaria una operación rápida.
 .TP
-\fB--check-datafiles\fP
+\fB--check-datafiles [--install]\fP
+
+Cuando esta opción es llamada con el parámetro adicional --install, se hará un despligue rápido de los datafiles: sin contenido, solo se crearán los ficheros.
+
 Se realizarán checkeos de integridad sobre los ficheros de datos, buscando lineas inválidas y diferencias entre el numero de variables guardadas.
 
 Si no hay ningún error no se mostrará ningún mensaje.
+
 .TP
 \fB--help\fP
 Muestra la ayuda, de rápida referencia.
@@ -359,5 +363,5 @@ Debe visitar ese sitio para reportar bugs, contribuir y/o hacer comentarios.
 
 El autor original de esta herramienta y sistema (y página de manual) fue \fBArturo Borrero Gonzalez <aborrero@cica.es>\fP.
 
-Durante el desarrollo y testeo, participaron \fBMarina Moreda Rodrigez <marina.moreda@cica.es>\fP, \fBPedro Gallego Torrecillas <pgallego@cica.es>\fP, y también 
-\fBYassine Mohamed Ahram <yahram@cica.es>\fP.
+Durante el desarrollo y testeo, participaron \fBMarina Moreda Rodrigez <marina.moreda@cica.es>\fP, \fBPedro Gallego Torrecillas <pgallego@cica.es>\fP, 
+\fBRafael Garcia Martín <rafael.garcia@cica.es>\fP y también \fBYassine Mohamed Ahram <yahram@cica.es>\fP.

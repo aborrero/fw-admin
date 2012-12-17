@@ -62,7 +62,8 @@ help()
 	echo -e "	if FORMAT=script	chainName is the chain you would like to flush."
 	echo -e "				Using without arguments, flush entire ruleset."
 	echo -e " ${C_BOLD}--ipset-reload${C_NORMAL}			Reload IPSET kernel data."
-	echo -e " ${C_BOLD}--check-datafiles${C_NORMAL}		Check datafiles for errors."
+	echo -e " ${C_BOLD}--check-datafiles${C_NORMAL} [--install]	Check datafiles for errors."
+	echo -e "							Using --install will produce a basic datafile installation."
 	echo -e " ${C_BOLD}--help${C_NORMAL}				Show this message."
 	return 0
 }
@@ -208,7 +209,7 @@ case "$1" in
 		;;
 	"--check-datafiles" )
 		loadlibrary
-		check_datafiles # without parameters
+		check_datafiles $2 # --install
 		do_exit $?
 		;;
 	"--help" )

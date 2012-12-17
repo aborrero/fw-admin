@@ -2,49 +2,16 @@
 
 set -e
 
+# Add service
 update-rc.d fw defaults >/dev/null
 
-#
-# Install basic file deployment
-#
-source /etc/fw-admin.d/fw-admin.conf
-CONF_DIR=${CONF_DIR:-"/etc/fw-admin.d/rules"}
-IPSET_CONF=${IPSET_CONF:-"$CONF_DIR/sets"}
-DATA_DIR=${DATA_DIR:-"/var/lib/fw-admin"}
-VARS_IPV6=${VARS_IPV6:-"$DATA_DIR/iptables_vars_ipv6.bash"}
-VARS_IPV4=${VARS_IPV4:-"$DATA_DIR/iptables_vars_ipv4.bash"}
-VARS_IPSETV4=${VARS_IPSETV4:-"$DATA_DIR/ipset_vars_ipv4.bash"}
-VARS_IPSETV6=${VARS_IPSETV6:-"$DATA_DIR/ipset_vars_ipv6.bash"}
+if [ "$1" == "configure" ] && [ -z "$2" ]
+then
+	# Only start service if is a new installation, no update.
+	invoke-rc.d fw start
 
-if [ ! -d $DATA_DIR ]
-then
-	mkdir -p $DATA_DIR
-fi
-
-if [ ! -d $CONF_DIR ]
-then
-	mkdir -p $CONF_DIR
-fi
-
-if [ ! -e $VARS_IPV6 ]
-then
-	touch $VARS_IPV6
-fi
-if [ ! -e $VARS_IPV4 ]
-then
-	touch $VARS_IPV4
-fi
-if [ ! -e $VARS_IPSETV4 ]
-then
-	touch $VARS_IPSETV4
-fi
-if [ ! -e $VARS_IPSETV6 ]
-then
-	touch $VARS_IPSETV6
-fi
-if [ ! -e $IPSET_CONF ]
-then
-	touch $IPSET_CONF
+	# Do a basic installation of datafiles
+	fw-admin --check-datafiles --install
 fi
 
 exit 0

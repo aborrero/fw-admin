@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# This file is intended to hold the IPSET configuration.
+# If you don't use IPSET, just ignore this file.
+
+
+# Flush all sets
+$IPSET flush

@@ -38,3 +38,5 @@ clean :
 
 install : $(TAR)
 	tar xzf $(TAR) -C $(INSTALL_PREFIX)
+	# Do a basic installation of datafiles
+	fw-admin --check-datafiles --install

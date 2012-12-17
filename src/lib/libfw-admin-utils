@@ -287,11 +287,26 @@ check_duplicate_ipset_ip_variables()
 	return $check_duplicate_ipset_ip_variables_retval
 }
 
-# boolean check_datafiles()
+# boolean check_datafiles(string install)
 # Check what variables are missing in what datafiles and the format is correct.
 check_datafiles()
 {
 	local retval=0
+	local install=$2
+
+	# If called: fw-admin --check-datafiles --install
+	if [ "$install" == "--install" ]
+	then
+		[ ! -d $DATA_DIR ] && mkdir -p $DATA_DIR
+		[ ! -d $CONF_DIR ] && mkdir -p $CONF_DIR
+		[ ! -e $VARS_IPV6 ] && touch $VARS_IPV6
+		[ ! -e $VARS_IPV4 ] && touch $VARS_IPV4
+		[ ! -e $VARS_IPSETV4 ] && touch $VARS_IPSETV4
+		[ ! -e $VARS_IPSETV6 ] && touch $VARS_IPSETV6
+	else
+		# If called with unknow argument
+		[ ! -z "$install" ] && echo "W: Unknow argument $install" >&2
+	fi
 
 	# Checking format 1: trailing comment
 	check_datafile_format $VARS_IPV4 1 || retval=$?
