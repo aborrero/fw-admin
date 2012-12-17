@@ -1,0 +1,12 @@
+Package: fw-admin
+Version: 0.8-1
+Section: x11
+Priority: optional
+Architecture: all
+Depends: iptables ( >= 1.4 ) , bash ( >= 4 ) , ipset ( >= 6.12.1), dnsutils
+Installed-Size: 268 K
+Maintainer: Arturo Borrero <aborrero@cica.es>
+Homepage: https://github.com/aborrero/fw-admin
+Description: Custom tool for managing a firewall
+ This is a custom tool for managing a iptables firewall in dual stack mode.
+ More info at homepage.

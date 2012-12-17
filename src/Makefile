@@ -7,11 +7,12 @@ ROOT := build
 .PHONY : clean install
 
 $(TAR) : clean
+
 	# Deal with libs and bins
-	mkdir -p $(ROOT)/sbin/
-	mkdir -p $(ROOT)/lib/fw-admin.d/
-	cp fw-admin $(ROOT)/sbin/
-	cp lib/libfw-admin* $(ROOT)/lib/fw-admin.d/
+	mkdir -p $(ROOT)/usr/sbin/
+	mkdir -p $(ROOT)/usr/lib/fw-admin.d/
+	cp fw-admin $(ROOT)/usr/sbin/
+	cp lib/libfw-admin* $(ROOT)/usr/lib/fw-admin.d/
 
 	# Deal with conffiles
 	mkdir -p $(ROOT)/etc/fw-admin.d/
