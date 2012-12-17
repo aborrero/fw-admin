@@ -9,7 +9,7 @@ To build the debian package, run:
 
 	# make
 
-Make sure you have lintian, as the Makefile will call it to check the binary package.
+Make sure you have `lintian`, as the Makefile will call it to check the binary package.
 
 If you want to test `fw-admin` without making a debian package (i.e. you are in rpm-based system)
 go to `/src` dir.

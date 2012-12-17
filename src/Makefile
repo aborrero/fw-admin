@@ -29,7 +29,7 @@ $(TAR) : clean
 	gzip -9 $(ROOT)/usr/share/man/man8/fw-admin.8
 
 	# Finishing
-	cd build && tar czf $(TAR) * && mv $(TAR) ../ && cd ..
+	cd build && tar czf $(TAR) * --exclude-vcs && mv $(TAR) ../ && cd ..
 	rm -rf build
 
 clean :
