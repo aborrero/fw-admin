@@ -29,7 +29,7 @@ endif
 	chown -R root:root fw-admin_$(VERSION)_all/*
 	dpkg-deb -b fw-admin_$(VERSION)_all
 	rm -rf fw-admin_$(VERSION)_all
-	lintian -i --pedantic $(PKG)
+	lintian -i $(PKG)
 
 clean :
 ifneq ($(shell whoami), root)
