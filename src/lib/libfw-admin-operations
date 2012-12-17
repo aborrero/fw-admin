@@ -92,7 +92,7 @@ start_in_script_format()
 	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Starting IPv4 rules"
 
 	# Start the for loop only if success loading datafiles
-	if source $VARS_IPV4 && source $VARS_IPSETV4
+	if source $VARS_IPV4 && source $VARS_IPSETV4 && IPT=$IP4T
 	then
 		start_in_script_format_loop $vlan 4 || start_retval=$?
 	else
@@ -114,7 +114,7 @@ start_in_script_format()
 		[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Starting IPv6 rules"
 
 		# Start the for loop only if success loading datafiles
-		if source $VARS_IPV6 && source $VARS_IPSETV6
+		if source $VARS_IPV6 && source $VARS_IPSETV6 && IPT=$IP6T
 		then
 			start_in_script_format_loop $vlan 6 || start_retval=$?
 		else
@@ -211,35 +211,35 @@ flush_chain()
 		if [[ $chain =~ ^"core" ]]
 		then
 			# Flushing entire firewall
-			$IPT_LOCAL -F 2>/dev/null || flush_chain_retval=1
-			$IPT_LOCAL -F -t nat 2>/dev/null || flush_chain_retval=1
-			$IPT_LOCAL -X 2>/dev/null || flush_chain_retval=1
-			$IP6T_LOCAL -F 2>/dev/null || flush_chain_retval=1
-			$IP6T_LOCAL -X 2>/dev/null || flush_chain_retval=1
+			$IPT -F 2>/dev/null || flush_chain_retval=1
+			$IPT -F -t nat 2>/dev/null || flush_chain_retval=1
+			$IPT -X 2>/dev/null || flush_chain_retval=1
+			$IP6T -F 2>/dev/null || flush_chain_retval=1
+			$IP6T -X 2>/dev/null || flush_chain_retval=1
 
 			if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 			then
-				$IPT_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-				$IPT_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-				$IPT_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-				$IP6T_LOCAL -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-				$IP6T_LOCAL -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-				$IP6T_LOCAL -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IPT -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IPT -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IPT -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP6T -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP6T -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP6T -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 			fi
 		else
 			if [[ $chain =~ "nat" ]]
 			then
 				# Flushing nat rules
-				$IPT_LOCAL -F -t nat 2>/dev/null || flush_chain_retval=1
+				$IPT -F -t nat 2>/dev/null || flush_chain_retval=1
 			else
 				# No nat rules
-				$IPT_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
-				$IP6T_LOCAL -F $chain 2>/dev/null || flush_chain_retval=1
+				$IPT -F $chain 2>/dev/null || flush_chain_retval=1
+				$IP6T -F $chain 2>/dev/null || flush_chain_retval=1
 
 				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 				then
-					$IPT_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-					$IP6T_LOCAL -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IPT -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP6T -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 				fi
 			fi
 		fi
@@ -254,7 +254,7 @@ delete_transaccional_rules()
 	local delete_transaccional_rules_retval=0
 	local cont=0
 
-	# Recibe como parametro una vlan o nat
+	# vlan|nat|core as a parameter
 	if [ ! -z "$1" ]
 	then
 		if grep -i core <<< $1 > /dev/null

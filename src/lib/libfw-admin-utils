@@ -98,8 +98,8 @@ stats()
 	echo -e " Declared ipset variables:\t $vars_ipset_ipv4 \t $vars_ipset_ipv6"
 	echo ""
 
-	[[ $MINIMAL_AMOUNT_OF_RULES =~ ^[0-9]+$ ]] || MINIMAL_AMOUNT_OF_RULES=40
-	if [ $num_of_ipv4_rules -gt $MINIMAL_AMOUNT_OF_RULES ] || [ $num_of_ipv6_rules -gt $MINIMAL_AMOUNT_OF_RULES ]
+	if [ $num_of_ipv4_rules -ge $MINIMAL_AMOUNT_OF_RULES ] || [ $num_of_ipv6_rules -ge $MINIMAL_AMOUNT_OF_RULES ] \
+	|| [ $(( num_of_ipv4_rules + num_of_ipv6_rules )) -ge $MINIMAL_AMOUNT_OF_RULES ]
 	then
 		echo " [fw up] The firewall appears to be up and running (More than $MINIMAL_AMOUNT_OF_RULES rules in kernel)."
 	else

@@ -34,16 +34,12 @@ THIS="`uname -n`"
 
 IPSET="/usr/sbin/ipset"
 IPT="/sbin/iptables"
+IP4T=$IPT
 IP6T="/sbin/ip6tables"
-IPSET_LOCAL="/usr/sbin/ipset"
-IPT_LOCAL="/sbin/iptables"
-IP6T_LOCAL="/sbin/ip6tables"
 IPT_SAVE="/sbin/iptables-save"
 IPT_RESTORE="/sbin/iptables-restore"
 IP6T_SAVE="/sbin/ip6tables-save"
 IP6T_RESTORE="/sbin/ip6tables-restore"
-CONNTRACKD="/usr/sbin/conntrackd"
-CONNTRACK="/usr/sbin/conntrack"
 DIG="/usr/bin/dig"
 
 AUX_FILE="`mktemp`"

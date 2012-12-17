@@ -5,7 +5,7 @@
 # In big firewalls, is intended to hold all netfilter structure declaration
 # such chains, logs, default policy and so on.
 # For small firewalls, you could just have here your ruleset
-$IPT -x
+$IPT -X
 $IPT -F
 $IPT -P INPUT ACCEPT
 $IPT -P OUTPUT ACCEPT
