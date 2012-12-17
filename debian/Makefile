@@ -20,6 +20,7 @@ endif
 	# Source code
 	cd ../src ; make ; cd ../debian
 	tar xzf ../src/fw-admin_$(SOURCE_VERSION).tar.gz -C fw-admin_$(VERSION)_all/
+	rm ../src/fw-admin_$(SOURCE_VERSION).tar.gz
 	mkdir -p fw-admin_$(VERSION)_all/usr/share/doc/fw-admin/
 	gzip -9 -c changelog.Debian > fw-admin_$(VERSION)_all/usr/share/doc/fw-admin/changelog.Debian.gz
 	cp copyright fw-admin_$(VERSION)_all/usr/share/doc/fw-admin/
