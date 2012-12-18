@@ -8,6 +8,7 @@ fi
 
 echo "##################################################################"
 echo "W: Runing this testbench will break your current fw-admin system!!"
+echo "W: It is intended to run while developing the code of fw-admin."
 read -p "Continue? [N/y] " continue
 if [ -z "$continue" ] || [ $continue != y ]
 then
@@ -62,7 +63,7 @@ then
 	echo "E: Error building deb package."
 fi
 echo -n "."
-dpkg -i fw-admin_*.deb
+dpkg -i fw-admin_*.deb >&2
 if [ $? -ne 0 ]
 then
 	echo ""
@@ -105,7 +106,7 @@ then
 fi
 
 # Sets
-SETS="test1 test2 test3 test4 test5"
+SETS="test1 test2 test3 test4 test5 asd asdasd test123"
 for i in $SETS
 do
 	echo -n "."
