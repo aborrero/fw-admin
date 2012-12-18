@@ -521,18 +521,37 @@ delete_data()
 	fi
 
 	# IP/FQDN variables were not found. Maybe we are triying to delete a IPSET variable?
-	if egrep ^[[:space:]]*${data_to_delete}= $VARS_IPSETV4 > /dev/null &&  egrep ^[[:space:]]*${data_to_delete}= $VARS_IPSETV6 > /dev/null
+
+	# Delete uppercase variable
+	local data_to_delete_upper=$( tr [:lower:] [:upper:] <<< $data_to_delete )
+	if egrep ^[[:space:]]*${data_to_delete_upper}= $VARS_IPSETV4 > /dev/null &&  egrep ^[[:space:]]*${data_to_delete_upper}= $VARS_IPSETV6 > /dev/null
 	then
 		# We found data to delete in IPSET datafiles!!
-		read -p "-> Delete the ipset variable \"${data_to_delete}\"? [y/N]: "
+		read -p "-> Delete the ipset variable \"${data_to_delete_upper}\"? [y/N]: "
 		if [ "$REPLY" == "y" ] # REPLY is a special variable by read
 		then
-			delete_from_datafile $data_to_delete $VARS_IPSETV4 \
-				|| { message "W: Something went wrong when deleting ${data_to_delete} from $VARS_IPSETV4" ; delete_data_retval=1 ; }
-			delete_from_datafile $data_to_delete $VARS_IPSETV6 \
-				|| { message "W: Something went wrong when deleting ${data_to_delete} from $VARS_IPSETV6" ; delete_data_retval=1 ; }
-			message "W: Deleted ipset variable \"${data_to_delete}\""
+			delete_from_datafile $data_to_delete_upper $VARS_IPSETV4 \
+				|| { message "W: Something went wrong when deleting ${data_to_delete_upper} from $VARS_IPSETV4" ; delete_data_retval=1 ; }
+			delete_from_datafile $data_to_delete_upper $VARS_IPSETV6 \
+				|| { message "W: Something went wrong when deleting ${data_to_delete_upper} from $VARS_IPSETV6" ; delete_data_retval=1 ; }
+			message "W: Deleted ipset variable \"${data_to_delete_upper}\""
 			flag_something_deleted=1
+		fi
+	else
+		# Delete unknow case variable
+		if egrep ^[[:space:]]*${data_to_delete}= $VARS_IPSETV4 > /dev/null &&  egrep ^[[:space:]]*${data_to_delete}= $VARS_IPSETV6 > /dev/null
+		then
+			# We found data to delete in IPSET datafiles!!
+			read -p "-> Delete the ipset variable \"${data_to_delete}\"? [y/N]: "
+			if [ "$REPLY" == "y" ] # REPLY is a special variable by read
+			then
+				delete_from_datafile $data_to_delete $VARS_IPSETV4 \
+					|| { message "W: Something went wrong when deleting ${data_to_delete} from $VARS_IPSETV4" ; delete_data_retval=1 ; }
+				delete_from_datafile $data_to_delete $VARS_IPSETV6 \
+					|| { message "W: Something went wrong when deleting ${data_to_delete} from $VARS_IPSETV6" ; delete_data_retval=1 ; }
+				message "W: Deleted ipset variable \"${data_to_delete}\""
+				flag_something_deleted=1
+			fi
 		fi
 	fi
 
