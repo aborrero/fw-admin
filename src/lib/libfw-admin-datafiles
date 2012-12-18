@@ -487,9 +487,11 @@ delete_data()
 	then
 		# Yes, is filled with lines like this:
 		#/path/to/datafile: VAR=data #comment
+		#/path/to/datafile: VAR=data #comment
+		#/path/to/datafile: VAR=data
 
-		# Iterate over the list of vars
-		for var in $( awk -F'=' '{print $1}' $AUX_FILE | awk -F' ' '{print $2}' | sort | uniq )
+		# Iterate over the list of vars, only in IP/FQDN datafiles
+		for var in $( egrep ^$VARS_IPV4\|^$VARS_IPV6 $AUX_FILE | awk -F'=' '{print $1}' | awk -F' ' '{print $2}' | sort | uniq )
 		do
 			read -p "-> Delete the IP/FQDN variable \"${var}\"? [y/N]: "
 			if [ "$REPLY" == "y" ] # REPLY is a special variable by read
@@ -502,41 +504,21 @@ delete_data()
 				flag_something_deleted=1
 			fi
 		done
-	fi
 
-	# IP/FQDN variables were not found. Maybe we are triying to delete a IPSET variable?
-
-	# Delete uppercase variable
-	local data_to_delete_upper=$( tr [:lower:] [:upper:] <<< $data_to_delete )
-	if egrep ^[[:space:]]*${data_to_delete_upper}= $VARS_IPSETV4 > /dev/null &&  egrep ^[[:space:]]*${data_to_delete_upper}= $VARS_IPSETV6 > /dev/null
-	then
-		# We found data to delete in IPSET datafiles!!
-		read -p "-> Delete the ipset variable \"${data_to_delete_upper}\"? [y/N]: "
-		if [ "$REPLY" == "y" ] # REPLY is a special variable by read
-		then
-			delete_from_datafile $data_to_delete_upper $VARS_IPSETV4 \
-				|| { message "W: Something went wrong when deleting ${data_to_delete_upper} from $VARS_IPSETV4" ; delete_data_retval=1 ; }
-			delete_from_datafile $data_to_delete_upper $VARS_IPSETV6 \
-				|| { message "W: Something went wrong when deleting ${data_to_delete_upper} from $VARS_IPSETV6" ; delete_data_retval=1 ; }
-			message "W: Deleted ipset variable \"${data_to_delete_upper}\""
-			flag_something_deleted=1
-		fi
-	else
-		# Delete unknow case variable
-		if egrep ^[[:space:]]*${data_to_delete}= $VARS_IPSETV4 > /dev/null &&  egrep ^[[:space:]]*${data_to_delete}= $VARS_IPSETV6 > /dev/null
-		then
-			# We found data to delete in IPSET datafiles!!
-			read -p "-> Delete the ipset variable \"${data_to_delete}\"? [y/N]: "
+		# Iterate over the list of vars, only in IPSET datafiles
+		for var in $( egrep ^$VARS_IPSETV4\|^$VARS_IPSETV6 $AUX_FILE | awk -F'=' '{print $1}' | awk -F' ' '{print $2}' | sort | uniq )
+		do
+			read -p "-> Delete the IPSET variable \"${var}\"? [y/N]: "
 			if [ "$REPLY" == "y" ] # REPLY is a special variable by read
 			then
-				delete_from_datafile $data_to_delete $VARS_IPSETV4 \
-					|| { message "W: Something went wrong when deleting ${data_to_delete} from $VARS_IPSETV4" ; delete_data_retval=1 ; }
-				delete_from_datafile $data_to_delete $VARS_IPSETV6 \
-					|| { message "W: Something went wrong when deleting ${data_to_delete} from $VARS_IPSETV6" ; delete_data_retval=1 ; }
-				message "W: Deleted ipset variable \"${data_to_delete}\""
+				delete_from_datafile $var $VARS_IPSETV4 \
+					|| { message "W: Something went wrong when deleting ${var} from $VARS_IPSETV4" ; delete_data_retval=1 ; break ; }
+				delete_from_datafile $var $VARS_IPSETV6 \
+					|| { message "W: Something went wrong when deleting ${var} from $VARS_IPSETV6" ; delete_data_retval=1 ; break ; }
+				message "W: Deleted IPSET variable \"${var}\""
 				flag_something_deleted=1
 			fi
-		fi
+		done
 	fi
 
 	if [ $flag_something_deleted -eq 0 ]
