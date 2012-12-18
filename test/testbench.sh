@@ -28,12 +28,20 @@ fail=0
 echo "I: Testing building and installation"
 
 echo -n "."
-debMakeVersion=$( grep ^"SOURCE_VERSION :=" ../debian/Makefile | awk -F'=' '{print $2}' )
-srcMakeVersion=$( grep ^"VERSION :=" ../src/Makefile | awk -F'=' '{print $2}' )
-codeVersion=$( grep "VERSION=" ../src/ | awk -F'=' '{print $2}' )
-if [ "$codeVersion" != "$srcMakeVersion" ] && [ "$codeVersion" != "$debMakeVErsion" ]
+debMakeVersion=$( grep ^"SOURCE_VERSION :=" ../debian/Makefile | awk -F'=' '{print $2}' | tr -d [:space:] )
+srcMakeVersion=$( grep ^"VERSION :=" ../src/Makefile | awk -F'=' '{print $2}' | tr -d [:space:] )
+codeVersion=$( grep -R "VERSION=" ../src/* | awk -F'=' '{print $2}' | tr -d \" | tr -d [:space:] )
+debPkgVersion=$( grep ^fw-admin ../debian/changelog.Debian | head -1 | awk -F'(' '{print $2}' | awk -F')' '{print $1}' | tr -d [:space:] )
+debControlVersion=$( grep ^Version: ../debian/control | awk -F' ' '{print $2}' | tr -d [:space:] )
+
+if [ "$codeVersion" != "$srcMakeVersion" ] || [ "$codeVersion" != "$debMakeVersion" ] || [ "$debPkgVersion" != "$debControlVersion" ]
 then
 	echo ""
+	echo debMakeVersion $debMakeVersion >&2
+	echo srcMakeVersion $srcMakeVersion >&2
+	echo codeVersion $codeVersion >&2
+	echo debPkgVersion $debPkgVersion >&2
+	echo debControlVersion $debControlVersion >&2
 	echo "E: Version mismatch!"
 fi
 
