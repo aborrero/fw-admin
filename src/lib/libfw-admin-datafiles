@@ -26,7 +26,6 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#3
 
 ################################################################
 ################################################################
@@ -99,13 +98,8 @@ is_ip_fqdn_valid()
 # Funcion que valora si un fqdn es del dominio cica.es
 is_domain_fqdn()
 {
-	local retval=1
-	grep "$DOMAIN"$ <<< $1 > /dev/null
-	if [ $? -eq 0 ]
-	then
-		retval=0
-	fi
-	return $retval
+	grep "$DOMAIN"$ <<< $1 > /dev/null && return 0
+	return 1
 }
 
 
@@ -151,47 +145,37 @@ reload_variable_values()
 	return $reload_variable_values_retval
 }
 
+# string string_to_varname(string data)
+# Transform a string to var name: lower case to upper case,  - to _, : to _  and so
+string_to_varname()
+{
+	local data=$1
+	echo $( tr [:lower:] [:upper:] <<< $data | tr '-' '_' | tr ':' '_' | tr '.' '_' ) && return 0 # the string return
+	return 1 # error if this is reached
+}
+
 # string get_variable_name(string data)
 # Used to know what variable name correspond to the given data
 get_variable_name()
 {
+	local data=$1
+
 	# Check for empty argument
-	if [ -z "$1" ]
+	if [ -z "$data" ]
 	then
 		message "E: empty argument in function get_variable_name()"
 		do_exit 1
 	fi
 
-	# Check if the data is IPv4
-	if is_ipv4_valid $1
-	then
-		# return
-		echo v$1 | tr '.' '_'
-		return 0
-	fi
+	# If start with a number, mandatory change it and start with 'V'
+	# so it ends $V123123
+	[[ $data =~ ^[0-9] ]] && data="V${data}"
 
-	# Check if the data is IPv6
-	if is_ipv6_valid $1
-	then
-		# return
-		echo v$1 | tr ':' '_'
-		return 0
-	fi
+	# if is from $DOMAIN, delete $DOMAIN
+	is_domain_fqdn $data && data=`echo $data | awk -F".$DOMAIN" '{print $1}'`
 
-	# Check if the data is FQDN
-	if is_fqdn_valid $1
-	then
-		local name="$1"
-		# if is from $DOMAIN, delete $DOMAIN
-		is_domain_fqdn $1 && name=`echo $1 | awk -F".$DOMAIN" '{print $1}'`
-		# if starts with a number, starts now with 'v'
-		[[ $name =~ ^[0-9] ]] && name="v${name}"
-		# and then return
-		echo $name | tr [:lower:] [:upper:] | tr '.' '_' | tr '-' '_'
-		return 0
-	fi
-
-	return 1
+	echo $( string_to_varname $data ) && return 0 # the string return
+	return 1 # error if this is reached
 }
 
 # ip get_ip_from_fqdn(string tipo_ip, string fqdn, int recursivityLevel)

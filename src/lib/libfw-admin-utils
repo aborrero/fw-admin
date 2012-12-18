@@ -141,7 +141,6 @@ check_datafile_format()
 		if [ "$2" == "2" ]
 		then
 			# format 2 without trailing comment
-
 			# invalid lines
 			local invalid_lines=`\
 				cat $1 | nl -ba \
@@ -407,7 +406,7 @@ get_information()
 	for sset in $set_list
 	do
 		# Searching raw data inserted in fw-admin -i foo
-		if $IPSET -T $sset $data > /dev/null 2> /dev/null
+		if $IPSET -T $sset $( string_to_varname $data ) > /dev/null 2> /dev/null
 		then
 			list_of_matching_sets="$list_of_matching_sets $sset"
 			flag_set_added=1
@@ -417,7 +416,7 @@ get_information()
 	                # Searching with data behind # from data already found
 			for comment_data in `cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq`
 			do
-				if $IPSET -T $sset $comment_data > /dev/null 2> /dev/null
+				if $IPSET -T $sset $( string_to_varname $comment_data ) > /dev/null 2> /dev/null
 				then
 					list_of_matching_sets="$list_of_matching_sets $sset"
 					flag_set_added=1
@@ -429,7 +428,7 @@ get_information()
 			# Seach with data after (=) from data already found
 			for real_data in `cat $AUX_FILE | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
 			do
-				if $IPSET -T $sset $real_data > /dev/null 2> /dev/null
+				if $IPSET -T $sset $( string_to_varname $real_data ) > /dev/null 2> /dev/null
 				then
 					list_of_matching_sets="$list_of_matching_sets $sset"
 				fi
