@@ -24,7 +24,18 @@ fail=0
 
 ###########################################################
 ###########################################################
-echo "I: Testing building"
+echo "I: Testing building and installation"
+
+echo -n "."
+debMakeVersion=$( grep ^"SOURCE_VERSION :=" ../debian/Makefile | awk -F'=' '{print $2}' )
+srcMakeVersion=$( grep ^"VERSION :=" ../src/Makefile | awk -F'=' '{print $2}' )
+codeVersion=$( grep "VERSION=" ../src/ | awk -F'=' '{print $2}' )
+if [ "$codeVersion" != "$srcMakeVersion" ] && [ "$codeVersion" != "$debMakeVErsion" ]
+then
+	echo ""
+	echo "E: Version mismatch!"
+fi
+
 echo -n "."
 cd ../src
 make >&2
@@ -32,8 +43,16 @@ if [ $? -ne 0 ]
 then
 	echo ""
 	echo "E: Error building tar.gz package."
-	exit 1
 fi
+
+echo -n "."
+tar xvzf fw-admin_*.tar.gz -C / >&2
+if [ $? -ne 0 ]
+then
+	echo ""
+	echo "E: Error installing tar.gz package."
+fi
+
 echo -n "."
 cd ../debian
 make >&2
@@ -41,8 +60,15 @@ if [ $? -ne 0 ]
 then
 	echo ""
 	echo "E: Error building deb package."
-	exit 1
 fi
+echo -n "."
+dpkg -i fw-admin_*.deb
+if [ $? -ne 0 ]
+then
+	echo ""
+	echo "E: Error installing deb package."
+fi
+
 
 ###########################################################
 ###########################################################
@@ -76,7 +102,6 @@ if [ $fail -ne 0 ]
 then
 	echo ""
 	echo "E: Errors found adding IP/FQDN variables to datafiles."
-	exit 1
 fi
 
 # Sets
@@ -95,7 +120,6 @@ if [ $fail -ne 0 ]
 then
 	echo ""
 	echo "E: Errors found teste adding/deleting IPSET variables to datafiles."
-	exit 1
 fi
 
 ###########################################################
@@ -106,13 +130,12 @@ echo "I: Testing stats"
 echo -n "."
 fw-admin -s | grep  "Declared iptables variables:" >/dev/null || fail=1
 echo -n "."
-fw-admin -s | egrep "fw up"\|"fw down" >/dev/null || fail=1
+fw-admin -s | egrep "\[fw up\]"\|"\[fw down\]" >/dev/null || fail=1
 
 if [ $fail -ne 0 ]
 then
 	echo ""
 	echo "E: Errors found in stats function."
-	exit 1
 fi
 
 ###########################################################
@@ -127,8 +150,8 @@ fw-admin --stop /dev/null 1>&2 && fail=1
 
 if [ $fail -ne 0 ]
 then
+	echo ""
 	echo "E: Errors found testing operations."
-	exit 1
 fi
 
 
