@@ -220,7 +220,7 @@ get_ip_from_fqdn()
 # Used to add a variale to IP datafiles
 add_ip_variable()
 {
-	# trap de cancelacion
+	# cancelation trap
 	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	local add_ip_variable_retval=0
@@ -478,6 +478,9 @@ delete_data()
 	local flag_something_deleted=0
 	echo -n "" > $AUX_FILE
 
+	# cancelation trap
+	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
 	# We don't know if data_to_delete is a variable of IPSET or IP/FQDN
 	# Try now to resolve to a VAR name
 	get_input_abstracted_of_type $data_to_delete $AUX_FILE
@@ -491,6 +494,7 @@ delete_data()
 		#/path/to/datafile: VAR=data
 
 		# Iterate over the list of vars, only in IP/FQDN datafiles
+		oldIFS=$IFS ; IFS=$'\n' # control over IFS
 		for var in $( egrep ^$VARS_IPV4\|^$VARS_IPV6 $AUX_FILE | awk -F'=' '{print $1}' | awk -F' ' '{print $2}' | sort | uniq )
 		do
 			read -p "-> Delete the IP/FQDN variable \"${var}\"? [y/N]: "
@@ -504,8 +508,10 @@ delete_data()
 				flag_something_deleted=1
 			fi
 		done
+		IFS=$oldIFS
 
 		# Iterate over the list of vars, only in IPSET datafiles
+		oldIFS=$IFS ; IFS=$'\n' # control over IFS
 		for var in $( egrep ^$VARS_IPSETV4\|^$VARS_IPSETV6 $AUX_FILE | awk -F'=' '{print $1}' | awk -F' ' '{print $2}' | sort | uniq )
 		do
 			read -p "-> Delete the IPSET variable \"${var}\"? [y/N]: "
@@ -519,6 +525,7 @@ delete_data()
 				flag_something_deleted=1
 			fi
 		done
+		IFS=$oldIFS
 	fi
 
 	if [ $flag_something_deleted -eq 0 ]
