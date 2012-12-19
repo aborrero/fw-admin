@@ -34,14 +34,15 @@ codeVersion=$( grep -R "VERSION=" ../src/* | awk -F'=' '{print $2}' | tr -d \" |
 debPkgVersion=$( grep ^fw-admin ../debian/changelog.Debian | head -1 | awk -F'(' '{print $2}' | awk -F')' '{print $1}' | tr -d [:space:] )
 debControlVersion=$( grep ^Version: ../debian/control | awk -F' ' '{print $2}' | tr -d [:space:] )
 
+echo debMakeVersion $debMakeVersion >&2
+echo srcMakeVersion $srcMakeVersion >&2
+echo codeVersion $codeVersion >&2
+echo debPkgVersion $debPkgVersion >&2
+echo debControlVersion $debControlVersion >&2
+
 if [ "$codeVersion" != "$srcMakeVersion" ] || [ "$codeVersion" != "$debMakeVersion" ] || [ "$debPkgVersion" != "$debControlVersion" ]
 then
 	echo ""
-	echo debMakeVersion $debMakeVersion >&2
-	echo srcMakeVersion $srcMakeVersion >&2
-	echo codeVersion $codeVersion >&2
-	echo debPkgVersion $debPkgVersion >&2
-	echo debControlVersion $debControlVersion >&2
 	echo "E: Version mismatch!"
 fi
 
@@ -111,6 +112,7 @@ if [ $fail -ne 0 ]
 then
 	echo ""
 	echo "E: Errors found adding IP/FQDN variables to datafiles."
+	fail=0
 fi
 
 # Sets
@@ -128,7 +130,18 @@ done
 if [ $fail -ne 0 ]
 then
 	echo ""
-	echo "E: Errors found teste adding/deleting IPSET variables to datafiles."
+	echo "E: Errors found testing adding/deleting IPSET variables to datafiles."
+	fail=0
+fi
+
+echo -n "."
+fw-admin -r >&2 || fail=1
+fw-admin --check-datafiles >&2 || fail=1
+if [ $fail -ne 0 ]
+then
+	echo ""
+	echo "E: Bad reload of variable values."
+	fail=0
 fi
 
 ###########################################################
@@ -137,14 +150,15 @@ fi
 echo ""
 echo "I: Testing stats"
 echo -n "."
-fw-admin -s | grep  "Declared iptables variables:" >/dev/null || fail=1
+fw-admin -s | grep  "Declared iptables variables:" >&2 || fail=1
 echo -n "."
-fw-admin -s | egrep "\[fw up\]"\|"\[fw down\]" >/dev/null || fail=1
+fw-admin -s | egrep "\[fw up\]"\|"\[fw down\]" >&2 || fail=1
 
 if [ $fail -ne 0 ]
 then
 	echo ""
 	echo "E: Errors found in stats function."
+	fail=0
 fi
 
 ###########################################################
@@ -157,10 +171,22 @@ fw-admin --start /dev/null 1>&2 && fail=1
 echo -n "."
 fw-admin --stop /dev/null 1>&2 && fail=1
 
+cp -f data/* /var/lib/fw-admin/
+
+cp rules/core /etc/fw-admin.d/rules/
+fw-admin --start core >&2 || fail=1
+fw-admin -s | grep "\[fw up\]" >&2 || fail=1
+fw-admin --ipset-reload >&2 || fail=1
+fw-admin --stop core >&2 || fail=1
+fw-admin -s | grep "\[fw down\]" >&2 || fail=1
+fw-admin --start ./rules/core >&2 || fail=1
+fw-admin --start ./rules/vlan_1 >&2 || fail=1
+
 if [ $fail -ne 0 ]
 then
 	echo ""
 	echo "E: Errors found testing operations."
+	fail=0
 fi
 
 
