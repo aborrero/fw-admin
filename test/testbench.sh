@@ -73,6 +73,7 @@ then
 fi
 echo -n "."
 dpkg -i fw-admin_*.deb >&2
+cd ../test
 if [ $? -ne 0 ]
 then
 	echo ""
@@ -135,7 +136,7 @@ then
 fi
 
 echo -n "."
-fw-admin -r >&2 || fail=1
+#fw-admin -r >&2 || fail=1
 fw-admin --check-datafiles >&2 || fail=1
 if [ $fail -ne 0 ]
 then
@@ -171,15 +172,21 @@ fw-admin --start /dev/null 1>&2 && fail=1
 echo -n "."
 fw-admin --stop /dev/null 1>&2 && fail=1
 
+echo -n "."
 cp -f data/* /var/lib/fw-admin/
+cp -f rules/core /etc/fw-admin.d/rules/
 
-cp rules/core /etc/fw-admin.d/rules/
+echo -n "."
 fw-admin --start core >&2 || fail=1
+echo -n "."
 fw-admin -s | grep "\[fw up\]" >&2 || fail=1
+echo -n "."
 fw-admin --ipset-reload >&2 || fail=1
+echo -n "."
 fw-admin --stop core >&2 || fail=1
-fw-admin -s | grep "\[fw down\]" >&2 || fail=1
+echo -n "."
 fw-admin --start ./rules/core >&2 || fail=1
+echo -n "."
 fw-admin --start ./rules/vlan_1 >&2 || fail=1
 
 if [ $fail -ne 0 ]
