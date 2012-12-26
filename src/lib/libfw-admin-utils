@@ -126,6 +126,7 @@ check_datafile_format()
 	# VAR1ABl3= data #comment
 	# blankline
 	# #comments
+	# _VARIABLE=data
 	# VARIABLe= d4t4  ##comment
 
 	# Format 2
@@ -134,6 +135,7 @@ check_datafile_format()
 	# VAR1ABLe=data
 	# blankline
 	# #comments
+	# _VARIABLE=data
 	# VARIABLE= data
 
 	if [ ! -z "$1" ] && [ -e $1 ]
@@ -141,17 +143,22 @@ check_datafile_format()
 		if [ "$2" == "2" ]
 		then
 			# format 2 without trailing comment
-
 			# invalid lines
-			local invalid_lines=`\
-				cat $1 | nl -ba \
-				| egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$\|^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*`
+			local invalid_lines=$( nl -ba $1 | \
+				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#" | \
+				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]*$ | \
+				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.* | \
+				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"_"\{1}[0-9A-Za-z].*=+.* | \
+				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"__"\{1}[0-9A-Za-z].*=+.* )
 		else
 			# format 1 default, with trailing comment
 			# invalid lines
-			local invalid_lines=`\
-				cat $1 | nl -ba \
-				| egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#"\|^[[:space:]]*[0-9]+[[:space:]]*$\|^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*[[:space:]]+#.*$`
+			local invalid_lines=$( nl -ba $1 | \
+				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#" | \
+				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]*$ | \
+				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*[[:space:]]+#.*$ | \
+				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"_"\{1}[0-9A-Za-z].*=+.*[[:space:]]+#.*$ | \
+				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"__"\{1}[0-9A-Za-z].*=+.*[[:space:]]+#.*$ )
 		fi
 		if [ ! -z "$invalid_lines" ]
 		then
@@ -342,30 +349,27 @@ get_input_abstracted_of_type()
 		search_datafiles $variable_name $outputfile
 	fi
 
-
-	# 3º Search only if previous data has been found.
-	# Search in base a previous data found
-	#
 	# Take care of the message format produced by function search_datafiles()
-	# "$VARS_IPV4: ${C_BOLD}${line}${C_NORMAL}" #--> ' VAR=dato #text'
+	# /path/to/datafile: VAR=data #text
+	# /path/to/datafile: IPSETVAR=data
 	if [ `cat $outputfile | wc -l` -gt 0 ]
 	then
 		oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
 		# Search after comment (#)
 		local new_data_search_list=`cat $outputfile | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq `
-		for i in $new_data_search_list
+		[ ! -z "$ne_data_search_list" ] && for i in $new_data_search_list
 		do
 			search_datafiles $i $outputfile
 		done
 		# Search before (=)
 		local new_data_search_list=`cat $outputfile | awk -F' ' '{print $2}' | awk -F'=' '{print $1}' | sort -u | uniq`
-		for i in $new_data_search_list
+		[ ! -z "$ne_data_search_list" ] && for i in $new_data_search_list
 		do
 			search_datafiles $i $outputfile
 		done
 		# Seach after (=)
 		local new_data_search_list=`cat $outputfile | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
-		for i in $new_data_search_list
+		[ ! -z "$ne_data_search_list" ] && for i in $new_data_search_list
 		do
 			if [ "$i" != "\$VOID" ] || [ "$i" != "\$VOID" ]
 			then
@@ -398,6 +402,7 @@ get_information()
 	#	/path/to/datafile: VAR=value #tag
 	#	/path/to/datafile: VAR=value #tag
 	#	/path/to/datafile: VAR=value #tag
+	#	/path/to/datafile: IPSET=value
 
  	# Querying now ipset
 	local list_of_matching_sets=""
@@ -407,7 +412,7 @@ get_information()
 	for sset in $set_list
 	do
 		# Searching raw data inserted in fw-admin -i foo
-		if $IPSET -T $sset $data > /dev/null 2> /dev/null
+		if $IPSET -T $sset $( string_to_varname $data ) > /dev/null 2> /dev/null
 		then
 			list_of_matching_sets="$list_of_matching_sets $sset"
 			flag_set_added=1
@@ -415,9 +420,9 @@ get_information()
 		if [ $flag_set_added -eq 0 ]
 		then
 	                # Searching with data behind # from data already found
-			for comment_data in `cat $AUX_FILE | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq`
+			for comment_data in $( awk -F'#' '{print $2}' $AUX_FILE | awk -F' ' '{print $1}' | sort -u | uniq )
 			do
-				if $IPSET -T $sset $comment_data > /dev/null 2> /dev/null
+				if $IPSET -T $sset $( string_to_varname $comment_data ) > /dev/null 2> /dev/null
 				then
 					list_of_matching_sets="$list_of_matching_sets $sset"
 					flag_set_added=1
@@ -427,9 +432,9 @@ get_information()
 		if [ $flag_set_added -eq 0 ]
 		then
 			# Seach with data after (=) from data already found
-			for real_data in `cat $AUX_FILE | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
+			for real_data in $( awk -F'=' '{print $2}' $AUX_FILE | awk -F'#' '{print $1}' | sort -u | uniq )
 			do
-				if $IPSET -T $sset $real_data > /dev/null 2> /dev/null
+				if $IPSET -T $sset $( string_to_varname $real_data ) > /dev/null 2> /dev/null
 				then
 					list_of_matching_sets="$list_of_matching_sets $sset"
 				fi
@@ -442,7 +447,7 @@ get_information()
 	if [ ! -z "$list_of_matching_sets" ]
 	then
 		# Fix for printing
-		list_of_sets_witch_match=`echo $list_of_matching_sets | tr ' ' '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq | tr '\n' ' '`
+		list_of_sets_witch_match=$( echo $list_of_matching_sets | tr ' ' '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq | tr '\n' ' ' )
 		echo -e "I: Data ${C_BOLD}$data${C_NORMAL} is in set(s): ${list_of_matching_sets}" >> $AUX_FILE
 		flag_data_shown=true
 	fi
@@ -533,27 +538,26 @@ get_information()
 search_datafiles()
 {
 	local search_datafiles_retval=1
-	local data=$1 #dato a buscar
-	local result_return_file=$2 #fichero al que escribir mensaje en caso de acierto
+	local data=$1
+	local result_return_file=$2
 
 	if [ ! -z "$data" ] && [ -e "$result_return_file" ]
 	then
-
-		oldIFS=$IFS ; IFS=$'\n' # control over IFS
-
-		local aux_data=`tr '.' '_' <<< $data | tr '-' '_'`
-		for line in `egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV4 2>/dev/null`
+		local aux_data=$( string_to_varname $data )
+		oldIFS=$IFS ; IFS=$' '
+		for datafile in $VARS_IPV4 $VARS_IPV6 $VARS_IPSETV4 $VARS_IPSETV6
 		do
-			search_datafiles_retval=0
-			# WARNING! If you change this message, you must change also the function get_information()
-			echo -e "$VARS_IPV4: ${line}" >> $2
+			oldIFS=$IFS ; IFS=$'\n' # control over IFS
+			for line in $( egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $datafile 2>/dev/null )
+			do
+				search_datafiles_retval=0
+				# WARNING! If you change this message, you must change also the function get_information()
+				echo -e "$datafile: ${line}" >> $2
+			done
+			IFS=$oldIFS
 		done
-		for line in `egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $VARS_IPV6 2>/dev/null`
-		do
-			search_datafiles_retval=0
-			# WARNING! If you change this message, you must change also the function get_information()
-			echo -e "$VARS_IPV6: ${line}" >> $2
-		done
+		IFS=$oldIFS
+
 	else
 		message "E: Function search_datafiles() called with bad arguments."
 		do_exit 1
