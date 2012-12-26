@@ -181,15 +181,12 @@ libprogressbar()
 
 	# This needs strong optimization.
 
-        local current=0
-        local max=100
-        local decimal=1
-        local max_width=50
-        local subtraction width atleast percent chars
-        local padding=5
+        local current
+        local max
+        local percent chars
 
-	current=${1:-$current}
-	max=${2:-$max}
+	current=${1:-0}
+	max=${2:-100}
 
 	# Delete the bar now
 	if [ $max -eq $current ]
@@ -198,9 +195,6 @@ libprogressbar()
 		return 0
 	fi
 
-        let subtraction=${#completed_char}+${#prefix}+${#suffix}+padding+${#percent_sign}
-        let width=max_width-subtraction
-
 	if (( current > max ))
 	then
 		echo >&2 "libprogressbar: current value must be smaller than max. value"
@@ -208,17 +202,13 @@ libprogressbar()
 	fi
 
 	percent=$(awk -v "f=%5.1f" -v "c=$current" -v "m=$max" 'BEGIN{printf('f', c / m * 100)}')
-	(( chars = current * width / max))
+	(( chars = current * 45 / max))
 
 	# sprintf n zeros into the var named as the arg to -v
 	printf -v complete '%0*.*d' '' "$chars" ''
-	printf -v remain '%0*.*d' '' "$((width - chars))" ''
+	printf -v remain '%*s' "$((45 - chars))" ''
 
-	# replace the zeros with the desired char
-	#complete=${complete//0/"#"} #completed char
-	#remain=${remain//0/"."} #uncompleted char
-
-	printf ' %s%s%s%s %s%s\r' "[" "${complete//0/-}" "${remain//0/ }" "]" "$percent" "%"
+	printf ' %s%s%s%s %s%s\r' "[" "${complete//0/-}" "${remain}" "]" "$percent" "%"
 
 	if (( current >= max ))
 	then
