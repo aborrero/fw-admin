@@ -5,6 +5,9 @@ Custom tool for admin netfilter-based firewalls in dual stack mode (IPv4 &amp;&a
 
 Please, take a look at the [wiki](https://github.com/aborrero/fw-admin/wiki/).
 
+NEW: I'm using now Trello to drive the project: [fw-admin Trello Board](https://trello.com/board/fw-admin/510f801434c7ade26e003ac4)
+
+
 Install
 =======
 
