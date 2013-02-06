@@ -211,17 +211,17 @@ flush_chain()
 		if [[ $chain =~ ^"core" ]]
 		then
 			# Flushing entire firewall
-			$IPT -F 2>/dev/null || flush_chain_retval=1
-			$IPT -F -t nat 2>/dev/null || flush_chain_retval=1
-			$IPT -X 2>/dev/null || flush_chain_retval=1
+			$IP4T -F 2>/dev/null || flush_chain_retval=1
+			$IP4T -F -t nat 2>/dev/null || flush_chain_retval=1
+			$IP4T -X 2>/dev/null || flush_chain_retval=1
 			$IP6T -F 2>/dev/null || flush_chain_retval=1
 			$IP6T -X 2>/dev/null || flush_chain_retval=1
 
 			if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 			then
-				$IPT -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-				$IPT -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
-				$IPT -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP4T -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP4T -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+				$IP4T -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 				$IP6T -A FORWARD -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 				$IP6T -A INPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 				$IP6T -A OUTPUT -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
@@ -230,15 +230,15 @@ flush_chain()
 			if [[ $chain =~ "nat" ]]
 			then
 				# Flushing nat rules
-				$IPT -F -t nat 2>/dev/null || flush_chain_retval=1
+				$IP4T -F -t nat 2>/dev/null || flush_chain_retval=1
 			else
 				# No nat rules
-				$IPT -F $chain 2>/dev/null || flush_chain_retval=1
+				$IP4T -F $chain 2>/dev/null || flush_chain_retval=1
 				$IP6T -F $chain 2>/dev/null || flush_chain_retval=1
 
 				if [ "$PERMISSIVE_TRAFFIC_WHEN_STOP" == "yes" ]
 				then
-					$IPT -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
+					$IP4T -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 					$IP6T -A $chain -m comment --comment "transaccional_rule_fw-admin" -j ACCEPT 2>/dev/null || flush_chain_retval=1
 				fi
 			fi
