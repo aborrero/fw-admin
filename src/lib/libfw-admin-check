@@ -55,14 +55,15 @@ check_iptables_syntax_loop()
 	for line in $list_of_lines
 	do
 		# Evaluating if we need calcules regarding progress bar
-		if [ "$USE_PROGRESS_BAR" == "yes" ]
-		then
-			((cont++))
-			libprogressbar $cont $amount_of_lines
+		if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
+			((cont++)) ; libprogressbar $cont $amount_of_lines
 		fi
 
-		# Preparing the line to be evaluated.
+		# Dont check if the line contains a $VOID variable
+		line_contains_void $line && continue
 
+
+		# Preparing the line to be evaluated.
 		# 1º Delete the number of the line
 		local ejec=`awk -F' ' '{$1=""}1' <<< ${line}`
 		# 2º Change -I to -C
@@ -242,10 +243,8 @@ check_chain_exist()
 	# core, sets, nat doesn't require chain
 	[[ $1 =~ ^"core"$|^"sets"$|^"nat"$ ]] && return 0
 
-	if $IPT_SAVE | grep ^: | grep $1 >/dev/null 2>/dev/null
-	then
-		if $IP6T_SAVE | grep ^: | grep $1 >/dev/null 2>/dev/null
-		then
+	if $IPT_SAVE | grep "^:${1} " >/dev/null 2>/dev/null ; then
+		if $IP6T_SAVE | grep "^:${1} " >/dev/null 2>/dev/null ; then
 			check_chain_exist_retval=0
 		fi
 	fi
