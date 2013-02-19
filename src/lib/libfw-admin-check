@@ -26,8 +26,6 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#5
-
 # boolean check_iptables_syntax_loop(string file_being_checked, int protocol)
 # Loop over a file checking iptables syntax. Protocol: 4|6
 check_iptables_syntax_loop()
@@ -154,8 +152,7 @@ check_rulefile()
 	local flag_wrong_iptables=0
 
 	local file_to_check=$( get_absolute_path $1 )
-	if [ "$file_to_check" == "" ]
-	then
+	if [ "$file_to_check" == "" ] ; then
 		message "E: File not found $1"
 		do_exit 1
 	fi
@@ -163,59 +160,74 @@ check_rulefile()
 	# Clear aux file
 	echo "" > $AUX_FILE
 
-
-	# If we are using progress bar, print a message so user know what means the progress bar
-	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Checking variables $file_to_check"
-
-	oldIFS=$IFS ; IFS=$' \t\n' # control over IFS
-	# Do we need to do calcules related to progress bar?
-	if [ "$USE_PROGRESS_BAR" == "yes" ]
-	then
-		local amount=`grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u | wc -l`
+	if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
+		message "I: Checking variables $file_to_check"
+		local amount=$( grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u | wc -l )
 		local cont=0
 	fi
 
-	# Iterate over variables ($FOO) on file
-	for word in `grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u`
-	do
-		# Do we need to do calcules related to progress bar?
-		if [ "$USE_PROGRESS_BAR" == "yes" ]
-		then
-	                ((cont++))
-	       	        libprogressbar $cont $amount
-		fi
-		# If the word is IPT|IPSET|iptables|ip6tables, do nothing and continue
-		{ [[ "$word" =~ "IPT" ]] || [[ "$word" =~ "IPSET" ]] || [[ "$word" =~ "ip"[6]?"tables" ]] ; } && continue
-		# If not, look for the word in datafiles
-		local search=`echo $word | tr -d '$'`
-
-		# the search. Must be in both datafiles of the same type to consider the variable valid.
-		if ! { grep ^[[:space:]]*"$search"=.*$ $VARS_IPV4 > /dev/null && grep ^[[:space:]]*"$search"=.*$ $VARS_IPV6 > /dev/null ; }
-		then
-			if ! { grep ^[[:space:]]*"$search"=.*$ $VARS_IPSETV4 > /dev/null && grep ^[[:space:]]*"$search"=.*$ $VARS_IPSETV6 > /dev/null ; }
-			then
-				echo "W: Unknow variable \$${search} $file_to_check" >> $AUX_FILE
-				flag_wrong_variables=1
-			fi
-		fi
-	done
-	IFS=$oldIFS
+	# Doing the check now
+	check_rulefile_variables_loop $file_to_check 4
+	check_rulefile_variables_loop $file_to_check 6
 
 	# Showing warnings now
 	oldIFS=$IFS ; IFS=$'\n'
-	for line in $( cat $AUX_FILE )
+	for line in $( sort -u $AUX_FILE )
 	do
+		[ "$flag_wrong_variables" -eq 0 ] && [[ $line =~ ^"W:" ]] && flag_wrong_variables=1
 		message "$line"
 	done
 	IFS=$oldIFS
 
 	[ $flag_wrong_variables -ne 0 ] && return 1 # return point
 
-	# Check iptables syntax if all variables all fine
+	# Check iptables syntax if all variables are fine
 	check_iptables_syntax $file_to_check || flag_wrong_iptables=$?
 	[ "$flag_wrong_variables" -ne 0 ] || [ "$flag_wrong_iptables" -ne 0 ] && check_rulefile_retval=1
 
 	return $check_rulefile_retval
+}
+
+# void check_rulefile_variables_loop(string file_to_check, protocol {IPv4|IPv6})
+# Loop over the list of parsed variables doing the check and store error in AUX_FILE
+check_rulefile_variables_loop()
+{
+	local file_to_check=$1
+	local protocol=$2
+
+	# Validations: file exist, protocol is one of {4|6}
+	if { [ "$protocol" != "4" ] && [ "$protocol" != "6" ] ; }  || [ ! -e "$file_to_check" ] ; then
+		message "E: Bad call to check_rulefile_parse_check_variables(). This is a bug, please report it."
+		exit 1
+	fi
+
+	# Using a subshell!
+	(
+	if [ "$protocol" == "4" ] ; then
+		source $VARS_IPV4 ; source $VARS_IPSETV4
+	else
+		source $VARS_IPV6 ; source $VARS_IPSETV6
+	fi
+
+	set -u
+
+	oldIFS=$IFS ; IFS=$' \t\n' # control over IFS
+	for word in $( grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u )
+	do
+		# Do we need to do calcules related to progress bar?
+		if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
+	                ((cont++)) ; libprogressbar $cont $amount
+		fi
+
+		error_msg=$( eval $word 2>&1 )
+		if [ $? -eq 1 ] ; then
+			echo "W:$( awk -F':' '{print $3":"$4}' <<< $error_msg )" >> $AUX_FILE
+		fi
+	done
+	IFS=$oldIFS
+
+	set +u
+	) # End subshell
 }
 
 # boolean check_chain_exist(string chainname)
