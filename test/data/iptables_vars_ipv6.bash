@@ -102,3 +102,6 @@ N001_CLOUDMARK_COM=$VOID #n001.cloudmark.com
 N002_CLOUDMARK_COM=$VOID #n002.cloudmark.com
 N003_CLOUDMARK_COM=$VOID #n003.cloudmark.com
 N004_CLOUDMARK_COM=$VOID #n004.cloudmark.com
+V192_168_0_1=$VOID #192.168.0.1
+V2A00_9AC0_C1CA__1=2a00:9ac0:c1ca::1 #2a00:9ac0:c1ca::1
+WWW_GOOGLE_COM=www.google.com #www.google.com

@@ -200,6 +200,42 @@ echo "\${ASDASD}:80" >> /etc/fw-admin.d/rules/core
 echo "ASDASD=\$VOID ##ignore##" >> /var/lib/fw-admin/iptables_vars_ipv4.bash
 fw-admin -c core >&2 || { fail=1 ; echo "*!*" ; }
 
+
+# VOID issues
+#$IPT -A FORWARD -s $WWW_GOOGLE_COM -m state --state NEW -m comment --comment "void1" -j ACCEPT
+#$IPT -A FORWARD -s $WWW_GOOGLE_COM -d $V192_168_0_1 -m state --state NEW -m comment --comment "void2" -j ACCEPT
+#$IPT -A FORWARD -s $V2A00_9AC0_C1CA__1 -d $V192_168_0_1 -m state --state NEW -m comment --comment "void3" -j ACCEPT
+#$IPT -A FORWARD -s $V2A00_9AC0_C1CA__1 -m state --state NEW -m comment --comment "void4" -j ACCEPT
+#$IPT -A INPUT -s $VOID -m comment --comment "void5" -j ACCEPT
+echo -n "."
+fw-admin --start vlan_1 >&2 || { fail=1 ; echo "*!*" ; }
+
+# void1 must appeaar in both
+echo -n "."
+iptables-save | grep void1 >&2 || { fail=1 ; echo "*!*" ; }
+echo -n "."
+ip6tables-save | grep void1 >&2 || { fail=1 ; echo "*!*" ; }
+# void2 must appear just in ipv4
+echo -n "."
+iptables-save | grep void2 >&2 || { fail=1 ; echo "*!*" ; }
+echo -n "."
+ip6tables-save | grep void2 >&2 && { fail=1 ; echo "*!*" ; }
+# void3 must not appear
+echo -n "."
+iptables-save | grep void3 >&2 && { fail=1 ; echo "*!*" ; }
+echo -n "."
+ip6tables-save | grep void3 >&2 && { fail=1 ; echo "*!*" ; }
+# void4 must appear just in ipv6
+echo -n "."
+iptables-save | grep void4 >&2 && { fail=1 ; echo "*!*" ; }
+echo -n "."
+ip6tables-save | grep void4 >&2 || { fail=1 ; echo "*!*" ; }
+# void5 must not appear
+echo -n "."
+iptables-save | grep void5 >&2 && { fail=1 ; echo "*!*" ; }
+echo -n "."
+ip6tables-save | grep void5 >&2 && { fail=1 ; echo "*!*" ; }
+
 if [ $fail -ne 0 ]
 then
 	echo ""

@@ -81,7 +81,7 @@ start_in_script_format()
 		do_exit 1 # EXIT POINT
 	fi
 
-	# Deletin previous rules
+	# Delete previous rules
 	if ! flush_chain $vlan
 	then
 		message "E: Error flushing vlan."
@@ -145,8 +145,7 @@ start_in_script_format_loop()
 	local vlan_file=$( get_absolute_path $1 )
 	local protocol=$2
 
-	if [ ! -r "$vlan_file" ] || [ -z "$protocol" ]
-	then
+	if [ ! -r "$vlan_file" ] || [ -z "$protocol" ] ; then
 		message "E: Bad call to function start_in_script_format_loop(), invalid input arguments."
 		do_exit 1 # EXIT POINT
 	fi
@@ -169,6 +168,9 @@ start_in_script_format_loop()
 		# Evaluating if we need calcules related to the progress bar
 		[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
 
+		# If the line has a VOID variable, just ignore
+		line_contains_void $line && continue
+
 		# Insert the rule in kernel and evaluate return code
 		error_msg=$( eval "${line} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
 		if [ $? -ne 0 ]
@@ -182,11 +184,7 @@ start_in_script_format_loop()
 				echo " $error_line"
 			done
 
-			# Behaviour when error at start operation
-			#FLUSH_WHEN_ERROR_START="no"
-
-			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ]
-			then
+			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ] ; then
 				message "W: Flushing rules $vlan ..."
 				flush_chain $vlan
 				do_exit 1 # EXIT POINT
@@ -196,6 +194,30 @@ start_in_script_format_loop()
 	IFS=$oldIFS
 
 	return $start_loop_retval
+}
+
+# boolean line_contains_void(string line)
+# Check if a line contains a void variable. Return 0 if contains a void variable
+# Need previous source of datafiles
+line_contains_void()
+{
+	local line=$1
+	local line_contains_void_retval=1
+	local TEMP
+
+	# Split the line in variables and iterate
+	for var in $( tr [[:space:]] '\n' <<< $line | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u )
+	do
+		# $var may reference to other variable, and that variable may reference to $VOID
+		# so here eval is needed
+		eval "TEMP=$var"
+		if [ "$TEMP" == "$VOID" ] ; then
+			line_contains_void_retval=0
+			break
+		fi
+	done
+
+	return $line_contains_void_retval
 }
 
 # boolean flush_chain(string chain)
