@@ -91,13 +91,13 @@ INVALID="132.1244.123.21 dd::DDD:DDD::Dddd asdasd.asd.asd.asd.asd..asd"
 for i in $VALID
 do
 	echo -n "."
-	fw-admin -a $i 1>&2 || fail=1
-	fw-admin -i $i 1>&2 || fail=1
+	fw-admin -a $i 1>&2 || { fail=1 ; echo "*!*" ; }
+	fw-admin -i $i 1>&2 || { fail=1 ; echo "*!*" ; }
 	fw-admin -d $i 1>&2 <<END
 y
 END
-	[ $? -ne 0 ] && fail=1
-	fw-admin -a $i 1>&2 || fail=1
+	[ $? -ne 0 ] && { fail=1 ; echo "*!*" ; }
+	fw-admin -a $i 1>&2 || { fail=1 ; echo "*!*" ; }
 
 done
 
@@ -105,8 +105,8 @@ done
 for i in $INVALID
 do
 	echo -n "."
-	fw-admin -a $i 1>&2 && fail=1
-	fw-admin -i $i 1>&2 && fail=1
+	fw-admin -a $i 1>&2 && { fail=1 ; echo "*!*" ; }
+	fw-admin -i $i 1>&2 && { fail=1 ; echo "*!*" ; }
 done
 
 if [ $fail -ne 0 ]
@@ -124,8 +124,8 @@ do
 	fw-admin -d $i 1>&2 <<END
 y
 END
-	fw-admin -as $i 1>&2 || fail=1
-	fw-admin -i $i 1>&2 || fail=1
+	fw-admin -as $i 1>&2 || { fail=1 ; echo "*!*" ; }
+	fw-admin -i $i 1>&2 || { fail=1 ; echo "*!*" ; }
 done
 
 if [ $fail -ne 0 ]
@@ -136,8 +136,8 @@ then
 fi
 
 echo -n "."
-#fw-admin -r >&2 || fail=1
-fw-admin --check-datafiles >&2 || fail=1
+#fw-admin -r >&2 || { fail=1 ; echo "*!*" ; }
+fw-admin --check-datafiles >&2 || { fail=1 ; echo "*!*" ; }
 if [ $fail -ne 0 ]
 then
 	echo ""
@@ -151,9 +151,9 @@ fi
 echo ""
 echo "I: Testing stats"
 echo -n "."
-fw-admin -s | grep  "Declared iptables variables:" >&2 || fail=1
+fw-admin -s | grep  "Declared iptables variables:" >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."
-fw-admin -s | egrep "\[fw up\]"\|"\[fw down\]" >&2 || fail=1
+fw-admin -s | egrep "\[fw up\]"\|"\[fw down\]" >&2 || { fail=1 ; echo "*!*" ; }
 
 if [ $fail -ne 0 ]
 then
@@ -168,26 +168,37 @@ fi
 echo ""
 echo "I: Testing operations"
 echo -n "."
-fw-admin --start /dev/null 1>&2 && fail=1
+fw-admin --start /dev/null 1>&2 && { fail=1 ; echo "*!*" ; }
 echo -n "."
-fw-admin --stop /dev/null 1>&2 && fail=1
+fw-admin --stop /dev/null 1>&2 && { fail=1 ; echo "*!*" ; }
 
 echo -n "."
 cp -f data/* /var/lib/fw-admin/
-cp -f rules/core /etc/fw-admin.d/rules/
+cp -f rules/* /etc/fw-admin.d/rules/
 
 echo -n "."
-fw-admin --start core >&2 || fail=1
+fw-admin --start core >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."
-fw-admin -s | grep "\[fw up\]" >&2 || fail=1
+fw-admin -s | grep "\[fw up\]" >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."
-fw-admin --ipset-reload >&2 || fail=1
+fw-admin --ipset-reload >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."
-fw-admin --stop core >&2 || fail=1
+fw-admin --stop core >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."
-fw-admin --start ./rules/core >&2 || fail=1
+fw-admin --start ./rules/core >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."
-fw-admin --start ./rules/vlan_1 >&2 || fail=1
+fw-admin --start ./rules/vlan_1 >&2 || { fail=1 ; echo "*!*" ; }
+
+echo -n "."
+echo "\$ASDASD" >> /etc/fw-admin.d/rules/core
+fw-admin -c core >&2 && { fail=1 ; echo "*!*" ; }
+echo -n "."
+echo "ASDASD=\$VOID ##ignore##" >> /var/lib/fw-admin/iptables_vars_ipv6.bash
+fw-admin -c core >&2 && { fail=1 ; echo "*!*" ; }
+echo -n "."
+echo "\${ASDASD}:80" >> /etc/fw-admin.d/rules/core
+echo "ASDASD=\$VOID ##ignore##" >> /var/lib/fw-admin/iptables_vars_ipv4.bash
+fw-admin -c core >&2 || { fail=1 ; echo "*!*" ; }
 
 if [ $fail -ne 0 ]
 then
