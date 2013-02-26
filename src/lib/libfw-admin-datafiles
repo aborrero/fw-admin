@@ -68,10 +68,11 @@ is_ipv6_valid()
 is_fqdn_valid()
 {
 	local retval=1
-	if [ ! -z $1 ]
+	local fqdn=$1
+	if [ ! -z $fqdn ]
 	then
 		# resolve it to know if it's valid
-		local resolution=`$DIG +short $1 2>/dev/null | wc -l 2>/dev/null`
+		local resolution=$( $DIG +short $fqdn 2>/dev/null | egrep -v ^";"\|^$ | wc -l 2>/dev/null )
 		if [ ! -z "$resolution" ] && [[ $resolution =~ ^[0-9]+$ ]] && [ $resolution -ne 0 ]
 		then
 			retval=0
