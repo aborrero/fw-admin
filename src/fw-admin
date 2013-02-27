@@ -32,21 +32,17 @@ CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
 LIB="/usr/lib/fw-admin.d/libfw-admin"
 
 C_BIN="tput"
-
 C_SETAF="$C_BIN setaf"
 C_BOLD="$($C_BIN bold)"
 C_RESET="$C_BIN sgr0"
-
 C_RED="$($C_SETAF 1)"
 C_GREEN="$($C_SETAF 2)"
 C_YELLOW="$($C_SETAF 3)"
 C_BLUE="$($C_SETAF 4)"
-
 C_REDBOLD="${C_BOLD}${C_RED}"
 C_GREENBOLD="${C_BOLD}${C_GREEN}"
 C_YELLOWBOLD="${C_BOLD}${C_YELLOW}"
 C_BLUEBOLD="${C_BOLD}${C_BLUE}"
-
 C_NORMAL="$($C_RESET)"
 
 help()
@@ -85,19 +81,16 @@ nofound()
 
 loadlibrary()
 {
-	if ! source $LIB 2>/dev/null
-	then
+	if ! source $LIB 2>/dev/null ; then
 		echo "E: Unable to load library $LIB" >&2
 		exit 1
 	fi
 
-	if ! check_root
-	then
+	if ! check_root ; then
 		message "W: Not root!"
 	fi
 
-	if ! check_files
-	then
+	if ! check_files ; then
 		do_exit 1
 	fi
 
@@ -108,8 +101,7 @@ loadlibrary()
 ################################################################
 # Program
 ################################################################
-if ! source $CONF_FILE 2>/dev/null
-then
+if ! source $CONF_FILE 2>/dev/null ; then
 	echo "E: Unable to load config file $CONF_FILE" >&2
 	exit 1
 fi
@@ -136,6 +128,9 @@ FLUSH_WHEN_ERROR_START=${FLUSH_WHEN_ERROR_START:-"no"}
 PERMISSIVE_TRAFFIC_WHEN_STOP=${PERMISSIVE_TRAFFIC_WHEN_STOP:-"no"}
 
 # Consider input argument
+
+[ "$1" == "--start" ] && [ "$2" == "$IPSET_CONF" ] && 1="--ipset-reload"
+
 case "$1" in
 	"-s" )
 		loadlibrary

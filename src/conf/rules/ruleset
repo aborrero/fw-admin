@@ -1,5 +1,5 @@
 # If you are using FORMAT=restore, this is where you set the firewall.
-# Remember that you can user variables like $MY_NETWORK or $GITHUB_COM
+# Remember that you can use variables like $MY_NETWORK or $GITHUB_COM
 # previously declared using fw-admin -a or editing raw datafiles
 
 *nat

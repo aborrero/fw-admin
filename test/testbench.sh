@@ -9,6 +9,7 @@ fi
 echo "##################################################################"
 echo "W: Runing this testbench will break your current fw-admin system!!"
 echo "W: It is intended to run while developing the code of fw-admin."
+echo "W: This script is only fully tested in a Debian Wheezy system."
 read -p "Continue? [N/y] " continue
 if [ -z "$continue" ] || [ $continue != y ]
 then
@@ -44,6 +45,7 @@ if [ "$codeVersion" != "$srcMakeVersion" ] || [ "$codeVersion" != "$debMakeVersi
 then
 	echo ""
 	echo "E: Version mismatch!"
+	fail=1
 fi
 
 echo -n "."
@@ -52,15 +54,17 @@ make >&2
 if [ $? -ne 0 ]
 then
 	echo ""
-	echo "E: Error building tar.gz package."
+	echo "E: Error building tar.gz package." >&2
+	fail=1
 fi
 
 echo -n "."
-tar xvzf fw-admin_*.tar.gz -C / >&2
+tar xvzf fw-admin_${codeVersion}.tar.gz -C / >&2
 if [ $? -ne 0 ]
 then
 	echo ""
-	echo "E: Error installing tar.gz package."
+	echo "E: Error installing tar.gz package." >&2
+	fail=1
 fi
 
 echo -n "."
@@ -69,22 +73,29 @@ make >&2
 if [ $? -ne 0 ]
 then
 	echo ""
-	echo "E: Error building deb package."
+	echo "E: Error building deb package." >&2
+	fail=1
 fi
 echo -n "."
-dpkg -i fw-admin_*.deb >&2
-cd ../test
+dpkg -i fw-admin_${debPkgVersion}_all.deb >&2
 if [ $? -ne 0 ]
 then
 	echo ""
-	echo "E: Error installing deb package."
+	echo "E: Error installing deb package." >&2
+	fail=1
 fi
 
+if [ $fail -ne 0 ] ; then
+	echo ""
+	echo "E: Error in testing and installation" >&2
+	exit 1
+fi
 
 ###########################################################
 ###########################################################
 echo ""
 echo "I: Testing datafiles"
+cd ../test
 VALID="r2d2.cica.es www.google.es www.facebook.com github.com 2a00:9ac0:c1ca:27::150 150.214.4.150 192.168.1.1 fe00::1 ::1 127.0.0.1"
 INVALID="132.1244.123.21 dd::DDD:DDD::Dddd asdasd.asd.asd.asd.asd..asd"
 # Those are valid
@@ -167,10 +178,6 @@ fi
 
 echo ""
 echo "I: Testing operations"
-echo -n "."
-fw-admin --start /dev/null 1>&2 && { fail=1 ; echo "*!*" ; }
-echo -n "."
-fw-admin --stop /dev/null 1>&2 && { fail=1 ; echo "*!*" ; }
 
 echo -n "."
 cp -f data/* /var/lib/fw-admin/
@@ -188,6 +195,8 @@ echo -n "."
 fw-admin --start ./rules/core >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."
 fw-admin --start ./rules/vlan_1 >&2 || { fail=1 ; echo "*!*" ; }
+echo -n "."
+fw-admin --start ./rules/sets >&2 || { fail=1 ; echo "*!*" ; }
 
 echo -n "."
 echo "\$ASDASD" >> /etc/fw-admin.d/rules/core
@@ -243,6 +252,55 @@ then
 	fail=0
 fi
 
+############################################################
+
+echo ""
+echo "I: Testing service integration"
+echo -n "."
+
+# Testing ENABLED directive in /etc/default/fw
+echo ENABLED=no >> /etc/default/fw
+
+# How many seconds to wait for the start operation. 0 means infinite.
+# Values: integer >= 0 Default: 5
+START_TIMEOUT="5"
+
+# The fw-admin config file.
+# Values: /absolute/path/to/file Default: /etc/fw.admin.d/fw-admin.conf
+CONF_FILE=/etc/fw-admin.d/fw-admin.conf
+
+# When doing a start operation, wich ruleset to load (secuencially)
+# Its a space separated list of files, being absolute path or
+# filenames in CONF_DIR as described in fw-admin.conf(5)
+# Values: /absolute/path/to/file AND OR file_in_CONF_DIR
+# Default: "core sets"
+START_ORDER="core sets"
+
+# The inverse of START_ORDER
+# Values: /absolute/path/to/file AND OR file_in_CONF_DIR
+# Default: "core"
+STOP_ORDER="core"
+
+# Here you can set some scripts that need to be run when stopping
+# and starting the firewall. Names are self explanatory.
+# NOTE: You will not recive any stdout or stderr of this commands
+# The return code of this commands will be ignored, as they will be evaluated
+# (using bash `eval') in background with '&'
+# Values: a command
+# Default: <empty>
+PRE_START=""
+POST_START=""
+PRE_STOP=""
+POST_STOP=""
+
+
+
+if [ $fail -ne 0 ]
+then
+	echo ""
+	echo "E: Errors found testing service integration"
+	fail=0
+fi
 
 echo ""
 exit 0

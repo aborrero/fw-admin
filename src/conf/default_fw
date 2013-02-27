@@ -1,0 +1,37 @@
+# fw service config file for fw-admin
+
+# If this service is enabled. Values: {yes|no} Default: no
+ENABLED="no"
+
+# How many seconds to wait for the start operation. 0 means infinite.
+# Values: integer >= 0 Default: 5
+START_TIMEOUT="5"
+
+# The fw-admin config file.
+# Values: /absolute/path/to/file Default: /etc/fw.admin.d/fw-admin.conf
+CONF_FILE=/etc/fw-admin.d/fw-admin.conf
+
+# When doing a start operation, wich ruleset to load (secuencially)
+# Its a space separated list of files, being absolute path or
+# filenames in CONF_DIR as described in fw-admin.conf(5)
+# Values: /absolute/path/to/file AND OR file_in_CONF_DIR
+# Default: "core sets"
+START_ORDER="core sets"
+
+# The inverse of START_ORDER
+# Values: /absolute/path/to/file AND OR file_in_CONF_DIR
+# Default: "core"
+STOP_ORDER="core"
+
+# Here you can set some scripts that need to be run when stopping
+# and starting the firewall. Names are self explanatory.
+# NOTE: You will not recive any stdout or stderr of this commands
+# The return code of this commands will be ignored, as they will be evaluated
+# (using bash `eval') in background with '&'
+# Values: a command
+# Default: <empty>
+PRE_START=""
+POST_START=""
+PRE_STOP=""
+POST_STOP=""
+ 

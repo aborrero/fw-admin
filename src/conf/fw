@@ -50,25 +50,32 @@
 #
 # Main bin:			/usr/sbin/fw-admin
 # Logger:			/usr/bin/logger
-# Conf file:			/etc/fw-admin.d/fw-admin.conf
+# Conf file:			$CONF_FILE (source /etc/default/fw)
+
+[ -e /etc/default/fw ] && . /etc/default/fw
+
+# Variables
+#
 
 MAIN_BIN="/usr/sbin/fw-admin"
 PID=$$
 LOGGER_BIN="/usr/bin/logger"
-ARGS_LOGGER="-t firewall[$PID] --"
-CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
-START_TIMEOUT=15
+ARGS_LOGGER="-t fw[$PID] --"
 
-C_RED="\E[31m"
-C_GREEN="\E[32m"
-C_YELLOW="\E[33m"
-C_BLUE="\E[34m"
-C_REDBOLD="\E[1;31m"
-C_GREENBOLD="\E[1;32m"
-C_YELLOWBOLD="\E[1;33m"
-C_BLUEBOLD="\E[1;33m"
-C_NORMAL="\E[0m"
-C_BOLD="\E[1m"
+# Setting defaults
+ENABLED=${ENABLED:-"no"}
+START_TIMEOUT=${START_TIMEOUT:-"5"}
+CONF_FILE=${CONF_FILE:-"/etc/fw-admin.d/fw-admin.conf"}
+START_ORDER=${START_ORDER:-"core sets"}
+STOP_ORDER=${STOP_ORDER:-"core"}
+#PRE_START
+#POST_START
+#PRE_STOP
+#POST_STOP
+
+# Check if enabled NOW
+[ "$ENABLED" == "no" ] && exit 3
+[ "$ENABLED" == "yes" ] || exit 3
 
 
 # Some functions
@@ -76,7 +83,7 @@ C_BOLD="\E[1m"
 
 message()
 {
-	echo -e $1 | sed s/"E:"/`echo -en ${C_RED}E:${C_NORMAL}`/ | sed s/"W:"/`echo -en ${C_YELLOW}W:${C_NORMAL}`/
+	echo $1 >&2
 	$LOGGER_BIN $ARGS_LOGGER $1
 }
 
@@ -87,6 +94,7 @@ check_required_files()
 	[ ! -r $CONF_FILE ] && { echo "E: Config file not found: $CONF_FILE" >&2 ; return 1 ; }
 	return 0
 }
+
 is_running()
 {
 	$MAIN_BIN -s | grep -i "\[fw up\]" > /dev/null 2> /dev/null
@@ -97,29 +105,28 @@ is_running()
 		return 0 # running
 	fi
 }
+
 kill_all()
 {
-	for i in `ps aux | grep "$MAIN_BIN --start" | grep -v grep | awk -F' ' '{print $2}'`
+	for i in $( ps aux | grep "$MAIN_BIN --start" | grep -v grep | awk -F' ' '{print $2}' )
 	do
 		[ ! -z "$i" ] && kill $1
 	done
 }
+
 start()
 {
 	is_running
-	if [ $? -ne 0 ]
-	then
-		# Example:
-		#( $MAIN_BIN --start core --nocheck >/dev/null 2>/dev/null \
-		#	; $MAIN_BIN --ipset-reload --nocheck >/dev/null 2>/dev/null \
-		#	; $MAIN_BIN --start nat --nocheck >/dev/null 2>/dev/null \
-		#	; $MAIN_BIN --start sets_rules --nocheck >/dev/null 2>/dev/null \
-		#	; $MAIN_BIN --start vlan_10 --nocheck >/dev/null 2>/dev/null \
-		#	; $MAIN_BIN --start vlan_18 --nocheck >/dev/null 2>/dev/null \
-		#	; $MAIN_BIN --start vlan_54 --nocheck >/dev/null 2>/dev/null ) &
+	if [ $? -ne 0 ] ; then
+		# pre-start hook
+		[ ! -z "$PRE_START" ] && eval "$PRE_START 2>/dev/null >/dev/null" &
 
-		( $MAIN_BIN --start core --nocheck >/dev/null 2>/dev/null \
-			; $MAIN_BIN --ipset-reload --nocheck >/dev/null 2>/dev/null ) &
+		oldIFS=$IFS ; IFS=' '
+		( for $file in $START_ORDER
+		do
+			$MAIN_BIN --start $file --nocheck >/dev/null 2>/dev/null
+		done ) & # bacground
+		IFS=$oldIFS
 
 		# waiting for start timeout
 		local cont=0
@@ -128,30 +135,34 @@ start()
 			((cont++))
 			if is_running
 			then
+				# post-start hook
+				[ "$rc" -eq 0 ] && [ ! -z "$POST_START" ] && eval "$POST_START 2>/dev/null >/dev/null" &
 				return 0
 			else
-				sleep 1
-				continue
+				sleep 0.5
 			fi
 		done
 		return 1
 	fi
 	return 0
 }
+
 stop()
 {
-	kill_all
+	# pre-stop hook
+	[ ! -z "$PRE_STOP" ] && eval "$PRE_STOP 2>/dev/null >/dev/null" &
 
-	# Example:
-	#$MAIN_BIN --stop sets_rules || exit $?
-	#$MAIN_BIN --stop vlan_54 || exit $?
-	#$MAIN_BIN --stop vlan_18 || exit $?
-	#$MAIN_BIN --stop vlan_10 || exit $?
-	#$MAIN_BIN --stop nat || exit $?
-	#$MAIN_BIN --stop core || exit $?
+	kill_all # kill previous attemps
 
-	$MAIN_BIN --stop core || exit $?
+	oldIFS=$IFS ; IFS=' '
+	for $file in $START_ORDER
+	do
+		$MAIN_BIN --stop $file >/dev/null 2>/dev/null || return $?
+	done
+	IFS=$oldIFS
 
+	# post-stop hook
+	[ ! -z "$POST_STOP" ] && eval "$POST_STOP 2>/dev/null >/dev/null" &
 	return 0
 }
 
@@ -167,7 +178,7 @@ case "$1" in
 		else
 			message "I: Already started."
 		fi
-		exit $?
+		exit $rc
 		;;
 	restart|force-reload)
 		stop
@@ -176,7 +187,8 @@ case "$1" in
 		;;
 	stop)
 		stop
-		exit $?
+		rc=$?
+		exit $rc
 		;;
 	status)
 		is_running ; rc=$?

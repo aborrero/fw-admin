@@ -17,7 +17,9 @@ $(TAR) : clean
 	# Deal with conffiles
 	mkdir -p $(ROOT)/etc/fw-admin.d/
 	mkdir -p $(ROOT)/etc/init.d/
+	mkdir -p $(ROOT)/etc/default/
 	cp conf/fw $(ROOT)/etc/init.d/
+	cp conf/default_fw $(ROOT)/etc/default/fw
 	cp conf/fw-admin.conf $(ROOT)/etc/fw-admin.d/
 	cp -R conf/rules $(ROOT)/etc/fw-admin.d/
 
