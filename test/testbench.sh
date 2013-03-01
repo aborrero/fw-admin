@@ -188,7 +188,7 @@ fw-admin --start core >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."
 fw-admin -s | grep "\[fw up\]" >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."
-fw-admin --ipset-reload >&2 || { fail=1 ; echo "*!*" ; }
+fw-admin --ipset-reload >&2 && { fail=1 ; echo "*!*" ; }
 echo -n "."
 fw-admin --stop core >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."

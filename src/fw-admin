@@ -64,7 +64,6 @@ help()
 	echo -e "	if FORMAT=restore	No arguments. Flush all the ruleset."
 	echo -e "	if FORMAT=script	chainName is the chain you would like to flush."
 	echo -e "				Using without arguments, flush entire ruleset."
-	echo -e " ${C_BOLD}--ipset-reload${C_NORMAL}			Reload IPSET kernel data."
 	echo -e " ${C_BOLD}--check-datafiles${C_NORMAL} [--install]	Check datafiles for errors."
 	echo -e "				Using --install will produce a basic datafile installation."
 	echo -e " ${C_BOLD}--help${C_NORMAL}				Show this message."
@@ -128,8 +127,6 @@ FLUSH_WHEN_ERROR_START=${FLUSH_WHEN_ERROR_START:-"no"}
 PERMISSIVE_TRAFFIC_WHEN_STOP=${PERMISSIVE_TRAFFIC_WHEN_STOP:-"no"}
 
 # Consider input argument
-
-[ "$1" == "--start" ] && [ "$2" == "$IPSET_CONF" ] && 1="--ipset-reload"
 
 case "$1" in
 	"-s" )
@@ -203,11 +200,8 @@ case "$1" in
 		do_exit $?
 		;;
 	"--ipset-reload" )
-		loadlibrary
-		validate_execution
-		[ "$2" == "--nocheck" ] && flag_no_check=1
-		ipset_reload # without parameters
-		do_exit $?
+		echo "E: Deprecated option. Use --start instead" >&2
+		exit 1
 		;;
 	"--check-datafiles" )
 		if [ ! -z "$2" ]
