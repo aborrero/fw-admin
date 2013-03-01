@@ -211,7 +211,6 @@ check_rulefile_variables_loop()
 	fi
 
 	set -u
-
 	oldIFS=$IFS ; IFS=$' \t\n' # control over IFS
 	for word in $( grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u )
 	do
@@ -220,13 +219,12 @@ check_rulefile_variables_loop()
 	                ((cont++)) ; libprogressbar $cont $amount
 		fi
 
-		error_msg=$( eval $word 2>&1 )
+		error_msg=$( eval "TMP=$word" 2>&1 )
 		if [ $? -eq 1 ] ; then
 			echo "W:$( awk -F':' '{print $3":"$4}' <<< $error_msg )" >> $AUX_FILE
 		fi
 	done
 	IFS=$oldIFS
-
 	set +u
 	) # End subshell
 }
