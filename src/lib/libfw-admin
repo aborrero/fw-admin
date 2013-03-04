@@ -47,6 +47,17 @@ AUX_FILE="`mktemp`"
 LOGGER_BIN="/usr/bin/logger"
 ARGS_LOGGER="-t fw-admin[$PID] --"
 
+# For stats
+LSMOD="/sbin/lsmod"
+FREE="/usr/bin/free"
+GETCONF="/usr/bin/getconf"
+# Files
+VMALLOCINFO="/proc/vmallocinfo"
+SLABINFO="/proc/slabinfo"
+CONNTRACK_MAX="/proc/sys/net/nf_conntrack_max"
+CONNTRACK_COUNT="/proc/sys/net/netfilter/nf_conntrack_count"
+CONNTRACK_HASHSIZE="/sys/module/nf_conntrack/parameters/hashsize"
+
 
 DIR_LIB="/usr/lib/fw-admin.d"
 LIB_CONTROL="libfw-admin-control"

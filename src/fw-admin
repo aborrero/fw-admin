@@ -26,21 +26,25 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-VERSION="0.9"
+VERSION="1.0.rc1"
 
 CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
 LIB="/usr/lib/fw-admin.d/libfw-admin"
+PID_FILE="/var/run/fw-admin.pid"
 
-C_RED="\E[31m"
-C_GREEN="\E[32m"
-C_YELLOW="\E[33m"
-C_BLUE="\E[34m"
-C_REDBOLD="\E[1;31m"
-C_GREENBOLD="\E[1;32m"
-C_YELLOWBOLD="\E[1;33m"
-C_BLUEBOLD="\E[1;33m"
-C_NORMAL="\E[0m"
-C_BOLD="\E[1m"
+C_BIN="tput"
+C_SETAF="$C_BIN setaf"
+C_BOLD="$($C_BIN bold)"
+C_RESET="$C_BIN sgr0"
+C_RED="$($C_SETAF 1)"
+C_GREEN="$($C_SETAF 2)"
+C_YELLOW="$($C_SETAF 3)"
+C_BLUE="$($C_SETAF 4)"
+C_REDBOLD="${C_BOLD}${C_RED}"
+C_GREENBOLD="${C_BOLD}${C_GREEN}"
+C_YELLOWBOLD="${C_BOLD}${C_YELLOW}"
+C_BLUEBOLD="${C_BOLD}${C_BLUE}"
+C_NORMAL="$($C_RESET)"
 
 help()
 {
@@ -52,16 +56,15 @@ help()
 	echo -e " ${C_BOLD}-r${C_NORMAL}				Reload the value of all IP or FQDN variables in datafiles."
 	echo -e " ${C_BOLD}-i${C_NORMAL} [ipv4|ipv6|fqdn|var]	Get information about IP, FQDN, IPSET or variable."
 	echo -e " ${C_BOLD}-c${C_NORMAL} file			Check rule-file."
-	echo -e " ${C_BOLD}--start${C_NORMAL} arg [--nocheck]"
+	echo -e " ${C_BOLD}--start${C_NORMAL} [arg] [--nocheck]"
 	echo -e "	if FORMAT=restore	Start the selected ruleset"
 	echo -e "	--start ruleset [--nocheck]"
-	echo -e "	if FORMAT=script	Start the selected rulefile/vlan/nat"
-	echo -e "	--start {core|nat|vlan_name} [--nocheck]"
+	echo -e "	if FORMAT=script	Start the selected rulefile/vlan/nat or all files in \$START_ORDER"
+	echo -e "	--start [{core|nat|vlan_name}] [--nocheck]"
 	echo -e " ${C_BOLD}--stop${C_NORMAL} [chainName]"
 	echo -e "	if FORMAT=restore	No arguments. Flush all the ruleset."
 	echo -e "	if FORMAT=script	chainName is the chain you would like to flush."
 	echo -e "				Using without arguments, flush entire ruleset."
-	echo -e " ${C_BOLD}--ipset-reload${C_NORMAL}			Reload IPSET kernel data."
 	echo -e " ${C_BOLD}--check-datafiles${C_NORMAL} [--install]	Check datafiles for errors."
 	echo -e "				Using --install will produce a basic datafile installation."
 	echo -e " ${C_BOLD}--help${C_NORMAL}				Show this message."
@@ -78,19 +81,16 @@ nofound()
 
 loadlibrary()
 {
-	if ! source $LIB 2>/dev/null
-	then
+	if ! source $LIB 2>/dev/null ; then
 		echo "E: Unable to load library $LIB" >&2
 		exit 1
 	fi
 
-	if ! check_root
-	then
+	if ! check_root ; then
 		message "W: Not root!"
 	fi
 
-	if ! check_files
-	then
+	if ! check_files ; then
 		do_exit 1
 	fi
 
@@ -101,8 +101,7 @@ loadlibrary()
 ################################################################
 # Program
 ################################################################
-if ! source $CONF_FILE 2>/dev/null
-then
+if ! source $CONF_FILE 2>/dev/null ; then
 	echo "E: Unable to load config file $CONF_FILE" >&2
 	exit 1
 fi
@@ -118,7 +117,6 @@ VARS_IPV6=${VARS_IPV6:-"$DATA_DIR/iptables_vars_ipv6.bash"}
 VARS_IPV4=${VARS_IPV4:-"$DATA_DIR/iptables_vars_ipv4.bash"}
 VARS_IPSETV4=${VARS_IPSETV4:-"$DATA_DIR/ipset_vars_ipv4.bash"}
 VARS_IPSETV6=${VARS_IPSETV6:-"$DATA_DIR/ipset_vars_ipv6.bash"}
-PID_FILE=${PID_FILE:-"/var/run/fw-admin.pid"}
 LOG_ERROR_MESSAGES=${LOG_ERROR_MESSAGES:-"yes"}
 LOG_WARN_MESSAGES=${LOG_WARN_MESSAGES:-"yes"}
 USE_COLORS=${USE_COLORS:-"yes"}
@@ -129,6 +127,7 @@ FLUSH_WHEN_ERROR_START=${FLUSH_WHEN_ERROR_START:-"no"}
 PERMISSIVE_TRAFFIC_WHEN_STOP=${PERMISSIVE_TRAFFIC_WHEN_STOP:-"no"}
 
 # Consider input argument
+
 case "$1" in
 	"-s" )
 		loadlibrary
@@ -173,16 +172,31 @@ case "$1" in
 	"--start" )
 		loadlibrary
 		validate_execution
-		[ "$3" == "--nocheck" ] && flag_no_check=1
+
+		[ "$3" = "--nocheck" ] && flag_no_check=1
+		[ "$2" = "--nocheck" ] && flag_no_check=1
 
 		if [ "$FORMAT" == "restore" ]
 		then
-			start_in_restore_format $2 # filename as a parameter
+			if [ -z "$2" ] ; then
+				message "E: No file specified"
+				do_exit 1
+			fi
+			start_in_restore_format $2 || rc=$?
 		else
-			start_in_script_format $2 # vlan|core|nat as a parameter
+			if [ "$2" = "--nocheck" ] || [ -z "$2" ] ; then
+				oldIFS=$IFS ; IFS=' '
+				for file in $START_ORDER
+				do
+					start_in_script_format $file || rc=$?
+				done
+				IFS=$oldIFS
+			else
+				start_in_script_format $2 || rc=$?
+			fi
 		fi
 
-		do_exit $?
+		do_exit $rc
 		;;
 	"--stop" )
 		loadlibrary
@@ -201,11 +215,8 @@ case "$1" in
 		do_exit $?
 		;;
 	"--ipset-reload" )
-		loadlibrary
-		validate_execution
-		[ "$2" == "--nocheck" ] && flag_no_check=1
-		ipset_reload # without parameters
-		do_exit $?
+		echo "E: Deprecated option. Use --start instead" >&2
+		exit 1
 		;;
 	"--check-datafiles" )
 		if [ ! -z "$2" ]

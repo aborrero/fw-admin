@@ -1,4 +1,4 @@
-VERSION := 0.9
+VERSION := 1.0.rc1
 TAR := fw-admin_$(VERSION).tar.gz
 INSTALL_PREFIX := /
 ROOT := build
@@ -17,7 +17,9 @@ $(TAR) : clean
 	# Deal with conffiles
 	mkdir -p $(ROOT)/etc/fw-admin.d/
 	mkdir -p $(ROOT)/etc/init.d/
+	mkdir -p $(ROOT)/etc/default/
 	cp conf/fw $(ROOT)/etc/init.d/
+	cp conf/default_fw $(ROOT)/etc/default/fw
 	cp conf/fw-admin.conf $(ROOT)/etc/fw-admin.d/
 	cp -R conf/rules $(ROOT)/etc/fw-admin.d/
 

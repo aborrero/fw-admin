@@ -124,22 +124,32 @@ check_root()
 check_files()
 {
 	local check_files_retval=0
-	[ -x $IPT_SAVE ] || { message "E: Binary not found [$IPT_SAVE]" ; check_files_retval=1 ; }
-	[ -x $IP6T_SAVE ] || { message "E: Binary not found [$IP6T_SAVE]" ; check_files_retval=1 ; }
-	[ -x $IPT_RESTORE ] || { message "E: Binary not found [$IPT_RESTORE]" ; check_files_retval=1 ; }
-	[ -x $IP6T_RESTORE ] || { message "E: Binary not found [$IP6T_RESTORE]" ; check_files_retval=1 ; }
-	[ -w $AUX_FILE ] || { message "E: Unable to create aux file [$AUX_FILE]" ; check_files_retval=1 ; }
-	[ -d $CONF_DIR ] || { message "E: Dir not found [$CONF_DIR]" ; check_files_retval=1 ; }
-	[ -x $IPSET_CONF ] || { message "E: File not found [$IPSET_CONF]" ; check_files_retval=1 ; }
-	[ -d $DATA_DIR ] || { message "E: Dir not found [$DATA_DIR]" ; check_files_retval=1 ; }
-	[ -w $VARS_IPV6 ] || { message "E: File not found [$VARS_IPV6]" ; check_files_retval=1 ; }
-	[ -w $VARS_IPV4 ] || { message "E: File not found [$VARS_IPV4]" ; check_files_retval=1 ; }
-	[ -w $VARS_IPSETV6 ] || { message "E: File not found [$VARS_IPSETV6]" ; check_files_retval=1 ; }
-	[ -w $VARS_IPSETV4 ] || { message "E: File not found [$VARS_IPSETV4]" ; check_files_retval=1 ; }
-	[ -x $IPT ] || { message "E: Binary not found [$IPT]." ; check_files_retval=1 ; }
-	[ -x $IP6T ] || { message "E: Binary not found [$IP6T]." ; check_files_retval=1 ; }
-	[ -x $IPSET ] || { message "E: Binary not found [$IPSET]." ; check_files_retval=1 ; }
-	[ -x $DIG ] || { message "E: Binary not found [$DIG]" ; check_files_retval=1 ; }
+	[ -x $IPT_SAVE ] || { message "E: Binary not found $IPT_SAVE" ; check_files_retval=1 ; }
+	[ -x $IP6T_SAVE ] || { message "E: Binary not found $IP6T_SAVE" ; check_files_retval=1 ; }
+	[ -x $IPT_RESTORE ] || { message "E: Binary not found $IPT_RESTORE" ; check_files_retval=1 ; }
+	[ -x $IP6T_RESTORE ] || { message "E: Binary not found $IP6T_RESTORE" ; check_files_retval=1 ; }
+	[ -w $AUX_FILE ] || { message "E: Unable to create aux file $AUX_FILE" ; check_files_retval=1 ; }
+	[ -d $CONF_DIR ] || { message "E: Dir not found $CONF_DIR" ; check_files_retval=1 ; }
+	[ -x $IPSET_CONF ] || { message "E: File not found $IPSET_CONF" ; check_files_retval=1 ; }
+	[ -d $DATA_DIR ] || { message "E: Dir not found $DATA_DIR" ; check_files_retval=1 ; }
+	[ -w $VARS_IPV6 ] || { message "E: File not found $VARS_IPV6" ; check_files_retval=1 ; }
+	[ -w $VARS_IPV4 ] || { message "E: File not found $VARS_IPV4" ; check_files_retval=1 ; }
+	[ -w $VARS_IPSETV6 ] || { message "E: File not found $VARS_IPSETV6" ; check_files_retval=1 ; }
+	[ -w $VARS_IPSETV4 ] || { message "E: File not found $VARS_IPSETV4" ; check_files_retval=1 ; }
+	[ -x $IP4T ] || { message "E: Binary not found $IP4T" ; check_files_retval=1 ; }
+	[ -x $IP6T ] || { message "E: Binary not found $IP6T" ; check_files_retval=1 ; }
+	[ -x $IPSET ] || { message "E: Binary not found $IPSET" ; check_files_retval=1 ; }
+	[ -x $DIG ] || { message "E: Binary not found $DIG" ; check_files_retval=1 ; }
+
+	# Optional, for stats
+	[ ! -x $FREE ] && message "W: Binary not found $FREE"
+	[ ! -x $LSMOD ] && message "W: Binary not found $LSMOD"
+	[ ! -x $GETCONF ] && message "W: Binary not found $GETCONF"
+	[ ! -r $VMALLOCINFO ] && message "W: File not found $VMALLOCINFO"
+	[ ! -r $SLABINFO ] && message "W: File not found $SLABINFO"
+	[ ! -r $CONNTRACK_MAX ] && message "W: File not found $CONNTRACK_MAX"
+	[ ! -r $CONNTRACK_COUNT ] && message "W: File not found $CONNTRACK_COUNT"
+	[ ! -r $CONNTRACK_HASHSIZE ] && message "W: File not found $CONNTRACK_HASHSIZE"
 
 	return $check_files_retval
 }
@@ -181,15 +191,12 @@ libprogressbar()
 
 	# This needs strong optimization.
 
-        local current=0
-        local max=100
-        local decimal=1
-        local max_width=50
-        local subtraction width atleast percent chars
-        local padding=5
+        local current
+        local max
+        local percent chars
 
-	current=${1:-$current}
-	max=${2:-$max}
+	current=${1:-0}
+	max=${2:-100}
 
 	# Delete the bar now
 	if [ $max -eq $current ]
@@ -198,9 +205,6 @@ libprogressbar()
 		return 0
 	fi
 
-        let subtraction=${#completed_char}+${#prefix}+${#suffix}+padding+${#percent_sign}
-        let width=max_width-subtraction
-
 	if (( current > max ))
 	then
 		echo >&2 "libprogressbar: current value must be smaller than max. value"
@@ -208,17 +212,13 @@ libprogressbar()
 	fi
 
 	percent=$(awk -v "f=%5.1f" -v "c=$current" -v "m=$max" 'BEGIN{printf('f', c / m * 100)}')
-	(( chars = current * width / max))
+	(( chars = current * 45 / max))
 
 	# sprintf n zeros into the var named as the arg to -v
 	printf -v complete '%0*.*d' '' "$chars" ''
-	printf -v remain '%0*.*d' '' "$((width - chars))" ''
+	printf -v remain '%*s' "$((45 - chars))" ''
 
-	# replace the zeros with the desired char
-	#complete=${complete//0/"#"} #completed char
-	#remain=${remain//0/"."} #uncompleted char
-
-	printf ' %s%s%s%s %s%s\r' "[" "${complete//0/-}" "${remain//0/ }" "]" "$percent" "%"
+	printf ' %s%s%s%s %s%s\r' "[" "${complete//0/-}" "${remain}" "]" "$percent" "%"
 
 	if (( current >= max ))
 	then

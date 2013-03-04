@@ -26,7 +26,6 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#3
 
 ################################################################
 ################################################################
@@ -69,10 +68,11 @@ is_ipv6_valid()
 is_fqdn_valid()
 {
 	local retval=1
-	if [ ! -z $1 ]
+	local fqdn=$1
+	if [ ! -z $fqdn ]
 	then
 		# resolve it to know if it's valid
-		local resolution=`$DIG +short $1 2>/dev/null | wc -l 2>/dev/null`
+		local resolution=$( $DIG +short $fqdn 2>/dev/null | egrep -v ^";"\|^$ | wc -l 2>/dev/null )
 		if [ ! -z "$resolution" ] && [[ $resolution =~ ^[0-9]+$ ]] && [ $resolution -ne 0 ]
 		then
 			retval=0
@@ -99,13 +99,8 @@ is_ip_fqdn_valid()
 # Funcion que valora si un fqdn es del dominio cica.es
 is_domain_fqdn()
 {
-	local retval=1
-	grep "$DOMAIN"$ <<< $1 > /dev/null
-	if [ $? -eq 0 ]
-	then
-		retval=0
-	fi
-	return $retval
+	grep "$DOMAIN"$ <<< $1 > /dev/null && return 0
+	return 1
 }
 
 
@@ -151,47 +146,37 @@ reload_variable_values()
 	return $reload_variable_values_retval
 }
 
+# string string_to_varname(string data)
+# Transform a string to var name: lower case to upper case,  - to _, : to _  and so
+string_to_varname()
+{
+	local data=$1
+	echo $( tr [:lower:] [:upper:] <<< $data | tr '-' '_' | tr ':' '_' | tr '.' '_' ) && return 0 # the string return
+	return 1 # error if this is reached
+}
+
 # string get_variable_name(string data)
 # Used to know what variable name correspond to the given data
 get_variable_name()
 {
+	local data=$1
+
 	# Check for empty argument
-	if [ -z "$1" ]
+	if [ -z "$data" ]
 	then
 		message "E: empty argument in function get_variable_name()"
 		do_exit 1
 	fi
 
-	# Check if the data is IPv4
-	if is_ipv4_valid $1
-	then
-		# return
-		echo v$1 | tr '.' '_'
-		return 0
-	fi
+	# If start with a number, mandatory change it and start with 'V'
+	# so it ends $V123123
+	[[ $data =~ ^[0-9] ]] && data="V${data}"
 
-	# Check if the data is IPv6
-	if is_ipv6_valid $1
-	then
-		# return
-		echo v$1 | tr ':' '_'
-		return 0
-	fi
+	# if is from $DOMAIN, delete $DOMAIN
+	is_domain_fqdn $data && data=`echo $data | awk -F".$DOMAIN" '{print $1}'`
 
-	# Check if the data is FQDN
-	if is_fqdn_valid $1
-	then
-		local name="$1"
-		# if is from $DOMAIN, delete $DOMAIN
-		is_domain_fqdn $1 && name=`echo $1 | awk -F".$DOMAIN" '{print $1}'`
-		# if starts with a number, starts now with 'v'
-		[[ $name =~ ^[0-9] ]] && name="v${name}"
-		# and then return
-		echo $name | tr [:lower:] [:upper:] | tr '.' '_' | tr '-' '_'
-		return 0
-	fi
-
-	return 1
+	echo $( string_to_varname $data ) && return 0 # the string return
+	return 1 # error if this is reached
 }
 
 # ip get_ip_from_fqdn(string tipo_ip, string fqdn, int recursivityLevel)
@@ -236,7 +221,7 @@ get_ip_from_fqdn()
 # Used to add a variale to IP datafiles
 add_ip_variable()
 {
-	# trap de cancelacion
+	# cancelation trap
 	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	local add_ip_variable_retval=0
@@ -494,6 +479,9 @@ delete_data()
 	local flag_something_deleted=0
 	echo -n "" > $AUX_FILE
 
+	# cancelation trap
+	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
 	# We don't know if data_to_delete is a variable of IPSET or IP/FQDN
 	# Try now to resolve to a VAR name
 	get_input_abstracted_of_type $data_to_delete $AUX_FILE
@@ -503,9 +491,12 @@ delete_data()
 	then
 		# Yes, is filled with lines like this:
 		#/path/to/datafile: VAR=data #comment
+		#/path/to/datafile: VAR=data #comment
+		#/path/to/datafile: VAR=data
 
-		# Iterate over the list of vars
-		for var in $( awk -F'=' '{print $1}' $AUX_FILE | awk -F' ' '{print $2}' | sort | uniq )
+		# Iterate over the list of vars, only in IP/FQDN datafiles
+		oldIFS=$IFS ; IFS=$'\n' # control over IFS
+		for var in $( egrep ^$VARS_IPV4\|^$VARS_IPV6 $AUX_FILE | awk -F'=' '{print $1}' | awk -F' ' '{print $2}' | sort | uniq )
 		do
 			read -p "-> Delete the IP/FQDN variable \"${var}\"? [y/N]: "
 			if [ "$REPLY" == "y" ] # REPLY is a special variable by read
@@ -518,22 +509,24 @@ delete_data()
 				flag_something_deleted=1
 			fi
 		done
-	fi
+		IFS=$oldIFS
 
-	# IP/FQDN variables were not found. Maybe we are triying to delete a IPSET variable?
-	if egrep ^[[:space:]]*${data_to_delete}= $VARS_IPSETV4 > /dev/null &&  egrep ^[[:space:]]*${data_to_delete}= $VARS_IPSETV6 > /dev/null
-	then
-		# We found data to delete in IPSET datafiles!!
-		read -p "-> Delete the ipset variable \"${data_to_delete}\"? [y/N]: "
-		if [ "$REPLY" == "y" ] # REPLY is a special variable by read
-		then
-			delete_from_datafile $data_to_delete $VARS_IPSETV4 \
-				|| { message "W: Something went wrong when deleting ${data_to_delete} from $VARS_IPSETV4" ; delete_data_retval=1 ; }
-			delete_from_datafile $data_to_delete $VARS_IPSETV6 \
-				|| { message "W: Something went wrong when deleting ${data_to_delete} from $VARS_IPSETV6" ; delete_data_retval=1 ; }
-			message "W: Deleted ipset variable \"${data_to_delete}\""
-			flag_something_deleted=1
-		fi
+		# Iterate over the list of vars, only in IPSET datafiles
+		oldIFS=$IFS ; IFS=$'\n' # control over IFS
+		for var in $( egrep ^$VARS_IPSETV4\|^$VARS_IPSETV6 $AUX_FILE | awk -F'=' '{print $1}' | awk -F' ' '{print $2}' | sort | uniq )
+		do
+			read -p "-> Delete the IPSET variable \"${var}\"? [y/N]: "
+			if [ "$REPLY" == "y" ] # REPLY is a special variable by read
+			then
+				delete_from_datafile $var $VARS_IPSETV4 \
+					|| { message "W: Something went wrong when deleting ${var} from $VARS_IPSETV4" ; delete_data_retval=1 ; break ; }
+				delete_from_datafile $var $VARS_IPSETV6 \
+					|| { message "W: Something went wrong when deleting ${var} from $VARS_IPSETV6" ; delete_data_retval=1 ; break ; }
+				message "W: Deleted IPSET variable \"${var}\""
+				flag_something_deleted=1
+			fi
+		done
+		IFS=$oldIFS
 	fi
 
 	if [ $flag_something_deleted -eq 0 ]

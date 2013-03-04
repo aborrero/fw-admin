@@ -1,4 +1,4 @@
-.TH FW-ADMIN 8 "17 Dec 2012"
+.TH FW-ADMIN 8 "27 Feb 2013"
 .SH NAME
 fw-admin \- Herramienta para manejar un firewall basado en iptables.
 .SH SYNOPSIS
@@ -16,13 +16,11 @@ fw-admin \- Herramienta para manejar un firewall basado en iptables.
 
 \fBfw-admin -c\fP \fIfichero\fP
 
-\fBfw-admin --ipset-reload\fP [--nocheck]
-
 \fBfw-admin --check-datafiles\fP [--install]
 
 \fBfw-admin --help\fP
 
-\fBfw-admin --start\fP \fIfichero\fP [--nocheck]
+\fBfw-admin --start\fP [\fIfichero\fP] [--nocheck]
 
 \fBfw-admin --stop\fP [\fIchainname\fP]
 
@@ -115,8 +113,8 @@ La opción \fB-A\fP es la más común a la hora de añadir reglas de \fBiptables
 
 Este es el mismo algoritmo que se usa como paso previo de checkeo al usar la opcion \fB--start\fP.
 .TP
-\fB--start fichero [--nocheck]\fP
-Se checkea que \fIfichero\fP existe en la ruta especificada en la variable \fB$CONF_DIR\fP (generalmente \fB/etc/fw-admin.d/rules/\fP) y que tiene permisos de ejecución.
+\fB--start [fichero] [--nocheck]\fP
+Se checkea que \fIfichero\fP existe en la ruta especificada en la variable \fB$CONF_DIR\fP (generalmente \fB/etc/fw-admin.d/rules/\fP).
 
 La orden \fB--start\fP sirve como reload. 
 
@@ -147,8 +145,11 @@ reglas, no hay ningun error, la regla de trafico permisivo es eliminada.
 Esta regla esta identificada con un comentario y suele poner algo asi como "transaccional_rule_fw-admin"
 para su fácil identificación en caso de error.
 
+Para versiones de \fBfw-admin\fP > 0.9, la opción \fB--start\fP también sirve para los ficheros de reglas de \fBipset(8)\fP.
 
 La opción \fB--nocheck\fP evade los checkeos de sintaxis y variables. Esta pensada para casos donde es necesario hacer un start rápido.
+
+Si se omite el argumento \fBfichero\fP, se arrancarán los ficheros de reglas especificados en $START_ORDER
 .TP
 \fB--stop [chainname]\fP
 
@@ -161,17 +162,9 @@ Si \fIchainname\fP es el nombre de una cadena de la tabla filter, se borrará so
 reglas de tráfico permisivo con el comentario "transaccional_rule_fw-admin" únicamente en esa cadena.
 .TP
 \fB--ipset-reload [--nocheck]\fP
-Se recarga la información de \fBipset(8)\fP en el sistema. Se lee el fichero especificado en la directiva \fB$IPSET_CONF\fP. No se comprueba sintaxis.
 
-El procedimiento es similar a la operacion \fB--start\fP
-.nf
-	· Se hace un `source' de los ficheros de datos en IPv4.
-	· Se recorre y ejecuta linea por linea el fichero \fB$IPSET_CONF\fP.
-	· Se hace un `source' de los ficheros de datos en IPv6.
-	· Se recorre y ejecuta linea por linea el fichero \fB$IPSET_CONF\fP.
-.fi
+\fBDEPRECATED AND NO LONGER ACCEPTABLE\fP. To start a \fBipset(8)\fP rulefile, use \fB--start\fP instead.
 
-La opción \fB--nocheck\fP evade los checkeos de variables. Esta pensada para casos donde es necesaria una operación rápida.
 .TP
 \fB--check-datafiles [--install]\fP
 
@@ -191,16 +184,18 @@ Ficheros importantes para \fBfw-admin\fP:
 \fB/etc/fw-admin.d/fw-admin.conf\fR
 Fichero principal de configuración. Ver \fBfw-admin.conf(5)\fP.
 .TP
-\fB/etc/init.d/firewall\fR
+\fB/etc/init.d/fw\fR
 Usando este script, se integra definitivamente \fBfw-admin\fP como servicio en el sistema.
+.TP
+\fB/etc/default/fw\fR
+Default configuration file for the init.d script.
 .TP
 \fB/usr/sbin/fw-admin\fR
 El binario principal de \fBfw-admin\fP.
 .TP
-\fB/usr/lib/libfw-admin\fR
-La libreria de funciones de \fBfw-admin\fP. Aqui se encuentra la mayor parte del contenido del software.
+\fB/usr/lib/fw-admin.d/\fR
+Las librerias de funciones de \fBfw-admin\fP. Aqui se encuentra la mayor parte del contenido del software.
 Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
-Al principio de este fichero están declaradas todas las variables que no están declaradas en \fB/etc/fw-admin.d/fw-admin.conf\fP.
 .TP
 \fB$DATA_DIR\fR
 Donde se almacenan los ficheros de datos. Por defecto es /var/lib/fw-admin
@@ -313,11 +308,7 @@ Se detallan algunas variables y binarios:
 .TP
 \fBIP6T_SAVE="/sbin/ip6tables-save"\fP binario principal de \fBip6tables-save(8)\fP.
 .TP
-\fBCONNTRACKD="/usr/sbin/conntrackd"\fP binario del demonio \fBconntrackd(8)\fP.
-.TP
-\fBCONNTRACK="/usr/sbin/conntrack"\fP binario de la herramienta \fBconntrack(8)\fP.
-.TP
-\fBDIG="/usr/bin/dig"\fP binario principal de la herramineta \fBdig(1)\fP.
+\fBDIG="/usr/bin/dig"\fP binario principal de la herramienta \fBdig(1)\fP.
 .RE
 
 .SH DEBUGEANDO ERRORES
@@ -363,5 +354,4 @@ Debe visitar ese sitio para reportar bugs, contribuir y/o hacer comentarios.
 
 El autor original de esta herramienta y sistema (y página de manual) fue \fBArturo Borrero Gonzalez <aborrero@cica.es>\fP.
 
-Durante el desarrollo y testeo, participaron \fBMarina Moreda Rodrigez <marina.moreda@cica.es>\fP, \fBPedro Gallego Torrecillas <pgallego@cica.es>\fP, 
-\fBRafael Garcia Martín <rafael.garcia@cica.es>\fP y también \fBYassine Mohamed Ahram <yahram@cica.es>\fP.
+Durante el desarrollo y testeo ha participado mucha gente: CICA staff and IES GN students.
