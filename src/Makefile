@@ -1,4 +1,4 @@
-VERSION := 0.9
+VERSION := 1.0.rc1
 TAR := fw-admin_$(VERSION).tar.gz
 INSTALL_PREFIX := /
 ROOT := build

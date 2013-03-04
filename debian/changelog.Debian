@@ -1,3 +1,22 @@
+fw-admin (1.0.rc1-1) stable; urgency=low
+
+  * Better service implementation.
+
+  * Deprecated --ipset-reload options. Use --start instead.
+
+  * Using --start without any file will result in executing all files
+  in ORDER_START variable.
+
+  * Progressbar optimiced.
+
+  * Improved stats printing. Including conntrack and other system info.
+
+  * Fixed several bugs.
+
+  * Small tiny fixes, please see git commit history.
+
+ -- Arturo Borrero <aborrero@cica.es>  Mon, 17 Dec 2012 20:00:00 +0001
+
 fw-admin (0.9-1) stable; urgency=low
 
   * Changed init.d script name to `fw'
