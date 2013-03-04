@@ -211,12 +211,6 @@ fw-admin -c core >&2 || { fail=1 ; echo "*!*" ; }
 cp -f rules/* /etc/fw-admin.d/rules/
 
 
-# VOID issues
-#$IPT -A FORWARD -s $WWW_GOOGLE_COM -m state --state NEW -m comment --comment "void1" -j ACCEPT
-#$IPT -A FORWARD -s $WWW_GOOGLE_COM -d $V192_168_0_1 -m state --state NEW -m comment --comment "void2" -j ACCEPT
-#$IPT -A FORWARD -s $V2A00_9AC0_C1CA__1 -d $V192_168_0_1 -m state --state NEW -m comment --comment "void3" -j ACCEPT
-#$IPT -A FORWARD -s $V2A00_9AC0_C1CA__1 -m state --state NEW -m comment --comment "void4" -j ACCEPT
-#$IPT -A INPUT -s $VOID -m comment --comment "void5" -j ACCEPT
 echo -n "."
 fw-admin --start vlan_1 >&2 || { fail=1 ; echo "*!*" ; }
 
@@ -245,6 +239,15 @@ echo -n "."
 iptables-save | grep void5 >&2 && { fail=1 ; echo "*!*" ; }
 echo -n "."
 ip6tables-save | grep void5 >&2 && { fail=1 ; echo "*!*" ; }
+
+# Testing FORMAT=restore
+echo -n "."
+sed -i s/FORMAT=script/FORMAT=restore/ /etc/fw-admin.d/fw-admin.conf
+fw-admin --start ruleset >&2 || { fail=1 ; echo "*!*" ; }
+
+echo -n "."
+# In FORMAT=restore, a file must be provided
+fw-admin --start >&2 && { fail=1 ; echo "*!*" ; }
 
 if [ $fail -ne 0 ]
 then

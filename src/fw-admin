@@ -178,6 +178,10 @@ case "$1" in
 
 		if [ "$FORMAT" == "restore" ]
 		then
+			if [ -z "$2" ] ; then
+				message "E: No file specified"
+				do_exit 1
+			fi
 			start_in_restore_format $2 || rc=$?
 		else
 			if [ "$2" = "--nocheck" ] || [ -z "$2" ] ; then
