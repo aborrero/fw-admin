@@ -146,7 +146,7 @@ check_iptables_syntax()
 # To check that variables of a rulefile are in datafiles and ip[6]?tables syntax
 check_rulefile()
 {
-	[ ! -z "$flag_no_check" ] && [ $flag_no_check -eq 1 ] && return 0
+	[ "$flag_no_check" = "1" ] && return 0
 
 	local check_rulefile_retval=0
 	local flag_wrong_variables=0

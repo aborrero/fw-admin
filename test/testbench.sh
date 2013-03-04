@@ -208,6 +208,7 @@ echo -n "."
 echo "\${ASDASD}:80" >> /etc/fw-admin.d/rules/core
 echo "ASDASD=\$VOID ##ignore##" >> /var/lib/fw-admin/iptables_vars_ipv4.bash
 fw-admin -c core >&2 || { fail=1 ; echo "*!*" ; }
+cp -f rules/* /etc/fw-admin.d/rules/
 
 
 # VOID issues
