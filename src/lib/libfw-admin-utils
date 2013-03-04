@@ -38,7 +38,7 @@ print_bytes_count()
 	[ $bytecount -ge 9663676416 ] && { echo "$(( bytecount / 1073741824 )) GB" ; return 0 ; }
 	[ $bytecount -ge 9437184 ] && { echo "$(( bytecount /  1048576 )) MB" ; return 0 ; }
 	[ $bytecount -ge 9216 ] && { echo "$(( bytecount /  1024 )) kB" ; return 0 ; }
-	echo "$arg0 B"
+	echo "$bytecount B"
 
 	return 0
 }
@@ -61,8 +61,7 @@ print_bytes()
 # Return how many iptables rules are inserted in the kernel
 get_iptables_number_of_rules()
 {
-	[ ! -x $IPTABLES_SAVE ] && return 1
-	$IPTABLES_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l 2>/dev/null
+	$IPT_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l 2>/dev/null
 	return 0
 }
 
@@ -70,8 +69,7 @@ get_iptables_number_of_rules()
 # Return how many ip6tables rules are inserted in the kernel
 get_ip6tables_number_of_rules()
 {
-	[ ! -x $IP6TABLES_SAVE ] && return 1
-	$IP6TABLES_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l 2>/dev/null
+	$IP6T_SAVE 2>/dev/null | grep ^- 2>/dev/null | wc -l 2>/dev/null
 	return 0
 }
 
@@ -192,7 +190,7 @@ stats()
 	local num_of_ipv6_rules_match=$(( num_of_ipv6_rules - num_of_ipv6_rules_nomatch ))
 	[[ $num_of_ipv4_rules_match =~ ^[0-9]+$ ]] || num_of_ipv4_rules_match=0
 	[[ $num_of_ipv6_rules_match =~ ^[0-9]+$ ]] || num_of_ipv6_rules_match=0
-	local total_num_of_rules=$(( num_of_ipv4_rules + num_of_ivp6_rules ))
+	local total_num_of_rules=$(( num_of_ipv4_rules + num_of_ipv6_rules ))
 
 	echo -e " Rules with match: \t $(( num_of_ipv4_rules_match )) \t $(( num_of_ipv6_rules_match )) \t $(( num_of_ipv4_rules_match + num_of_ipv6_rules_match ))"
 	echo -e " Rules not in use: \t $num_of_ipv4_rules_nomatch \t $num_of_ipv6_rules_nomatch \t $(( num_of_ipv4_rules_nomatch + num_of_ipv6_rules_nomatch ))"
@@ -285,7 +283,7 @@ stats()
 	echo ""
 
 	if [ $num_of_ipv4_rules -ge $MINIMAL_AMOUNT_OF_RULES ] || [ $num_of_ipv6_rules -ge $MINIMAL_AMOUNT_OF_RULES ] \
-	|| [ $(( num_of_ipv4_rules + num_of_ipv6_rules )) -ge $MINIMAL_AMOUNT_OF_RULES ]
+	|| [ $total_num_of_rules -ge $MINIMAL_AMOUNT_OF_RULES ]
 	then
 		echo " [fw up] Appears to be up and running (More than $MINIMAL_AMOUNT_OF_RULES rules in kernel)."
 	else

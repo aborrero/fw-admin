@@ -74,9 +74,10 @@ STOP_ORDER=${STOP_ORDER:-"core"}
 #POST_STOP
 
 # Check if enabled NOW
-[ "$ENABLED" == "no" ] && exit 3
-[ "$ENABLED" == "yes" ] || exit 3
-
+if [ "$ENABLED" != "yes" ] ; then
+	echo "W: Service disabled in /etc/default/fw" >&2
+	exit 3
+fi
 
 # Some functions
 #
@@ -121,12 +122,7 @@ start()
 		# pre-start hook
 		[ ! -z "$PRE_START" ] && eval "$PRE_START 2>/dev/null >/dev/null" &
 
-		oldIFS=$IFS ; IFS=' '
-		( for $file in $START_ORDER
-		do
-			$MAIN_BIN --start $file --nocheck >/dev/null 2>/dev/null
-		done ) & # bacground
-		IFS=$oldIFS
+		$MAIN_BIN --start $file --nocheck >/dev/null 2>/dev/null &
 
 		# waiting for start timeout
 		local cont=0
@@ -139,7 +135,7 @@ start()
 				[ "$rc" -eq 0 ] && [ ! -z "$POST_START" ] && eval "$POST_START 2>/dev/null >/dev/null" &
 				return 0
 			else
-				sleep 0.5
+				sleep 1
 			fi
 		done
 		return 1
@@ -154,12 +150,7 @@ stop()
 
 	kill_all # kill previous attemps
 
-	oldIFS=$IFS ; IFS=' '
-	for $file in $START_ORDER
-	do
-		$MAIN_BIN --stop $file >/dev/null 2>/dev/null || return $?
-	done
-	IFS=$oldIFS
+	$MAIN_BIN --stop $file >/dev/null 2>/dev/null || return $?
 
 	# post-stop hook
 	[ ! -z "$POST_STOP" ] && eval "$POST_STOP 2>/dev/null >/dev/null" &
@@ -174,7 +165,7 @@ case "$1" in
 		is_running ; rc=$?
 		if [ $rc -ne 0 ]
 		then
-			start
+			start ; rc=$?
 		else
 			message "I: Already started."
 		fi
@@ -187,8 +178,7 @@ case "$1" in
 		;;
 	stop)
 		stop
-		rc=$?
-		exit $rc
+		exit $?
 		;;
 	status)
 		is_running ; rc=$?

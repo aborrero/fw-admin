@@ -7,9 +7,9 @@ then
 fi
 
 echo "##################################################################"
-echo "W: Runing this testbench will break your current fw-admin system!!"
+echo "W: Running this testbench will break your current fw-admin system!!"
 echo "W: It is intended to run while developing the code of fw-admin."
-echo "W: This script is only fully tested in a Debian Wheezy system."
+echo "W: This script is fully tested only in a Debian Wheezy system."
 read -p "Continue? [N/y] " continue
 if [ -z "$continue" ] || [ $continue != y ]
 then
@@ -259,28 +259,45 @@ echo ""
 echo "I: Testing service integration"
 echo -n "."
 
-# Testing ENABLED directive in /etc/default/fw
-#echo ENABLED=no >> /etc/default/fw
+cp -f conf/fw-admin.conf /etc/fw-admin.d/fw-admin.conf
+cp -f conf/default_fw /etc/default/fw
 
-# How many seconds to wait for the start operation. 0 means infinite.
-# Values: integer >= 0 Default: 5
-#START_TIMEOUT="5"
+# Whatever state, stop now. Should return 0
+/etc/init.d/fw stop >&2
+[ "$?" != "0" ] && { fail=1 : echo "*!*" ; }
 
-# The fw-admin config file.
-# Values: /absolute/path/to/file Default: /etc/fw.admin.d/fw-admin.conf
-#CONF_FILE=/etc/fw-admin.d/fw-admin.conf
+# stop when already stopped should return 0
+echo -n "."
+/etc/init.d/fw stop >&2
+[ "$?" != "0" ] && { fail=1 ; echo  "*!*" ; }
 
-# Here you can set some scripts that need to be run when stopping
-# and starting the firewall. Names are self explanatory.
-# NOTE: You will not recive any stdout or stderr of this commands
-# The return code of this commands will be ignored, as they will be evaluated
-# Values: a command
-# Default: <empty>
-#PRE_START=""
-#POST_START=""
-#PRE_STOP=""
-#POST_STOP=""
+# status -> stopped should return 3
+echo -n "."
+/etc/init.d/fw status >&2
+[ "$?" != "3" ] && { fail=1 ; echo  "*!*" ; }
 
+# bad argument should return 4
+echo -n "."
+/etc/init.d/fw asdasd >&2
+[ "$?" != "4" ] && { fail=1 ; echo  "*!*" ; }
+
+# success start should return 0
+echo -n "."
+/etc/init.d/fw start >&2
+[ "$?" != "0" ] && { fail=1 ; echo  "*!*" ; }
+
+# status -> started should return 0
+echo -n "."
+/etc/init.d/fw status >&2
+[ "$?" != "0" ] && { fail=1 ; echo  "*!*" ; }
+
+# if ENABLED=no, return code should be 3
+echo -n "."
+sed -i s/ENABLED=yes/ENABLED=no/ /etc/default/fw
+/etc/init.d/fw status >&2
+[ "$?" != "3" ] && { fail=1 ; echo  "*!*" ; }
+
+sed -i s/ENABLED=no/ENABLED=yes/ /etc/default/fw
 
 
 if [ $fail -ne 0 ]
