@@ -20,7 +20,7 @@ fw-admin \- Herramienta para manejar un firewall basado en iptables.
 
 \fBfw-admin --help\fP
 
-\fBfw-admin --start\fP \fIfichero\fP [--nocheck]
+\fBfw-admin --start\fP [\fIfichero\fP] [--nocheck]
 
 \fBfw-admin --stop\fP [\fIchainname\fP]
 
@@ -113,7 +113,7 @@ La opción \fB-A\fP es la más común a la hora de añadir reglas de \fBiptables
 
 Este es el mismo algoritmo que se usa como paso previo de checkeo al usar la opcion \fB--start\fP.
 .TP
-\fB--start fichero [--nocheck]\fP
+\fB--start [fichero] [--nocheck]\fP
 Se checkea que \fIfichero\fP existe en la ruta especificada en la variable \fB$CONF_DIR\fP (generalmente \fB/etc/fw-admin.d/rules/\fP).
 
 La orden \fB--start\fP sirve como reload. 
@@ -148,6 +148,8 @@ para su fácil identificación en caso de error.
 Para versiones de \fBfw-admin\fP > 0.9, la opción \fB--start\fP también sirve para los ficheros de reglas de \fBipset(8)\fP.
 
 La opción \fB--nocheck\fP evade los checkeos de sintaxis y variables. Esta pensada para casos donde es necesario hacer un start rápido.
+
+Si se omite el argumento \fBfichero\fP, se arrancarán los ficheros de reglas especificados en $START_ORDER
 .TP
 \fB--stop [chainname]\fP
 

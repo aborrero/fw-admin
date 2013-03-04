@@ -30,6 +30,7 @@ VERSION="0.9"
 
 CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
 LIB="/usr/lib/fw-admin.d/libfw-admin"
+PID_FILE="/var/run/fw-admin.pid"
 
 C_BIN="tput"
 C_SETAF="$C_BIN setaf"
@@ -55,11 +56,11 @@ help()
 	echo -e " ${C_BOLD}-r${C_NORMAL}				Reload the value of all IP or FQDN variables in datafiles."
 	echo -e " ${C_BOLD}-i${C_NORMAL} [ipv4|ipv6|fqdn|var]	Get information about IP, FQDN, IPSET or variable."
 	echo -e " ${C_BOLD}-c${C_NORMAL} file			Check rule-file."
-	echo -e " ${C_BOLD}--start${C_NORMAL} arg [--nocheck]"
+	echo -e " ${C_BOLD}--start${C_NORMAL} [arg] [--nocheck]"
 	echo -e "	if FORMAT=restore	Start the selected ruleset"
 	echo -e "	--start ruleset [--nocheck]"
-	echo -e "	if FORMAT=script	Start the selected rulefile/vlan/nat"
-	echo -e "	--start {core|nat|vlan_name} [--nocheck]"
+	echo -e "	if FORMAT=script	Start the selected rulefile/vlan/nat or all files in \$START_ORDER"
+	echo -e "	--start [{core|nat|vlan_name}] [--nocheck]"
 	echo -e " ${C_BOLD}--stop${C_NORMAL} [chainName]"
 	echo -e "	if FORMAT=restore	No arguments. Flush all the ruleset."
 	echo -e "	if FORMAT=script	chainName is the chain you would like to flush."
@@ -116,7 +117,6 @@ VARS_IPV6=${VARS_IPV6:-"$DATA_DIR/iptables_vars_ipv6.bash"}
 VARS_IPV4=${VARS_IPV4:-"$DATA_DIR/iptables_vars_ipv4.bash"}
 VARS_IPSETV4=${VARS_IPSETV4:-"$DATA_DIR/ipset_vars_ipv4.bash"}
 VARS_IPSETV6=${VARS_IPSETV6:-"$DATA_DIR/ipset_vars_ipv6.bash"}
-PID_FILE=${PID_FILE:-"/var/run/fw-admin.pid"}
 LOG_ERROR_MESSAGES=${LOG_ERROR_MESSAGES:-"yes"}
 LOG_WARN_MESSAGES=${LOG_WARN_MESSAGES:-"yes"}
 USE_COLORS=${USE_COLORS:-"yes"}
@@ -172,16 +172,27 @@ case "$1" in
 	"--start" )
 		loadlibrary
 		validate_execution
-		[ "$3" == "--nocheck" ] && flag_no_check=1
+
+		[ "$3" = "--nocheck" ] && flag_no_check=1
+		[ "$2" = "--nocheck" ] && flag_no_check=1
 
 		if [ "$FORMAT" == "restore" ]
 		then
-			start_in_restore_format $2 # filename as a parameter
+			start_in_restore_format $2 || rc=$?
 		else
-			start_in_script_format $2 # vlan|core|nat as a parameter
+			if [ "$2" = "--nocheck" ] || [ -z "$2" ] ; then
+				oldIFS=$IFS ; IFS=' '
+				for file in $START_ORDER
+				do
+					start_in_script_format $file || rc=$?
+				done
+				IFS=$oldIFS
+			else
+				start_in_script_format $2 || rc=$?
+			fi
 		fi
 
-		do_exit $?
+		do_exit $rc
 		;;
 	"--stop" )
 		loadlibrary

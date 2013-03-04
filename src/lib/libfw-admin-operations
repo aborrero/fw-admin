@@ -30,6 +30,48 @@
 ################################################################
 # Operations functions
 
+# boolean source_ipv4_vars()
+# Source ipv4 vars. Uses a global variable (IPV4_SOURCED)
+# to know if already sourced
+source_ipv4_vars() {
+
+	if [ "$IPV4_SOURCED" != "yes" ] ; then
+		if ! source $VARS_IPV4 2>/dev/null >/dev/null ; then
+			message "E: Unable to load $VARS_IPV4"
+			do_exit 1
+		fi
+		if ! source $VARS_IPSETV4 2>/dev/null >/dev/null ; then
+			message "E: Unable to load $VARS_IPSETV4"
+			do_exit 1
+		fi
+	fi
+	# never local
+	IPV6_SOURCED=no
+	IPV4_SOURCED=yes
+	return 0
+}
+
+# boolean source_ipv6_vars()
+# Source ipv6 vars. Uses a global variable (IPV6_SOURCED)
+# to know if already sourced
+source_ipv6_vars() {
+
+	if [ "$IPV6_SOURCED" != "yes" ] ; then
+		if ! source $VARS_IPV6 2>/dev/null >/dev/null ; then
+			message "E: Unable to load $VARS_IPV6"
+			do_exit 1
+		fi
+		if ! source $VARS_IPSETV6 2>/dev/null >/dev/null ; then
+			message "E: Unable to load $VARS_IPSETV6"
+			do_exit 1
+		fi
+	fi
+	# never local
+	IPV4_SOURCED=no
+	IPV6_SOURCED=yes
+	return 0
+}
+
 # void start_controlled_exit(string chain)
 # To be used inside traps.
 start_controlled_exit()
@@ -81,7 +123,7 @@ start_in_script_format()
 	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Loading IPv4"
 
 	# Start the for loop only if success loading datafiles
-	if source $VARS_IPV4 && source $VARS_IPSETV4 && IPT=$IP4T
+	if source_ipv4_vars && IPT=$IP4T
 	then
 		start_in_script_format_loop $filename 4 || start_retval=$?
 	else
@@ -98,7 +140,7 @@ start_in_script_format()
 		[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Loading IPv6"
 
 		# Start the for loop only if success loading datafiles
-		if source $VARS_IPV6 && source $VARS_IPSETV6 && IPT=$IP6T ; then
+		if source_ipv6_vars && IPT=$IP6T ; then
 			start_in_script_format_loop $filename 6 || start_retval=$?
 		else
 			message "E: Error loading datafiles in IPv6"
@@ -146,7 +188,7 @@ start_in_script_format_loop()
 		[ "$USE_PROGRESS_BAR" == "yes" ] && [ -z "$flag_no_check" ] && libprogressbar $cont $amount_of_lines
 
 		# If the line has a VOID variable, just ignore
-		line_contains_void $line && continue
+		line_contains_void $line 2>/dev/null >/dev/null && continue
 
 		# Insert the rule in kernel and evaluate return code
 		error_msg=$( eval "${line} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
@@ -154,11 +196,11 @@ start_in_script_format_loop()
 		then
 			start_loop_retval=1
 			message "W: Error found adding to kernel in IPv${protocol}. Rule num (not line) $cont $vlan_file"
-			echo "Details:"
-			echo " ${line}"
+			echo "Details:" >&2
+			echo " ${line}" >&2
 			for error_line in $error_msg
 			do
-				echo " $error_line"
+				echo " $error_line" >&2
 			done
 
 			if [ "$FLUSH_WHEN_ERROR_START" == "yes" ] ; then
@@ -358,12 +400,10 @@ start_in_restore_format_loop()
 
 	case "$protocol" in
 		ipv4)
-			source $VARS_IPV4 || return 1
-			source $VARS_IPSETV4 || return 1
+			source_ipv4_vars
 			;;
 		ipv6)
-			source $VARS_IPV6 || return 1
-			source $VARS_IPSETV6 || return 1
+			source_ipv6_vars
 			;;
 		*)
 			message "E: Bad call to function start_in_restore_format_loop()."

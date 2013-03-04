@@ -122,7 +122,7 @@ check_iptables_syntax()
 	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Checking iptables syntax $filename"
 
 	oldIFS=$IFS ; IFS=$'\n' # Control over IFS
-	source $VARS_IPV4 && source $VARS_IPSETV4 && IPT=$IP4T \
+	source_ipv4_vars && IPT=$IP4T \
 	|| { message "E: Unable to load datafiles in IPv4." ; do_exit 1 ; } # EXIT POINT
 
 	check_iptables_syntax_loop $filename 4 || check_iptables_syntax_retval=1
@@ -133,7 +133,7 @@ check_iptables_syntax()
 		: "DEBUG: No IPv6 syntax check because NAT."
 	else
 		message "I: Checking ip6tables syntax $filename"
-		source $VARS_IPV6 && source $VARS_IPSETV6 && IPT=$IP6T \
+		source_ipv6_vars && IPT=$IP6T \
 		|| { message "E: Unable to load datafiles in IPv6." ; do_exit 1 ; } # EXIT POINT
 
 		check_iptables_syntax_loop $filename 6 || check_iptables_syntax_retval=1
@@ -205,9 +205,9 @@ check_rulefile_variables_loop()
 	# Using a subshell!
 	(
 	if [ "$protocol" == "4" ] ; then
-		source $VARS_IPV4 ; source $VARS_IPSETV4
+		source_ipv4_vars
 	else
-		source $VARS_IPV6 ; source $VARS_IPSETV6
+		source_ipv6_vars
 	fi
 
 	set -u
