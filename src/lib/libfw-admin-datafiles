@@ -106,39 +106,42 @@ is_domain_fqdn()
 
 
 # boolean reload_variable_values()
-# Esta funcion recorre todas las variables del sistema, reajustando su valor.
+# Iterates over all variables in datafiles, updating the value
 reload_variable_values()
 {
 	local reload_variable_values_retval=0
+	local list_of_variables=$( { cat $VARS_IPV4 ; cat $VARS_IPV6 ; } \
+		| egrep -v "##ignore##"\|"@"\|^[[:space:]]*# \
+		| awk -F'#' '{print $2}' | sort -u | uniq \
+		| grep -v ^[[:space:]]*$ )
 	echo -n "" > $AUX_FILE
+
 
 	message "I: Variables containing the tag \"##ignore##\" are ignored."
 
-	local lista_variables=`{ cat $VARS_IPV4 ; cat $VARS_IPV6 ; } | egrep -v "##ignorar##"\|"##ignore##"\|"@"\|^[[:space:]]*# \
-		| awk -F'#' '{print $2}' | sort -u | uniq | grep -v ^[[:space:]]*$`
 
 	# Evaluating if calcules regarding progress bar are neccesary
-	if [ "$USE_PROGRESS_BAR" == "yes" ]
-	then
-		local total=`wc -w <<< $lista_variables`
+	if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
+		local total=$( wc -w <<< $list_of_variables )
 		local cont=0
 	fi
 
 	oldIFS=$IFS ; IFS=$' \t\n' #control over IFS
-	for variable in $lista_variables
+	for variable in $list_of_variables
 	do
 		# Evaluating if calcules regarding progress bar are neccesary
-		if [ "$USE_PROGRESS_BAR" == "yes" ]
-		then
+		if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
 			((cont++))
 			libprogressbar $cont $total
 		fi
-		# Solo se mostraran luego los mensajes de error
+
+		# Error messages will be shown later
 		add_ip_variable $variable >> $AUX_FILE 2>&1 || reload_variable_values_retval=1
 	done
 	IFS=$oldIFS
 
-	local checklist=`grep "E:" $AUX_FILE`
+	# Print error messages, if neccesary
+	local checklist=$( grep "E:" $AUX_FILE )
 	if [ ! -z "$checklist" ]
 	then
 		echo -e "$checklist"
@@ -179,21 +182,26 @@ get_variable_name()
 	return 1 # error if this is reached
 }
 
-# ip get_ip_from_fqdn(string tipo_ip, string fqdn, int recursivityLevel)
-# recursive function. Used to know the final IP asociated with an FQDN.
+# ip get_ip_from_fqdn(string type, string fqdn, int recursivityLevel)
+# recursive function. Used to know the final IP asociated with a FQDN.
 get_ip_from_fqdn()
 {
-        local tipo_ip=$1
+        local type=$1
         local fqdn=$2
 	local recursivityLevel=$3
 
-	[ -z "$tipo_ip" ] && { message "E: Function get_ip_from_fqdn() called with empty parameter (type)" ; do_exit 1 ; }
+	[ -z "$type" ] && { message "E: Function get_ip_from_fqdn() called with empty parameter (type)" ; do_exit 1 ; }
 	[ -z "$fqdn" ] && { message "E: Function get_ip_from_fqdn() called with empty parameter (fqdn)" ; do_exit 1 ; }
+
 	[ -z "$recursivityLevel" ] && recursivityLevel=0
-	[ "$recursivityLevel" -gt 100 ] && { message "E: Max recursion level reached in function get_ip_from_fqdn()" ; do_exit 1 ; }
+	if [ "$recursivityLevel" -gt 100 ] ; then
+		message "E: Max recursion level reached in function get_ip_from_fqdn()"
+		do_exit 1
+	fi
+
 	((recursivityLevel++))
 
-        local resolution=`$DIG +short $fqdn $tipo_ip`
+        local resolution=$( $DIG +short $fqdn $type )
         if is_ipv6_valid $resolution
         then
                 echo "$resolution" # return point
@@ -204,12 +212,12 @@ get_ip_from_fqdn()
 		else
 			oldIFS=$IFS
 			IFS=$' \t\n'
-	                for linea in $resolution
+	                for line in $resolution
 	                do
-	                        local resolution2="$resolution2 $(get_ip_from_fqdn $tipo_ip $linea $recursivityLevel)"
+	                        local resolution2="$resolution2 $(get_ip_from_fqdn $type $line $recursivityLevel)"
 	                done
 			IFS=$oldIFS
-	                local resolution3=`echo "$resolution2" | tr [[:space:]] '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq`
+	                local resolution3=$( tr [[:space:]] '\n' <<< "$resolution2" | grep -v ^[[:space:]]*$ | sort -u | uniq )
 	                echo "$resolution3" # return point
 		fi
         fi
@@ -249,8 +257,6 @@ add_ip_variable()
 		#
 		variable_name=$( get_variable_name $data_to_add )
 		[ $? -ne 0 ] && { message "E: Unable to determine the variable name" ; do_exit 1 ; }
-
-		echo "DEBUG: $variable_name=$data_to_add #$data_to_add" > /dev/null
 
 		if grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null && grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null
 		then

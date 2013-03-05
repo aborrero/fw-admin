@@ -651,17 +651,17 @@ get_information()
 	local iptables_query=`grep -i $data $VARS_IPV4 | grep -v VOID | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` # get value
 	if is_ipv4_valid $iptables_query
 	then
-		local rules_num_ipv4_nat=`$IPT_SAVE -t nat | grep "$iptables_query" | wc -l`
+		local rules_num_ipv4_nat=`$IPT_SAVE -t nat | grep "$iptables_query/" | wc -l`
 		if [ $rules_num_ipv4_nat -gt 0 ]
 		then
 			message "I: IPv4 (nat) rules: $rules_num_ipv4_nat"
-			$IPT_SAVE -c -t nat | grep $iptables_query && flag_data_shown=true
+			$IPT_SAVE -c -t nat | grep "$iptables_query/" && flag_data_shown=true
 		fi
-		local ipv4_rules_num=`$IPT_SAVE | grep "$iptables_query" | wc -l`
+		local ipv4_rules_num=`$IPT_SAVE | grep "$iptables_query/" | wc -l`
 		if [ $ipv4_rules_num -gt 0 ]
 		then
 			message "I: IPv4 rules: $ipv4_rules_num"
-			$IPT_SAVE -c | grep $iptables_query && flag_data_shown=true
+			$IPT_SAVE -c | grep "$iptables_query/" && flag_data_shown=true
 		fi
 	else
 		ipv4_rules_num=0
@@ -670,11 +670,11 @@ get_information()
 	iptables_query=`grep $data $VARS_IPV6 | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` # get value
 	if is_ipv6_valid $iptables_query
 	then
-		local ipv6_rules_num=`$IP6T_SAVE | grep "$iptables_query" | wc -l`
+		local ipv6_rules_num=`$IP6T_SAVE | grep "$iptables_query/" | wc -l`
 		if [ $ipv6_rules_num -gt 0 ]
 		then
 			message "I: IPv6 rules: $ipv6_rules_num"
-			$IP6T_SAVE -c | grep $iptables_query
+			$IP6T_SAVE -c | grep "$iptables_query/"
 			flag_data_shown=true
 		fi
 	else
