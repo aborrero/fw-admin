@@ -26,8 +26,6 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#2
-
 ################################################################
 ################################################################
 # Control functions
@@ -43,9 +41,9 @@ message()
 	# colour if configured
 	if [ "$USE_COLORS" == "yes" ]
 	then
-		message=${message/"E: "/"${C_RED}E:${C_NORMAL} "}
-		message=${message/"W: "/"${C_YELLOW}W:${C_NORMAL} "}
-		message=${message/"I: "/"${C_GREENBOLD}I:${C_NORMAL} "}
+		message=${message/#"E: "/"${C_RED}E:${C_NORMAL} "}
+		message=${message/#"W: "/"${C_YELLOW}W:${C_NORMAL} "}
+		message=${message/#"I: "/"${C_GREENBOLD}I:${C_NORMAL} "}
 	fi
 
 	# what to do with the message

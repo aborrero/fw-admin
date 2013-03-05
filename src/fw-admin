@@ -32,20 +32,6 @@ CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
 LIB="/usr/lib/fw-admin.d/libfw-admin"
 PID_FILE="/var/run/fw-admin.pid"
 
-C_BIN="tput"
-C_SETAF="$C_BIN setaf"
-C_BOLD="$($C_BIN bold)"
-C_RESET="$C_BIN sgr0"
-C_RED="$($C_SETAF 1)"
-C_GREEN="$($C_SETAF 2)"
-C_YELLOW="$($C_SETAF 3)"
-C_BLUE="$($C_SETAF 4)"
-C_REDBOLD="${C_BOLD}${C_RED}"
-C_GREENBOLD="${C_BOLD}${C_GREEN}"
-C_YELLOWBOLD="${C_BOLD}${C_YELLOW}"
-C_BLUEBOLD="${C_BOLD}${C_BLUE}"
-C_NORMAL="$($C_RESET)"
-
 help()
 {
 	echo -e "${C_BOLD}fw-admin v${VERSION}${C_NORMAL}"
@@ -106,6 +92,7 @@ if ! source $CONF_FILE 2>/dev/null ; then
 	exit 1
 fi
 
+
 # Use default values for config
 FORMAT=${FORMAT:-"script"}
 DOMAIN=${DOMAIN:-"example.com"}
@@ -125,6 +112,22 @@ SHOW_OP_TIME=${SHOW_OP_TIME:-"yes"}
 FLUSH_WHEN_ABORT_START=${FLUSH_WHEN_ABORT_START:-"yes"}
 FLUSH_WHEN_ERROR_START=${FLUSH_WHEN_ERROR_START:-"no"}
 PERMISSIVE_TRAFFIC_WHEN_STOP=${PERMISSIVE_TRAFFIC_WHEN_STOP:-"no"}
+
+if [ "$USE_COLORS" = "yes" ] ; then
+	C_BIN="$( which tput )"
+	C_SETAF="$C_BIN setaf"
+	C_BOLD="$($C_BIN bold)"
+	C_RESET="$C_BIN sgr0"
+	C_RED="$($C_SETAF 1)"
+	C_GREEN="$($C_SETAF 2)"
+	C_YELLOW="$($C_SETAF 3)"
+	C_BLUE="$($C_SETAF 4)"
+	C_REDBOLD="${C_BOLD}${C_RED}"
+	C_GREENBOLD="${C_BOLD}${C_GREEN}"
+	C_YELLOWBOLD="${C_BOLD}${C_YELLOW}"
+	C_BLUEBOLD="${C_BOLD}${C_BLUE}"
+	C_NORMAL="$($C_RESET)"
+fi
 
 # Consider input argument
 
