@@ -212,9 +212,12 @@ cp -f rules/* /etc/fw-admin.d/rules/
 
 
 echo -n "."
+fw-admin --start vlan_2 >&2 || { fail=1 ; echo "*!*" ; }
+
+echo -n "."
 fw-admin --start vlan_1 >&2 || { fail=1 ; echo "*!*" ; }
 
-# void1 must appeaar in both
+# void1 must appear in both
 echo -n "."
 iptables-save | grep void1 >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."

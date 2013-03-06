@@ -34,24 +34,23 @@ check_iptables_syntax_loop()
 	local check_iptables_syntax_loop_retval=0
 	echo -n "" > $AUX_FILE
 
-	# Validations
-	[ ! -r "$1" ] && { message "E: Function check_iptables_syntax_loop() called with an unreadable filename as argument." ; do_exit 1 ;}
-	[ "$2" != "4" ] && [ "$2" != "6" ] && { message "E: Function check_iptables_syntax_loop() called with bad protocol as argument." ; do_exit 1 ; }
-
 	# Using a more legible name
 	local file_being_checked=$1
 	local protocol=$2
 
-	# Store all lines in a variable, to avoid double disk read in: calculating the amount of lines and iterate over they.
-	local list_of_lines=`cat $file_being_checked | nl -b a | egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$\|"IPSET" | egrep "IPT -A "\|"IPT -I "`
+	# Store all lines in a variable, to avoid double disk read in:
+	# calculating the amount of lines and iterate.
+	local list_of_lines=$( cat $file_being_checked | nl -b a \
+	| egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$\|"IPSET" \
+	| egrep "IPT -A "\|"IPT -I " )
 
 	# Evaluating if we need calcules regarding progress bar
-	if [ "$USE_PROGRESS_BAR" == "yes" ]
-	then
-		local amount_of_lines=`wc -l <<< "$list_of_lines"`
+	if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
+		local amount_of_lines=$( wc -l <<< "$list_of_lines" )
 		local cont=0
 	fi
 
+	oldIFS=$IFS ; IFS=$'\n' # Control over IFS
 	for line in $list_of_lines
 	do
 		# Evaluating if we need calcules regarding progress bar
@@ -62,10 +61,9 @@ check_iptables_syntax_loop()
 		# Dont check if the line contains a $VOID variable
 		line_contains_void $line && continue
 
-
 		# Preparing the line to be evaluated.
 		# 1º Delete the number of the line
-		local ejec=`awk -F' ' '{$1=""}1' <<< ${line}`
+		local ejec=$( awk -F' ' '{$1=""}1' <<< ${line} )
 		# 2º Change -I to -C
 		ejec=${ejec/"IPT -I "/"IPT -C "}
 		# 3º Change -A to -C
@@ -75,17 +73,18 @@ check_iptables_syntax_loop()
 		error_msg=$( eval "${ejec} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
 		if [ $? -eq 2 ]
 		then
-			message "W: The rule in line \"`awk -F' ' '{print $1}' <<< $line`\" failed the check in IPv${protocol}." >> $AUX_FILE 2>&1
+			message "W: The rule in line \"$( awk -F' ' '{print $1}' <<< $line )\" failed the check in IPv${protocol}." >> $AUX_FILE 2>&1
 			echo "Details:" >> $AUX_FILE
-			awk -F' ' '{$1=""}1' <<< ${line} >> $AUX_FILE
 			# add a space to improve reading by the admin
 			for error_line in $error_msg
 			do
+				# add a space to improve reading by the admin
 				echo " $error_line" >> $AUX_FILE
 			done
 			check_iptables_syntax_loop_retval=1
 		fi
 	done
+	IFS=$oldIFS
 
 	grep -v ^[[:space:]]*$ $AUX_FILE >&2
 
@@ -102,26 +101,12 @@ check_iptables_syntax()
 	local check_iptables_syntax_retval=0
 	local filename=$1
 
-	# Doing nothing if is the $IPSET_CONF file or if it is the core file.
-	if [[ "$filename" =~ ^"core"$ ]] || [[ "$filename" =~ /"core"$ ]] || [ "$filename" == "$IPSET_CONF" ]
-	then
-		return 0
-	fi
-
-	# EXIT POINT
-	if [ ! -r "$filename" ]
-	then
-		message "E: Bad call to function check_iptables_syntax()"
-		do_exit 1
-	fi
-
 	# Clean the aux file
 	echo "" > $AUX_FILE
 
 	# If using progress bar, print a message so user know what means.
 	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Checking iptables syntax $filename"
 
-	oldIFS=$IFS ; IFS=$'\n' # Control over IFS
 	source_ipv4_vars && IPT=$IP4T \
 	|| { message "E: Unable to load datafiles in IPv4." ; do_exit 1 ; } # EXIT POINT
 
@@ -138,7 +123,6 @@ check_iptables_syntax()
 
 		check_iptables_syntax_loop $filename 6 || check_iptables_syntax_retval=1
 	fi
-	IFS=$oldIFS
 	return $check_iptables_syntax_retval
 }
 
@@ -148,11 +132,10 @@ check_rulefile()
 {
 	[ "$flag_no_check" = "1" ] && return 0
 
-	local check_rulefile_retval=0
 	local flag_wrong_variables=0
 	local flag_wrong_iptables=0
-
 	local file_to_check=$( get_absolute_path $1 )
+
 	if [ "$file_to_check" == "" ] ; then
 		message "E: File not found $1"
 		do_exit 1
@@ -163,7 +146,10 @@ check_rulefile()
 
 	if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
 		message "I: Checking variables $file_to_check"
-		local amount=$( grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u | wc -l )
+		local amount=$( grep -v ^[[:space:]]*# $file_to_check \
+				| tr [[:space:]] '\n' | fgrep \$ \
+				| egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ \
+				| sort -u | wc -l )
 		local cont=0
 	fi
 
@@ -175,7 +161,7 @@ check_rulefile()
 	oldIFS=$IFS ; IFS=$'\n'
 	for line in $( sort -u $AUX_FILE )
 	do
-		[ "$flag_wrong_variables" -eq 0 ] && [[ $line =~ ^"W:" ]] && flag_wrong_variables=1
+		[[ $line =~ ^"W:" ]] && flag_wrong_variables=1
 		message "$line"
 	done
 	IFS=$oldIFS
@@ -184,9 +170,12 @@ check_rulefile()
 
 	# Check iptables syntax if all variables are fine
 	check_iptables_syntax $file_to_check || flag_wrong_iptables=$?
-	[ "$flag_wrong_variables" -ne 0 ] || [ "$flag_wrong_iptables" -ne 0 ] && check_rulefile_retval=1
 
-	return $check_rulefile_retval
+	if [ "$flag_wrong_variables" -ne 0 ] \
+		|| [ "$flag_wrong_iptables" -ne 0 ] ; then
+		return 1
+	fi
+	return 0
 }
 
 # void check_rulefile_variables_loop(string file_to_check, protocol {IPv4|IPv6})
@@ -196,13 +185,8 @@ check_rulefile_variables_loop()
 	local file_to_check=$1
 	local protocol=$2
 
-	# Validations: file exist, protocol is one of {4|6}
-	if { [ "$protocol" != "4" ] && [ "$protocol" != "6" ] ; }  || [ ! -e "$file_to_check" ] ; then
-		message "E: Bad call to check_rulefile_parse_check_variables(). This is a bug, please report it."
-		exit 1
-	fi
 
-	# Using a subshell!
+	# Using a subshell!, so IPv4 and IPv6 variables doesn't override
 	(
 	if [ "$protocol" == "4" ] ; then
 		source_ipv4_vars
@@ -212,7 +196,9 @@ check_rulefile_variables_loop()
 
 	set -u
 	oldIFS=$IFS ; IFS=$' \t\n' # control over IFS
-	for word in $( grep -v ^[[:space:]]*# $file_to_check | tr [[:space:]] '\n' | fgrep \$ | egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u )
+	for word in $( grep -v ^[[:space:]]*# $file_to_check \
+			| tr [[:space:]] '\n' | fgrep \$ \
+			| egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u )
 	do
 		# Do we need to do calcules related to progress bar?
 		if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
@@ -221,6 +207,7 @@ check_rulefile_variables_loop()
 
 		error_msg=$( eval "TMP=$word" 2>&1 )
 		if [ $? -eq 1 ] ; then
+			# Different locales compatibility?
 			echo "W:$( awk -F':' '{print $3":"$4}' <<< $error_msg )" >> $AUX_FILE
 		fi
 	done
@@ -261,4 +248,6 @@ check_nat_chain_exist()
 	if $IPT_SAVE -t nat| grep "^:${1} " >/dev/null 2>/dev/null ; then
 		return 0
 	fi
+
+	return 1
 }
