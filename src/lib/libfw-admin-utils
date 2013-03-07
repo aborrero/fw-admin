@@ -533,7 +533,7 @@ get_information()
 	fi
 
 	# Check if is a '#data'
-	if grep -i "#$data" $VARS_IPV4 >/dev/null ; then
+	if grep -i "#[[:space:]]*$data" $VARS_IPV4 >/dev/null ; then
 		# Is in our datafiles, as a comment
 		local var=$( get_variable_name $data )
 		local value_v4=$( get_var_value $var $VARS_IPV4 )
@@ -546,12 +546,13 @@ get_information()
 			local value_v6=$( get_var_value $var $VARS_IPV6 )
 		else
 			# Check if is a '=value ##ignore##'
-			local value_v4=$( grep -i "=$data[[:space:]]*##ignore##" $VARS_IPV4 >/dev/null )
-			local value_v6=$( grep -i "=$data[[:space:]]*##ignore##" $VARS_IPV6 >/dev/null )
+			local value_v4=$( grep -i "=[[:space:]]*$data[[:space:]]*##ignore##" $VARS_IPV4 >/dev/null )
+			local value_v6=$( grep -i "=[[:space:]]*$data[[:space:]]*##ignore##" $VARS_IPV6 >/dev/null )
 
 			# If empty, is a FQDN -> '=value #comment'
 			if [ -z "$value_v4" ] && [ -z "$value_v6" ] ; then
-				local var=$( get_variable_name $data )
+				local var=$( grep =[[:space:]]*$data[[:space:]]*# $VARS_IPV4 | awk -F'=' '{print $1}' )
+				[ -z "$var" ] && local var=$( grep =[[:space:]]*$data[[:space:]]*# $VARS_IPV6 | awk -F'=' '{print $1}' )
 				local value_v4=$( get_var_value $var $VARS_IPV4 )
 				local value_v6=$( get_var_value $var $VARS_IPV6 )
 			fi
@@ -564,7 +565,19 @@ get_information()
 		return 1
 	fi
 
-	# Also show sets
+	# Show register info
+	local reg_v4=$( grep -i "=[[:space:]]*$value_v4" $VARS_IPV4 )
+	local reg_v6=$( grep -i "=[[:space:]]*$value_v6" $VARS_IPV6 )
+	if [ ! -z "$reg_v4" ] ; then
+		echo -n "${VARS_IPV4}: "
+		grep ^[[:space:]]*"$( awk -F'=' '{print $1}' <<< $reg_v4 )"[[:space:]]*= $VARS_IPV4
+	fi
+	if [ ! -z "$reg_v6" ] ; then
+		echo -n "${VARS_IPV6}: "
+		grep ^[[:space:]]*"$( awk -F'=' '{print $1}' <<< $reg_v6 )"[[:space:]]*= $VARS_IPV6
+	fi
+
+	# Query iptables, with sets
 	local set_list_v4=" $(get_sets_with $value_v4)"
 	local set_list_v6=" $(get_sets_with $value_64)"
 	if [ -z "$sets_list_v4" ] ; then
