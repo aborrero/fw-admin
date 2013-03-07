@@ -15,8 +15,8 @@ git-clone the repository and do make:
 
 	$ git clone git://github.com/aborrero/fw-admin.git
 	$ cd fw-admin/src
-	$ make
-	# make install
+	$ make # this makes the tar.gz package
+	# make install # this deploy in the system
 
 If you are using a Debian-based system, you can build a `.deb` package, and then install it:
 
