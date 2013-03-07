@@ -67,7 +67,7 @@ nofound()
 
 loadlibrary()
 {
-	if ! source $LIB 2>/dev/null ; then
+	if ! source $LIB ; then
 		echo "E: Unable to load library $LIB" >&2
 		exit 1
 	fi
@@ -141,13 +141,13 @@ case "$1" in
 	"-a" )
 		loadlibrary
 		validate_execution
-		add_ip_variable $2 # data as a parameter
+		add_variable $2 # data as a parameter
 		do_exit $?
 		;;
 	"-as" )
 		loadlibrary
 		validate_execution
-		add_set_variable $2 # data as a parameter
+		add_variable $2 # data as a parameter
 		do_exit $?
 		;;
 	"-d" )

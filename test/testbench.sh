@@ -97,7 +97,6 @@ echo ""
 echo "I: Testing datafiles"
 cd ../test
 VALID="r2d2.cica.es www.google.es www.facebook.com github.com 2a00:9ac0:c1ca:27::150 150.214.4.150 192.168.1.1 fe00::1 ::1 127.0.0.1"
-INVALID="132.1244.123.21 dd::DDD:DDD::Dddd asdasd.asd.asd.asd.asd..asd"
 # Those are valid
 for i in $VALID
 do
@@ -112,49 +111,16 @@ END
 
 done
 
-# Those are invalid
-for i in $INVALID
-do
-	echo -n "."
-	fw-admin -a $i 1>&2 && { fail=1 ; echo "*!*" ; }
-	fw-admin -i $i 1>&2 && { fail=1 ; echo "*!*" ; }
-done
-
-if [ $fail -ne 0 ]
-then
-	echo ""
-	echo "E: Errors found adding IP/FQDN variables to datafiles."
-	fail=0
-fi
-
-# Sets
-SETS="test1 test2 test3 test4 test5 asd asdasd test123"
-for i in $SETS
-do
-	echo -n "."
-	fw-admin -d $i 1>&2 <<END
-y
-END
-	fw-admin -as $i 1>&2 || { fail=1 ; echo "*!*" ; }
-	fw-admin -i $i 1>&2 || { fail=1 ; echo "*!*" ; }
-done
-
-if [ $fail -ne 0 ]
-then
-	echo ""
-	echo "E: Errors found testing adding/deleting IPSET variables to datafiles."
-	fail=0
-fi
-
 echo -n "."
-#fw-admin -r >&2 || { fail=1 ; echo "*!*" ; }
 fw-admin --check-datafiles >&2 || { fail=1 ; echo "*!*" ; }
+
 if [ $fail -ne 0 ]
 then
 	echo ""
-	echo "E: Bad reload of variable values."
+	echo "E: Errors found adding variables to datafiles."
 	fail=0
 fi
+
 
 ###########################################################
 ###########################################################
@@ -197,19 +163,6 @@ echo -n "."
 fw-admin --start ./rules/vlan_1 >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."
 fw-admin --start ./rules/sets >&2 || { fail=1 ; echo "*!*" ; }
-
-echo -n "."
-echo "\$ASDASD" >> /etc/fw-admin.d/rules/core
-fw-admin -c core >&2 && { fail=1 ; echo "*!*" ; }
-echo -n "."
-echo "ASDASD=\$VOID ##ignore##" >> /var/lib/fw-admin/iptables_vars_ipv6.bash
-fw-admin -c core >&2 && { fail=1 ; echo "*!*" ; }
-echo -n "."
-echo "\${ASDASD}:80" >> /etc/fw-admin.d/rules/core
-echo "ASDASD=\$VOID ##ignore##" >> /var/lib/fw-admin/iptables_vars_ipv4.bash
-fw-admin -c core >&2 || { fail=1 ; echo "*!*" ; }
-cp -f rules/* /etc/fw-admin.d/rules/
-
 
 echo -n "."
 fw-admin --start vlan_2 >&2 || { fail=1 ; echo "*!*" ; }

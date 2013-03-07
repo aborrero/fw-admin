@@ -304,7 +304,7 @@ stats()
 check_datafile_format()
 {
 	local retval=0
-	# Format 1
+	# Format
 	# #comments
 	# VARIABLE=data #comment
 	# VAR1ABl3= data #comment
@@ -313,37 +313,16 @@ check_datafile_format()
 	# _VARIABLE=data
 	# VARIABLe= d4t4  ##comment
 
-	# Format 2
-	# #comments
-	# VARIABLE=d4t4
-	# VAR1ABLe=data
-	# blankline
-	# #comments
-	# _VARIABLE=data
-	# VARIABLE= data
-
 	if [ ! -z "$1" ] && [ -e $1 ]
 	then
-		if [ "$2" == "2" ]
-		then
-			# format 2 without trailing comment
-			# invalid lines
-			local invalid_lines=$( nl -ba $1 | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#" | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]*$ | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.* | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"_"\{1}[0-9A-Za-z].*=+.* | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"__"\{1}[0-9A-Za-z].*=+.* )
-		else
-			# format 1 default, with trailing comment
-			# invalid lines
-			local invalid_lines=$( nl -ba $1 | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#" | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]*$ | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*[[:space:]]+#.*$ | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"_"\{1}[0-9A-Za-z].*=+.*[[:space:]]+#.*$ | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"__"\{1}[0-9A-Za-z].*=+.*[[:space:]]+#.*$ )
-		fi
+		# format 1 default, with trailing comment
+		# invalid lines
+		local invalid_lines=$( nl -ba $1 | \
+			egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#" | \
+			egrep -vE ^[[:space:]]*[0-9]+[[:space:]]*$ | \
+			egrep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*[[:space:]]+#.*$ | \
+			egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"_"\{1}[0-9A-Za-z].*=+.*[[:space:]]+#.*$ | \
+			egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"__"\{1}[0-9A-Za-z].*=+.*[[:space:]]+#.*$ )
 		if [ ! -z "$invalid_lines" ]
 		then
 			retval=1
@@ -455,29 +434,6 @@ check_duplicate_variables()
 	return $check_duplicate_variables_retval
 }
 
-# boolean check_duplicate_ipset_ip_variables()
-# Check possible variables with the same name in both types of datafiles
-check_duplicate_ipset_ip_variables()
-{
-	local check_duplicate_ipset_ip_variables_retval=1
-
-	list_of_ip_variables=$( { awk -F'=' '{print $1}' $VARS_IPV4 ; awk -F'=' '{print $1}' $VARS_IPV6 ; } | egrep -v ^[[:space:]]*#\|^[[:space:]]*$ | sort | uniq )
-	list_of_ipset_variables=$( { awk -F'=' '{print $1}' $VARS_IPSETV4 ; awk -F'=' '{print $1}' $VARS_IPSETV6 ; } | egrep -v ^[[:space:]]*#\|^[[:space:]]*$ | sort | uniq )
-	result=$( comm -12 <(echo "$list_of_ip_variables") <(echo "$list_of_ipset_variables") 2> /dev/null )
-	if [ -z "$result" ]
-	then
-		check_duplicate_ipset_ip_variables_retval=0
-	else
-		message "W: Detected duplicate IP/IPSET variables. You may get some undesirable overrides"
-		for variable in "$result"
-		do
-			grep ^${variable}= $DATA_DIR/*
-		done
-	fi
-
-	return $check_duplicate_ipset_ip_variables_retval
-}
-
 # boolean check_datafiles()
 # Check what variables are missing in what datafiles and the format is correct.
 check_datafiles()
@@ -487,28 +443,17 @@ check_datafiles()
 	# Checking format 1: trailing comment
 	check_datafile_format $VARS_IPV4 1 || retval=$?
 	check_datafile_format $VARS_IPV6 1 || retval=$?
-	# Checking format 2: no trailing comment
-	check_datafile_format $VARS_IPSETV4 2 || retval=$?
-	check_datafile_format $VARS_IPSETV6 2 || retval=$?
 
 	# Checking sanity
 	check_datafile_sanity $VARS_IPV4 $VARS_IPV6 || retval=$?
-	check_datafile_sanity $VARS_IPSETV4 $VARS_IPSETV6 || retval=$?
 
 	# Check duplicate variables
 	check_duplicate_variables $VARS_IPV4 || retval=$?
 	check_duplicate_variables $VARS_IPV6 || retval=$?
-	check_duplicate_variables $VARS_IPSETV4 || retval=$?
-	check_duplicate_variables $VARS_IPSETV6 || retval=$?
 
 	# Check for unset variables
 	check_datafile_unset_variables $VARS_IPV4 || retval=$?
 	check_datafile_unset_variables $VARS_IPV6 || retval=$?
-	check_datafile_unset_variables $VARS_IPSETV4 || retval=$?
-	check_datafile_unset_variables $VARS_IPSETV6 || retval=$?
-
-	# Check for duplicates variables from one kind of datafiles to another
-	check_duplicate_ipset_ip_variables || retval=$?
 
 	return $retval
 }

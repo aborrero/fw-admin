@@ -66,8 +66,8 @@ LIB_UTILS="libfw-admin-utils"
 LIB_CHECK="libfw-admin-check"
 LIB_OPER="libfw-admin-operations"
 
-. $DIR_LIB/$LIB_CONTROL || { echo "E: Unable to load ${DIR_LIB}/${LIB_CONTROL}" >&2 ; exit 1 ; }
-. $DIR_LIB/$LIB_DF || { echo "E: Unable to load ${DIR_LIB}/${LIB_DF}" >&2 ; exit 1 ; }
-. $DIR_LIB/$LIB_UTILS || { echo "E: Unable to load ${DIR_LIB}/${LIB_UTILS}" >&2 ; exit 1 ; }
-. $DIR_LIB/$LIB_CHECK || { echo "E: Unable to load ${DIR_LIB}/${LIB_CHECK}" >&2 ; exit 1 ; }
-. $DIR_LIB/$LIB_OPER || { echo "E: Unable to load ${DIR_LIB}/${LIB_OPER}" >&2 ; exit 1 ; }
+. $DIR_LIB/$LIB_CONTROL || { echo "E: Unable to load ${DIR_LIB}/${LIB_CONTROL}" >&2 ; return 1 ; }
+. $DIR_LIB/$LIB_DF || { echo "E: Unable to load ${DIR_LIB}/${LIB_DF}" >&2 ; return 1 ; }
+. $DIR_LIB/$LIB_UTILS || { echo "E: Unable to load ${DIR_LIB}/${LIB_UTILS}" >&2 ; return 1 ; }
+. $DIR_LIB/$LIB_CHECK || { echo "E: Unable to load ${DIR_LIB}/${LIB_CHECK}" >&2 ; return 1 ; }
+. $DIR_LIB/$LIB_OPER || { echo "E: Unable to load ${DIR_LIB}/${LIB_OPER}" >&2 ; return 1 ; }

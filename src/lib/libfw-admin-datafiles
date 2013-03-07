@@ -136,7 +136,7 @@ reload_variable_values()
 		fi
 
 		# Error messages will be shown later
-		add_ip_variable $variable >> $AUX_FILE 2>&1 || reload_variable_values_retval=1
+		add_variable $variable >> $AUX_FILE 2>&1 || reload_variable_values_retval=1
 	done
 	IFS=$oldIFS
 
@@ -224,257 +224,126 @@ get_ip_from_fqdn()
 	return 0
 }
 
+# boolean add_variable(string data)
+# Used to add a variable to datafiles
+add_variable() {
 
-# boolean add_ip_variable(string data)
-# Used to add a variale to IP datafiles
-add_ip_variable()
-{
 	# cancelation trap
 	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
-	local add_ip_variable_retval=0
 	local data_to_add=$1
 
 	if [ -z "$data_to_add" ]
 	then
 		# No input data, use prompt
-		read -p "-> Define IPv4, IPv6 or FQDN: " data_to_add
+		read -p "-> Please define data: " data_to_add
 	fi
 
-	#
-	# Validations
-	#
-	{ is_ipv4_valid $data_to_add || is_ipv6_valid $data_to_add || is_fqdn_valid $data_to_add ; } \
-		|| { message "E: Data is not a valid IP or FQDN: \"$data_to_add\"" ; add_ip_variable_retval=1 ; }
+	local varname=$( get_variable_name $data_to_add )
 
-
-	# Continue only if parameter was validated
-	if [ $add_ip_variable_retval -eq 0 ]
-	then
-
-		#
-		# Calculate the name of the variable
-		#
-		variable_name=$( get_variable_name $data_to_add )
-		[ $? -ne 0 ] && { message "E: Unable to determine the variable name" ; do_exit 1 ; }
-
-		if grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null && grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null
-		then
-			# The variable is already stored.
-			message "W: Refreshing variable data: ${variable_name}"
+	if is_ip_fqdn_valid $data_to_add ; then
+		if is_ipv4_valid $data_to_add ; then
+			local value_v4=$data_to_add
+			local comment="#$data_to_add"
+			local value_v6="\$VOID"
 		else
-			message "I: The variable name is: ${variable_name}"
+			if is_ipv6_valid $data_to_add ; then
+				local value_v6=$data_to_add
+				local comment="#$data_to_add"
+				local value_v4="\$VOID"
+			else
+				if is_fqdn_valid $data_to_add ; then
+					local resolution_v4=$( get_ip_from_fqdn A $data_to_add )
+					if [ -z "$resolution_v4" ] ; then
+						local value_v4="\$VOID"
+					else
+						case $( wc -l <<< "$resolution_v4" ) in
+							"1")
+								local value_v4=$resolution_v4 ;;
+							*)
+								local value_v4=$data_to_add ;;
+						esac
+					fi
+					local resolution_v6=$( get_ip_from_fqdn AAAA $data_to_add )
+					if [ -z "$resolution_v6" ] ; then
+						local value_v6="\$VOID"
+					else
+						case $( wc -l <<< "$resolution_v6" ) in
+							"1")
+								local value_v6=$resolution_v6 ;;
+							*)
+								local value_v6=$data_to_add ;;
+						esac
+					fi
+					local comment="#$data_to_add"
+				else
+					message "E: Unable to determine type of data $data_to_add"
+					do_exit 1
+				fi
+			fi
+		fi
+	else
+		message "I: Adding variable $varname"
+		read -p " Value in IPv4 datafile? [${data_to_add}_ipv4]: "
+		if [ ! -z "$REPLY" ] ; then
+			local value_v4="$REPLY"
+		else
+			local value_v4="${data_to_add}_ipv4"
+		fi
+		read -p " Value in IPv6 datafile? [${data_to_add}_ipv6]: "
+		if [ ! -z "$REPLY" ] ; then
+			local value_v6="$REPLY"
+		else
+			local value_v6="${data_to_add}_ipv6"
 		fi
 
-		#
-		# Write to datafiles
-		#
-		store_in_ipdatafile "ipv4" "$variable_name" "$data_to_add" \
-			|| { message "E: Unable to store $data_to_add in file ${VARS_IPV4}" ; do_exit 1 ; }
-		store_in_ipdatafile "ipv6" "$variable_name" "$data_to_add" \
-			|| { message "E: Unable to store $data_to_add in file ${VARS_IPV6}" ; do_exit 1 ; }
-
-		#
-		# Check if all went fine
-		#
-		grep ^"${variable_name}=" $VARS_IPV4 > /dev/null 2> /dev/null || add_ip_variable_retval=1
-		grep ^"${variable_name}=" $VARS_IPV6 > /dev/null 2> /dev/null || add_ip_variable_retval=1
-
-		[ $add_ip_variable_retval -ne 0 ] &&  message "W: There is an error when storing in datafiles the variable ${variable_name}"
-	fi
-	return $add_ip_variable_retval
-
-}
-
-# boolean add_set_variable(string data_to_add)
-# To add a set variable to datafiles
-add_set_variable()
-{
-	local agregar_set_retval=0
-	local data_to_add=$1
-
-	if [ -z "$data_to_add" ]
-	then
-		# No input data, use a prompt
-		read -p "-> Define set name: " data_to_add
+		local comment="##ignore##"
 	fi
 
-	# Validation
-	data_to_add=`tr [:lower:] [:upper:] <<< $data_to_add`
-	# Must not exist
-	( grep -i "${data_to_add}_ipv4" $VARS_IPSETV4 > /dev/null && grep -i "${data_to_add}_ipv6" $VARS_IPSETV6 > /dev/null ) \
-		&& { message "W: The variable already exist." ; agregar_set_retval=1 ; }
-
-	# Continue only if parameter was validated.
-	if [ $agregar_set_retval -eq 0 ]
-	then
-		#
-		# Write to datafiles
-		#
-		echo "$data_to_add=`tr [:upper:] [:lower:] <<< $data_to_add`_ipv4" >> $VARS_IPSETV4 \
-				|| { message "E: Unable to write $VARS_IPSETV4" ; agregar_set_retval=1 ; }
-		echo "$data_to_add=`tr [:upper:] [:lower:] <<< $data_to_add`_ipv6" >> $VARS_IPSETV6 \
-				|| { message "E: Unable to write $VARS_IPSETV6" ; agregar_set_retval=1 ; }
-
-		# Not very usefull
-		#echo "The stored data: "
-		#grep ^"${data_to_add}=" $VARS_IPSETV4 2>/dev/null
-		#grep ^"${data_to_add}=" $VARS_IPSETV6 2>/dev/null
-	fi
-
-	return $agregar_set_retval
-}
-
-
-# boolean store_in_ipdatafile(string protocol, string variable_name, string data_to_add)
-# Store in the datafile a variable.
-# protocol: {ipv4|ipv6}
-store_in_ipdatafile()
-{
-	local store_in_ipdatafile_retval=0
-	local protocol=$1
-	local variable_name=$2
-	local data_to_add=$3
-
-	if [ -z "$variable_name" ]
-	then
-		store_in_ipdatafile_retval=1
-	fi
-	if [ -z "$data_to_add" ]
-	then
-		store_in_ipdatafile_retval=1
-	fi
-
-	case "$protocol" in
-		"ipv4")
-			local working_file=$VARS_IPV4
-			;;
-		"ipv6")
-			local working_file=$VARS_IPV6
-			;;
-		*)
-			store_in_ipdatafile_retval=1
-			;;
-	esac
-
-	# EXIT POINT
-	if [ $store_in_ipdatafile_retval -ne 0 ]
-	then
-		message "E: Bad call to function store_in_ipdatafile() Invalid input arguments"
+	# Store now
+	if ! store_register "$varname" "$value_v4" "$value_v6" "$comment" ; then
+		message "E: Unable to store \"${varname}=$value_v4 $comment\" in datafiles"
 		do_exit 1
 	fi
 
-	# Cleaning previous data
-	if grep ^"${variable_name}=" $working_file > /dev/null
-	then
-		local data=`grep -v ^"${variable_name}=" $working_file | grep -v ^[[:space:]]*$`
-		echo "$data" > $working_file
-		if [ $? -ne 0 ]
-		then
-			message "E: When cleaning the previous data. Dataloss is expected"
-			do_exit 1
-		fi
-	fi
-
-	[ $store_in_ipdatafile_retval -ne 0 ] && return $store_in_ipdatafile_retval # Return point
-
-
-	# How to store data if we are working with a FQDN
-	if is_fqdn_valid $data_to_add
-	then
-		case "$protocol" in
-			"ipv4" )
-				# get the A
-				local resolution="$(get_ip_from_fqdn A $data_to_add 0)"
-				;;
-			"ipv6" )
-				# get the AAAA
-				local resolution="$(get_ip_from_fqdn AAAA $data_to_add 0)"
-				;;
-		esac
-
-		if [ -z "$resolution" ]
-		then
-			# No resolution for this FQDN
-			echo "${variable_name}=\$VOID #$data_to_add" >> $working_file
-			if [ $? -ne 0 ]
-			then
-				message "E: Unable to store data [${data_to_add}] (void) to [$working_file]. Possible dataloss"
-				do_exit 1
-			fi
-		else
-			# There is resolution for this FQDN
-			if [ `echo "$resolution" | wc -l` -gt 1 ]
-			then
-				# Complex resolution.
-				echo "${variable_name}=${data_to_add} #$data_to_add" >> $working_file
-				if [ $? -ne 0 ]
-				then
-					message "E: Unable to store data [${data_to_add}] (complex) to [$working_file]. Possible dataloss."
-					do_exit 1
-				fi
-			else
-				# Standar resolution
-				echo "${variable_name}=$resolution #$data_to_add" >> $working_file
-				if [ $? -ne 0 ]
-				then
-					message "E: Unable to store data [${data_to_add}] (standar) to [$working_file]. Possible dataloss."
-					do_exit 1
-				fi
-			fi
-		fi
-	else # Plain IP (v4 or v6)
-		# How to store data if we are working with an IPv6
-		if is_ipv6_valid $data_to_add
-		then
-			case "$protocol" in
-				"ipv4" )
-					echo "${variable_name}=\$VOID #$data_to_add" >> $working_file
-					if [ $? -ne 0 ]
-					then
-						message "E: Unable to store data [${data_to_add}] (void) to [$working_file]. Possible dataloss."
-						do_exit 1
-					fi
-					;;
-				"ipv6" )
-					echo "${variable_name}=${data_to_add} #$data_to_add" >> $working_file
-					if [ $? -ne 0 ]
-					then
-						message "E: Unable to store data [${data_to_add}] (void) to [$working_file]. Possible dataloss."
-						do_exit 1
-					fi
-					;;
-			esac
-		else
-			# How to store data if we are working with an IPv4
-			if is_ipv4_valid $data_to_add
-			then
-				case "$protocol" in
-					"ipv4" )
-						echo "${variable_name}=${data_to_add} #$data_to_add" >> $working_file
-						if [ $? -ne 0 ]
-						then
-							message "E: Unable to store data [${data_to_add}] (standar) to [$working_file]. Possible dataloss."
-							do_exit 1
-						fi
-						;;
-					"ipv6" )
-						echo "${variable_name}=\$VOID #$data_to_add" >> $working_file
-						if [ $? -ne 0 ]
-						then
-							message "E: Unable to store data [${data_to_add}] (standar) to [$working_file]. Possible dataloss."
-							do_exit 1
-						fi
-						;;
-				esac
-			else
-				message "E: Bad call to function store_in_ipdatafile(). Invalid data."
-				store_in_ipdatafile_retval=1
-			fi
-		fi
-	fi
-	return $store_in_ipdatafile_retval
+	return 0
 }
+
+# boolean store_register(string varname, string value_v4, string value_v6, string comment)
+# store a register in datafiles, updating values if necessary
+store_register() {
+	local varname=$1
+	local value_v4=$2
+	local value_v6=$3
+	local comment=$4
+
+	# Minimal validation
+	if [ -z "$varname" ] || [ -z "$value_v4" ] || [ -z "$value_v6" ] || \
+		[ -z "$comment" ] ; then
+		return 1
+	fi
+
+	# if updating
+	if grep ^[[:space:]]*${varname}[[:space:]]*= $VARS_IPV4 >/dev/null || \
+		grep ^[[:space:]]*${varname}[[:space:]]*= $VARS_IPV6 >/dev/null ; then
+		message "W: Updating the value of $varname"
+
+		# store datafile in RAM, check this in future versions of fw-admin
+		local v4_datafile=$( grep -v ^[[:space:]]*${varname}[[:space:]]*= $VARS_IPV4 )
+		local v6_datafile=$( grep -v ^[[:space:]]*${varname}[[:space:]]*= $VARS_IPV6 )
+		echo "$v4_datafile" > $VARS_IPV4 || return 1
+		echo "$v6_datafile" > $VARS_IPV6 || return 1
+	fi
+
+	# Store
+	echo "${varname}=${value_v4} $comment" >> $VARS_IPV4 || return 1
+	echo "${varname}=${value_v6} $comment" >> $VARS_IPV6 || return 1
+
+	message "I: Stored $varname"
+
+	return 0
+}
+
 
 # boolean delete_data(string data_to_delete)
 # Validate the given data and delete it from datafiles
