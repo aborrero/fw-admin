@@ -480,74 +480,58 @@ store_in_ipdatafile()
 # Validate the given data and delete it from datafiles
 delete_data()
 {
+	# Trap now
+	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
 	local delete_data_retval=0
 	local data_to_delete=$1
 	local flag_something_deleted=0
-	echo -n "" > $AUX_FILE
 
-	# cancelation trap
-	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
-
-	# We don't know if data_to_delete is a variable of IPSET or IP/FQDN
-	# Try now to resolve to a VAR name
-	get_input_abstracted_of_type $data_to_delete $AUX_FILE
-
-	# AUX_FILE now contains a repeated and unordered list of matches (or not)
-	if [ $( cat $AUX_FILE | wc -l) -gt 0 ]
-	then
-		# Yes, is filled with lines like this:
-		#/path/to/datafile: VAR=data #comment
-		#/path/to/datafile: VAR=data #comment
-		#/path/to/datafile: VAR=data
-
-		# Iterate over the list of vars, only in IP/FQDN datafiles
-		oldIFS=$IFS ; IFS=$'\n' # control over IFS
-		for var in $( egrep ^$VARS_IPV4\|^$VARS_IPV6 $AUX_FILE | awk -F'=' '{print $1}' | awk -F' ' '{print $2}' | sort | uniq )
-		do
-			read -p "-> Delete the IP/FQDN variable \"${var}\"? [y/N]: "
-			if [ "$REPLY" == "y" ] # REPLY is a special variable by read
-			then
-				delete_from_datafile $var $VARS_IPV4 \
-					|| { message "W: Something went wrong when deleting ${var} from $VARS_IPV4" ; delete_data_retval=1 ; break ; }
-				delete_from_datafile $var $VARS_IPV6 \
-					|| { message "W: Something went wrong when deleting ${var} from $VARS_IPV6" ; delete_data_retval=1 ; break ; }
-				message "W: Deleted IP/FQDN variable \"${var}\""
-				flag_something_deleted=1
-			fi
-		done
-		IFS=$oldIFS
-
-		# Iterate over the list of vars, only in IPSET datafiles
-		oldIFS=$IFS ; IFS=$'\n' # control over IFS
-		for var in $( egrep ^$VARS_IPSETV4\|^$VARS_IPSETV6 $AUX_FILE | awk -F'=' '{print $1}' | awk -F' ' '{print $2}' | sort | uniq )
-		do
-			read -p "-> Delete the IPSET variable \"${var}\"? [y/N]: "
-			if [ "$REPLY" == "y" ] # REPLY is a special variable by read
-			then
-				delete_from_datafile $var $VARS_IPSETV4 \
-					|| { message "W: Something went wrong when deleting ${var} from $VARS_IPSETV4" ; delete_data_retval=1 ; break ; }
-				delete_from_datafile $var $VARS_IPSETV6 \
-					|| { message "W: Something went wrong when deleting ${var} from $VARS_IPSETV6" ; delete_data_retval=1 ; break ; }
-				message "W: Deleted IPSET variable \"${var}\""
-				flag_something_deleted=1
-			fi
-		done
-		IFS=$oldIFS
+	if [ -z "$data_to_delete" ] ; then
+		message "W: Enter some data"
+		return 1
 	fi
 
-	if [ $flag_something_deleted -eq 0 ]
-	then
-		# Warning, nothing to do
-		message "W: No data found to delete"
-		delete_data_retval=1
-	else
-		# Force a check-datafiles
-		echo ""
+	# Check if this exist in datafiles
+	local reg4_list=$( egrep -i ^[[:space:]]*$data_to_delete[[:space:]]*=\|=[[:space:]]*$data_to_delete[[:space:]]*#\|#[[:space:]]*$data_to_delete $VARS_IPV4 )
+	local reg6_list=$( egrep -i ^[[:space:]]*$data_to_delete[[:space:]]*=\|=[[:space:]]*$data_to_delete[[:space:]]*#\|#[[:space:]]*$data_to_delete $VARS_IPV6 )
+
+	if [ -z "$reg4_list" ] && [ -z "$reg6_list" ] ; then
+		message "W: Not found for deleting $data_to_delete"
+		return 1
+	fi
+
+	local unified_var_list=$( { echo "$reg4_list" ; echo  "$reg6_list" ; } \
+				| awk -F'=' '{print $1}' | sort -u \
+				| uniq | grep -v ^$ )
+
+	# Iterate deleting vars
+	for var in $unified_var_list ; do
+		# Ask user
+		message "W: Deleting $var"
+		echo -n "${VARS_IPV4}: " ; grep ^[[:space:]]*$var[[:space:]]*= $VARS_IPV4
+		echo -n "${VARS_IPV6}: " ; grep ^[[:space:]]*$var[[:space:]]*= $VARS_IPV6
+		read -p "Are you sure? [y/N] "
+
+		if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] ; then
+			local flag_something_deleted=yes
+			# Delete now
+			delete_from_datafile $var $VARS_IPV4 || return $?
+			delete_from_datafile $var $VARS_IPV6 || return $?
+
+			message "W: Deleted $var"
+		else
+			message "W: Nothing deleted $var"
+		fi
+	done
+
+	# Check datafiles
+	if [ "$flag_something_deleted" = "yes" ] ; then
 		message "I: Automatically checking datafiles because of the delete"
-		check_datafiles || delete_data_retval=$?
+		check_datafiles || return $?
 	fi
 
-	return $delete_data_retval
+	return 0
 }
 
 # boolean delete_from_datafile(string variable_name, string datafile)
@@ -561,7 +545,7 @@ delete_from_datafile()
 	local hash=""
 
 	cp $datafile ${datafile}~ || { message "E: Unable to copy the datafile $datafile to operate" ; do_exit 1 ; }
-	local tmpfile=$( grep -v ^${variable_name}= ${datafile}~ 2>/dev/null )
+	local tmpfile=$( grep -v ^[[:space:]]*${variable_name}[[:space:]]*= ${datafile}~ 2>/dev/null )
 
 	hash=$( sha512sum <<< "$tmpfile" )
 	echo "$tmpfile" > ${datafile}~

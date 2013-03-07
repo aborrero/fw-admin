@@ -153,7 +153,11 @@ case "$1" in
 	"-d" )
 		loadlibrary
 		validate_execution
-		delete_data $2 # data as a parameter
+		# Iterate deleting
+		for i in "$@" ; do
+			[ "$i" = "-d" ] && continue
+			delete_data $i # data as a parameter
+		done
 		do_exit $?
 		;;
 	"-r" )
