@@ -226,15 +226,6 @@ stats()
 	echo ""
 
 	# Other info
-	echo -e "### About datafiles\t\tIPv4\tIPv6"
-	local vars_ipv4=`grep \= $VARS_IPV4 2>/dev/null | wc -l`
-	local vars_ipv6=`grep \= $VARS_IPV6 2>/dev/null | wc -l`
-	local vars_ipset_ipv4=`grep \= $VARS_IPSETV4 2>/dev/null | wc -l`
-	local vars_ipset_ipv6=`grep \= $VARS_IPSETV6 2>/dev/null | wc -l`
-	echo -e " Declared iptables variables:\t $vars_ipv4 \t $vars_ipv6"
-	echo -e " Declared ipset variables:\t $vars_ipset_ipv4 \t $vars_ipset_ipv6"
-	echo ""
-
 	echo -e "### About system"
 
 	echo -en " Rules memory usage: \t\t\t"
@@ -281,17 +272,21 @@ stats()
 	echo -n -- | awk "{print 100 * $nf_mem_usage / $total_system_mem }" 2>/dev/null || echo "no data"
 
 	echo ""
+	echo -e "### About datafiles\t\tIPv4\tIPv6"
+	local vars_ipv4=`grep \= $VARS_IPV4 2>/dev/null | wc -l`
+	local vars_ipv6=`grep \= $VARS_IPV6 2>/dev/null | wc -l`
+	echo -e " Declared iptables variables:\t $vars_ipv4 \t $vars_ipv6"
+	echo ""
+
 
 	if [ $num_of_ipv4_rules -ge $MINIMAL_AMOUNT_OF_RULES ] || [ $num_of_ipv6_rules -ge $MINIMAL_AMOUNT_OF_RULES ] \
-	|| [ $total_num_of_rules -ge $MINIMAL_AMOUNT_OF_RULES ]
-	then
+	|| [ $total_num_of_rules -ge $MINIMAL_AMOUNT_OF_RULES ] ; then
 		echo " [fw up] Appears to be up and running (More than $MINIMAL_AMOUNT_OF_RULES rules in kernel)."
 	else
 		echo " [fw down] Appears to be down (Less than $MINIMAL_AMOUNT_OF_RULES rules in kernel)."
 	fi
 
-	if [ $vars_ipset_ipv4 -ne $vars_ipset_ipv6 ] || [ $vars_ipv4 -ne $vars_ipv6 ]
-	then
+	if [ $vars_ipv4 -ne $vars_ipv6 ] ; then
 		message " W: Please run \`fw-admin --check-datafiles' to know about datafile corruptions."
 	fi
 
