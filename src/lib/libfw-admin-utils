@@ -513,58 +513,6 @@ check_datafiles()
 	return $retval
 }
 
-# void get_input_abstracted_of_type(string data, string outputfile)
-# Given a data, search datafiles and output results to outputfile.
-# No matter what is the type of the data: var, ip, fqdn, whatever.
-get_input_abstracted_of_type()
-{
-	data=$1
-	outputfile=$2
-
-	# 1º Search the data just typed
-	search_datafiles $data $outputfile
-
-	# 2º Search the variable name the data should has
-	variable_name=$( get_variable_name $data )
-	if [ $? -eq 0 ] && [ ! -z "$variable_name" ]
-	then
-		search_datafiles $variable_name $outputfile
-	fi
-
-	# Take care of the message format produced by function search_datafiles()
-	# /path/to/datafile: VAR=data #text
-	# /path/to/datafile: IPSETVAR=data
-	if [ `cat $outputfile | wc -l` -gt 0 ]
-	then
-		oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
-		# Search after comment (#)
-		local new_data_search_list=$( awk -F'#' '{print $2}' $outputfile \
-					| awk -F' ' '{print $1}' | sort -u | uniq )
-		[ ! -z "$new_data_search_list" ] && for i in $new_data_search_list
-		do
-			search_datafiles $i $outputfile
-		done
-		# Search before (=)
-		local new_data_search_list=$( awk -F' ' '{print $2}' $outputfile \
-					| awk -F'=' '{print $1}' | sort -u | uniq )
-		[ ! -z "$new_data_search_list" ] && for i in $new_data_search_list
-		do
-			search_datafiles $i $outputfile
-		done
-		# Seach after (=)
-		local new_data_search_list=$( awk -F'=' '{print $2}' $outputfile \
-					| awk -F'#' '{print $1}' | sort -u | uniq )
-		[ ! -z "$new_data_search_list" ] && for i in $new_data_search_list
-		do
-			if [ "$i" != "\$VOID" ] ; then
-				search_datafiles $i $outputfile
-			fi
-		done
-		IFS=$oldIFS
-	fi
-	return 0
-}
-
 # boolean get_information(string data)
 # Search for information in datafiles, sets and iptables
 get_information()
