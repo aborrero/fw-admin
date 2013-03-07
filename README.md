@@ -5,7 +5,7 @@ Custom tool for admin netfilter-based firewalls in dual stack mode (IPv4 &amp;&a
 
 Please, take a look at the [wiki](https://github.com/aborrero/fw-admin/wiki/).
 
-NEW: I'm using now Trello to drive the project: [fw-admin Trello Board](https://trello.com/board/fw-admin/510f801434c7ade26e003ac4)
+This project uses Trello for driving task management: [fw-admin Trello Board](https://trello.com/board/fw-admin/510f801434c7ade26e003ac4)
 
 
 Install
@@ -18,7 +18,7 @@ git-clone the repository and do make:
 	$ make
 	# make install
 
-If you are using a Debian-based system, you can build a `.deb` package, and then install it
+If you are using a Debian-based system, you can build a `.deb` package, and then install it:
 
 	$ git clone git://github.com/aborrero/fw-admin.git
 	$ cd fw-admin/debian
@@ -116,10 +116,8 @@ The ideal way of working with `fw-admin` is:
 
 1. Having a data directory with [datafiles](https://github.com/aborrero/fw-admin/wiki/Datafiles), that contains all variables:
 
-		/var/lib/fw-admin/iptables_vars_ipv4.bash
-		/var/lib/fw-admin/iptables_vars_ipv6.bash
-		/var/lib/fw-admin/ipset_vars_ipv6.bash
-		/var/lib/fw-admin/ipset_vars_ipv4.bash
+		/var/lib/fw-admin/datafile_v4.sh
+		/var/lib/fw-admin/datafile_v6.sh
 
 	A datafile is a bash file with variable declaration (note trailing coments is for reloading the value of all variables against DNS or whatever when you request it):
 ```bash
@@ -159,10 +157,8 @@ IF=eth0 ##ignore##
 	# Working dirs and data files
 	CONF_DIR="/etc/fw-admin.d/rules"
 	DATA_DIR="/var/lib/fw-admin"
-	VARS_IPV6="$DATA_DIR/iptables_vars_ipv6.bash"
-	VARS_IPV4="$DATA_DIR/iptables_vars_ipv4.bash"
-	VARS_IPSETV4="$DATA_DIR/ipset_vars_ipv4.bash"
-	VARS_IPSETV6="$DATA_DIR/ipset_vars_ipv6.bash"
+	VARS_IPV6="$DATA_DIR/datafile_v6.sh"
+	VARS_IPV4="$DATA_DIR/datafile_v4.sh"
 
 	# Some options. Values:{yes|no}
 	LOG_ERROR_MESSAGES="yes"
@@ -173,7 +169,7 @@ IF=eth0 ##ignore##
 	# [...]
 	```
 
-5. Check an edit the `/etc/init.d/firewall` startup script.
+5. Check and edit `/etc/default/fw` and the `/etc/init.d/fw` startup script (the former edit is mandatory, init.d edit is optional).
 
 6. Run it.
 
