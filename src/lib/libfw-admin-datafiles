@@ -362,8 +362,8 @@ delete_data()
 	fi
 
 	# Check if this exist in datafiles
-	local reg4_list=$( egrep -i ^[[:space:]]*$data_to_delete[[:space:]]*=\|=[[:space:]]*$data_to_delete[[:space:]]*#\|#[[:space:]]*$data_to_delete $VARS_IPV4 )
-	local reg6_list=$( egrep -i ^[[:space:]]*$data_to_delete[[:space:]]*=\|=[[:space:]]*$data_to_delete[[:space:]]*#\|#[[:space:]]*$data_to_delete $VARS_IPV6 )
+	local reg4_list=$( egrep -i ^[[:space:]]*$data_to_delete[[:space:]]*=\|=[[:space:]]*$data_to_delete[[:space:]]*#\|#[[:space:]]*$data_to_delete[[:space:]]*$ $VARS_IPV4 )
+	local reg6_list=$( egrep -i ^[[:space:]]*$data_to_delete[[:space:]]*=\|=[[:space:]]*$data_to_delete[[:space:]]*#\|#[[:space:]]*$data_to_delete[[:space:]]*$ $VARS_IPV6 )
 
 	if [ -z "$reg4_list" ] && [ -z "$reg6_list" ] ; then
 		message "W: Not found for deleting $data_to_delete"

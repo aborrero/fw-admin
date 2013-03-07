@@ -169,7 +169,9 @@ check_rulefile()
 	[ $flag_wrong_variables -ne 0 ] && return 1 # return point
 
 	# Check iptables syntax if all variables are fine
-	check_iptables_syntax $file_to_check || flag_wrong_iptables=$?
+	if ! [[ $file_to_check =~ /core ]] ; then
+		check_iptables_syntax $file_to_check || flag_wrong_iptables=$?
+	fi
 
 	if [ "$flag_wrong_variables" -ne 0 ] \
 		|| [ "$flag_wrong_iptables" -ne 0 ] ; then
