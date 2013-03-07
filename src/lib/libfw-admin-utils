@@ -2,7 +2,7 @@
 
 # Arturo Borrero <aborrero@cica.es>
 #
-# Copyright (c) 2012 Arturo Borrero
+# Copyright (c) 2013 Arturo Borrero
 # This file is released under the GPLv3 license.
 #
 # Can obtain a complete copy of the license at: http://www.gnu.org/licenses/gpl-3.0.html
@@ -226,15 +226,6 @@ stats()
 	echo ""
 
 	# Other info
-	echo -e "### About datafiles\t\tIPv4\tIPv6"
-	local vars_ipv4=`grep \= $VARS_IPV4 2>/dev/null | wc -l`
-	local vars_ipv6=`grep \= $VARS_IPV6 2>/dev/null | wc -l`
-	local vars_ipset_ipv4=`grep \= $VARS_IPSETV4 2>/dev/null | wc -l`
-	local vars_ipset_ipv6=`grep \= $VARS_IPSETV6 2>/dev/null | wc -l`
-	echo -e " Declared iptables variables:\t $vars_ipv4 \t $vars_ipv6"
-	echo -e " Declared ipset variables:\t $vars_ipset_ipv4 \t $vars_ipset_ipv6"
-	echo ""
-
 	echo -e "### About system"
 
 	echo -en " Rules memory usage: \t\t\t"
@@ -281,17 +272,21 @@ stats()
 	echo -n -- | awk "{print 100 * $nf_mem_usage / $total_system_mem }" 2>/dev/null || echo "no data"
 
 	echo ""
+	echo -e "### About datafiles\t\tIPv4\tIPv6"
+	local vars_ipv4=`grep \= $VARS_IPV4 2>/dev/null | wc -l`
+	local vars_ipv6=`grep \= $VARS_IPV6 2>/dev/null | wc -l`
+	echo -e " Declared iptables variables:\t $vars_ipv4 \t $vars_ipv6"
+	echo ""
+
 
 	if [ $num_of_ipv4_rules -ge $MINIMAL_AMOUNT_OF_RULES ] || [ $num_of_ipv6_rules -ge $MINIMAL_AMOUNT_OF_RULES ] \
-	|| [ $total_num_of_rules -ge $MINIMAL_AMOUNT_OF_RULES ]
-	then
+	|| [ $total_num_of_rules -ge $MINIMAL_AMOUNT_OF_RULES ] ; then
 		echo " [fw up] Appears to be up and running (More than $MINIMAL_AMOUNT_OF_RULES rules in kernel)."
 	else
 		echo " [fw down] Appears to be down (Less than $MINIMAL_AMOUNT_OF_RULES rules in kernel)."
 	fi
 
-	if [ $vars_ipset_ipv4 -ne $vars_ipset_ipv6 ] || [ $vars_ipv4 -ne $vars_ipv6 ]
-	then
+	if [ $vars_ipv4 -ne $vars_ipv6 ] ; then
 		message " W: Please run \`fw-admin --check-datafiles' to know about datafile corruptions."
 	fi
 
@@ -304,7 +299,7 @@ stats()
 check_datafile_format()
 {
 	local retval=0
-	# Format 1
+	# Format
 	# #comments
 	# VARIABLE=data #comment
 	# VAR1ABl3= data #comment
@@ -313,37 +308,16 @@ check_datafile_format()
 	# _VARIABLE=data
 	# VARIABLe= d4t4  ##comment
 
-	# Format 2
-	# #comments
-	# VARIABLE=d4t4
-	# VAR1ABLe=data
-	# blankline
-	# #comments
-	# _VARIABLE=data
-	# VARIABLE= data
-
 	if [ ! -z "$1" ] && [ -e $1 ]
 	then
-		if [ "$2" == "2" ]
-		then
-			# format 2 without trailing comment
-			# invalid lines
-			local invalid_lines=$( nl -ba $1 | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#" | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]*$ | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.* | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"_"\{1}[0-9A-Za-z].*=+.* | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"__"\{1}[0-9A-Za-z].*=+.* )
-		else
-			# format 1 default, with trailing comment
-			# invalid lines
-			local invalid_lines=$( nl -ba $1 | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#" | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]*$ | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*[[:space:]]+#.*$ | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"_"\{1}[0-9A-Za-z].*=+.*[[:space:]]+#.*$ | \
-				egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"__"\{1}[0-9A-Za-z].*=+.*[[:space:]]+#.*$ )
-		fi
+		# format 1 default, with trailing comment
+		# invalid lines
+		local invalid_lines=$( nl -ba $1 | \
+			egrep -vE ^[[:space:]]*[0-9]+[[:space:]]+"#" | \
+			egrep -vE ^[[:space:]]*[0-9]+[[:space:]]*$ | \
+			egrep -vE ^[[:space:]]*[0-9]+[[:space:]]\{1}[A-Za-z].*=+.*[[:space:]]+#.*$ | \
+			egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"_"\{1}[0-9A-Za-z].*=+.*[[:space:]]+#.*$ | \
+			egrep -vE ^[[:space:]]*[0-9]+[[:space:]]"__"\{1}[0-9A-Za-z].*=+.*[[:space:]]+#.*$ )
 		if [ ! -z "$invalid_lines" ]
 		then
 			retval=1
@@ -455,29 +429,6 @@ check_duplicate_variables()
 	return $check_duplicate_variables_retval
 }
 
-# boolean check_duplicate_ipset_ip_variables()
-# Check possible variables with the same name in both types of datafiles
-check_duplicate_ipset_ip_variables()
-{
-	local check_duplicate_ipset_ip_variables_retval=1
-
-	list_of_ip_variables=$( { awk -F'=' '{print $1}' $VARS_IPV4 ; awk -F'=' '{print $1}' $VARS_IPV6 ; } | egrep -v ^[[:space:]]*#\|^[[:space:]]*$ | sort | uniq )
-	list_of_ipset_variables=$( { awk -F'=' '{print $1}' $VARS_IPSETV4 ; awk -F'=' '{print $1}' $VARS_IPSETV6 ; } | egrep -v ^[[:space:]]*#\|^[[:space:]]*$ | sort | uniq )
-	result=$( comm -12 <(echo "$list_of_ip_variables") <(echo "$list_of_ipset_variables") 2> /dev/null )
-	if [ -z "$result" ]
-	then
-		check_duplicate_ipset_ip_variables_retval=0
-	else
-		message "W: Detected duplicate IP/IPSET variables. You may get some undesirable overrides"
-		for variable in "$result"
-		do
-			grep ^${variable}= $DATA_DIR/*
-		done
-	fi
-
-	return $check_duplicate_ipset_ip_variables_retval
-}
-
 # boolean check_datafiles()
 # Check what variables are missing in what datafiles and the format is correct.
 check_datafiles()
@@ -487,82 +438,19 @@ check_datafiles()
 	# Checking format 1: trailing comment
 	check_datafile_format $VARS_IPV4 1 || retval=$?
 	check_datafile_format $VARS_IPV6 1 || retval=$?
-	# Checking format 2: no trailing comment
-	check_datafile_format $VARS_IPSETV4 2 || retval=$?
-	check_datafile_format $VARS_IPSETV6 2 || retval=$?
 
 	# Checking sanity
 	check_datafile_sanity $VARS_IPV4 $VARS_IPV6 || retval=$?
-	check_datafile_sanity $VARS_IPSETV4 $VARS_IPSETV6 || retval=$?
 
 	# Check duplicate variables
 	check_duplicate_variables $VARS_IPV4 || retval=$?
 	check_duplicate_variables $VARS_IPV6 || retval=$?
-	check_duplicate_variables $VARS_IPSETV4 || retval=$?
-	check_duplicate_variables $VARS_IPSETV6 || retval=$?
 
 	# Check for unset variables
 	check_datafile_unset_variables $VARS_IPV4 || retval=$?
 	check_datafile_unset_variables $VARS_IPV6 || retval=$?
-	check_datafile_unset_variables $VARS_IPSETV4 || retval=$?
-	check_datafile_unset_variables $VARS_IPSETV6 || retval=$?
-
-	# Check for duplicates variables from one kind of datafiles to another
-	check_duplicate_ipset_ip_variables || retval=$?
 
 	return $retval
-}
-
-# void get_input_abstracted_of_type(string data, string outputfile)
-# Given a data, search datafiles and output results to outputfile.
-# No matter what is the type of the data: var, ip, fqdn, whatever.
-get_input_abstracted_of_type()
-{
-	data=$1
-	outputfile=$2
-
-
-	# 1º Search the data just typed
-	search_datafiles $data $outputfile
-
-
-	# 2º Search the variable name the data should has
-	variable_name=$( get_variable_name $data )
-	if [ $? -eq 0 ] && [ ! -z "$variable_name" ]
-	then
-		search_datafiles $variable_name $outputfile
-	fi
-
-	# Take care of the message format produced by function search_datafiles()
-	# /path/to/datafile: VAR=data #text
-	# /path/to/datafile: IPSETVAR=data
-	if [ `cat $outputfile | wc -l` -gt 0 ]
-	then
-		oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
-		# Search after comment (#)
-		local new_data_search_list=`cat $outputfile | awk -F'#' '{print $2}' | awk -F' ' '{print $1}' | sort -u | uniq `
-		[ ! -z "$ne_data_search_list" ] && for i in $new_data_search_list
-		do
-			search_datafiles $i $outputfile
-		done
-		# Search before (=)
-		local new_data_search_list=`cat $outputfile | awk -F' ' '{print $2}' | awk -F'=' '{print $1}' | sort -u | uniq`
-		[ ! -z "$ne_data_search_list" ] && for i in $new_data_search_list
-		do
-			search_datafiles $i $outputfile
-		done
-		# Seach after (=)
-		local new_data_search_list=`cat $outputfile | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | sort -u | uniq`
-		[ ! -z "$ne_data_search_list" ] && for i in $new_data_search_list
-		do
-			if [ "$i" != "\$VOID" ] || [ "$i" != "\$VOID" ]
-			then
-				search_datafiles $i $outputfile
-			fi
-		done
-		IFS=$oldIFS
-	fi
-	return 0
 }
 
 # boolean get_information(string data)
@@ -574,147 +462,110 @@ get_information()
         local data=$1
 	echo -n "" > $AUX_FILE
 
-        if [ -z "$data" ]
-        then
+        if [ -z "$data" ] ; then
                 # No input data, use menu
-                read -p "-> Define IPv4, IPv6 or FQDN: " data
+                read -p "-> Define data to search: " data
         fi
 
-	get_input_abstracted_of_type $data $AUX_FILE
-	# Now, in $AUX_FILE we have:
-	#	/path/to/datafile: VAR=value #tag
-	#	/path/to/datafile: VAR=value #tag
-	#	/path/to/datafile: VAR=value #tag
-	#	/path/to/datafile: VAR=value #tag
-	#	/path/to/datafile: IPSET=value
+	if [ -z "$data" ] ; then
+		message "W: Nothing to search."
+		do_exit 1
+	fi
 
- 	# Querying now ipset
-	local list_of_matching_sets=""
-	local flag_set_added=0
-	local set_list=`$IPSET -L | grep "Name:" | awk -F' ' '{print $2}' | grep -v ^[[:space:]]*$`
-	oldIFS=$IFS ; IFS=$' \t\n' # Control over IFS
-	for sset in $set_list
-	do
-		# Searching raw data inserted in fw-admin -i foo
-		if $IPSET -T $sset $( string_to_varname $data ) > /dev/null 2> /dev/null
-		then
-			list_of_matching_sets="$list_of_matching_sets $sset"
-			flag_set_added=1
+	# Check if is a '#data'
+	if grep -i "#[[:space:]]*$data" $VARS_IPV4 >/dev/null ; then
+		# Is in our datafiles, as a comment
+		local var=$( get_variable_name $data )
+		local value_v4=$( get_var_value $var $VARS_IPV4 )
+		local value_v6=$( get_var_value $var $VARS_IPV6 )
+	else
+		# Check if is a 'VAR='
+		if grep -i "^[[:space:]]*$data[[:space:]]*=" $VARS_IPV4 >/dev/null ; then
+			local var=$data
+			local value_v4=$( get_var_value $var $VARS_IPV4 )
+			local value_v6=$( get_var_value $var $VARS_IPV6 )
+		else
+			# Check if is a '=value ##ignore##'
+			local value_v4=$( grep -i "=[[:space:]]*$data[[:space:]]*##ignore##" $VARS_IPV4 >/dev/null )
+			local value_v6=$( grep -i "=[[:space:]]*$data[[:space:]]*##ignore##" $VARS_IPV6 >/dev/null )
+
+			# If empty, is a FQDN -> '=value #comment'
+			if [ -z "$value_v4" ] && [ -z "$value_v6" ] ; then
+				local var=$( grep =[[:space:]]*$data[[:space:]]*# $VARS_IPV4 | awk -F'=' '{print $1}' )
+				[ -z "$var" ] && local var=$( grep =[[:space:]]*$data[[:space:]]*# $VARS_IPV6 | awk -F'=' '{print $1}' )
+				local value_v4=$( get_var_value $var $VARS_IPV4 )
+				local value_v6=$( get_var_value $var $VARS_IPV6 )
+			fi
 		fi
-		if [ $flag_set_added -eq 0 ]
-		then
-	                # Searching with data behind # from data already found
-			for comment_data in $( awk -F'#' '{print $2}' $AUX_FILE | awk -F' ' '{print $1}' | sort -u | uniq )
-			do
-				if $IPSET -T $sset $( string_to_varname $comment_data ) > /dev/null 2> /dev/null
-				then
-					list_of_matching_sets="$list_of_matching_sets $sset"
-					flag_set_added=1
-				fi
-			done
-		fi
-		if [ $flag_set_added -eq 0 ]
-		then
-			# Seach with data after (=) from data already found
-			for real_data in $( awk -F'=' '{print $2}' $AUX_FILE | awk -F'#' '{print $1}' | sort -u | uniq )
-			do
-				if $IPSET -T $sset $( string_to_varname $real_data ) > /dev/null 2> /dev/null
-				then
-					list_of_matching_sets="$list_of_matching_sets $sset"
-				fi
-			done
+	fi
+
+	# At this point, do the queries if something is found
+	if [ -z "$value_v4" ] && [ -z "$value_v6" ] ; then
+		message "W: Nothing to show"
+		return 1
+	fi
+
+	# Show register info
+	local reg_v4=$( grep -i "=[[:space:]]*$value_v4" $VARS_IPV4 )
+	local reg_v6=$( grep -i "=[[:space:]]*$value_v6" $VARS_IPV6 )
+	if [ ! -z "$reg_v4" ] ; then
+		echo -n "${VARS_IPV4}: "
+		grep ^[[:space:]]*"$( awk -F'=' '{print $1}' <<< $reg_v4 )"[[:space:]]*= $VARS_IPV4
+	fi
+	if [ ! -z "$reg_v6" ] ; then
+		echo -n "${VARS_IPV6}: "
+		grep ^[[:space:]]*"$( awk -F'=' '{print $1}' <<< $reg_v6 )"[[:space:]]*= $VARS_IPV6
+	fi
+
+	# Query iptables, with sets
+	local set_list_v4=" $(get_sets_with $value_v4)"
+	local set_list_v6=" $(get_sets_with $value_64)"
+	if [ -z "$sets_list_v4" ] ; then
+		$IPT_SAVE -c | egrep "${value_v4}/"\|"${value_v4}:"
+	else
+		$IPT_SAVE -c | egrep "${value_v4}/"\|"${value_v4}:"${set_list_v4/ /\|}
+	fi
+	if [ -z "$sets_list_v6" ] ; then
+		$IP6T_SAVE -c | egrep "${value_v6}/"
+	else
+		$IP6T_SAVE -c | egrep "${value_v6}/"${set_list_v6/ /\|}
+	fi
+
+	return 0
+}
+
+# string get_sets_with(string data)
+# Get ipset that contains data
+get_sets_with() {
+	local data=$1
+	local string_acum=""
+
+	# Iterate over set list
+	for single_set in $( $IPSET list -n) ; do
+		if $IPSET test $single_set $data > /dev/null 2>/dev/null ; then
+			# is in set
+			string_acum="${string_acum} $single_set"
 		fi
 	done
-	IFS=$oldIFS
+	echo $string_acum # the string return
+}
 
-	# Show or not sets where data was found
-	if [ ! -z "$list_of_matching_sets" ]
-	then
-		# Fix for printing
-		list_of_sets_witch_match=$( echo $list_of_matching_sets | tr ' ' '\n' | grep -v ^[[:space:]]*$ | sort -u | uniq | tr '\n' ' ' )
-		echo -e "I: Data ${C_BOLD}$data${C_NORMAL} is in set(s): ${list_of_matching_sets}" >> $AUX_FILE
-		flag_data_shown=true
-	fi
+# string get_var_value(string var, string datafile)
+# Get the value of a variable in the given datafile
+get_var_value() {
+	local var=$1
+	local datafile=$2
 
-
-	#########################################################
-	# Ordering
-	if [ `cat $AUX_FILE | wc -l` -gt 0 ]
-	then
-		flag_data_shown=true
-		cat $AUX_FILE | sort -u | while read line
-		do
-			message "$line"
-		done
-	fi
-
-	local iptables_query=`grep -i $data $VARS_IPV4 | grep -v VOID | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` # get value
-	if is_ipv4_valid $iptables_query
-	then
-		local rules_num_ipv4_nat=`$IPT_SAVE -t nat | grep "$iptables_query" | wc -l`
-		if [ $rules_num_ipv4_nat -gt 0 ]
-		then
-			message "I: IPv4 (nat) rules: $rules_num_ipv4_nat"
-			$IPT_SAVE -c -t nat | grep $iptables_query && flag_data_shown=true
-		fi
-		local ipv4_rules_num=`$IPT_SAVE | grep "$iptables_query" | wc -l`
-		if [ $ipv4_rules_num -gt 0 ]
-		then
-			message "I: IPv4 rules: $ipv4_rules_num"
-			$IPT_SAVE -c | grep $iptables_query && flag_data_shown=true
-		fi
+	if [ "$datafile" = "$VARS_IPV4" ] ; then
+		source_ipv4_vars || return 1
 	else
-		ipv4_rules_num=0
-		rules_num_ipv4_nat=0
-	fi
-	iptables_query=`grep $data $VARS_IPV6 | awk -F'=' '{print $2}' | awk -F'#' '{print $1}' | tr -d [:space:]` # get value
-	if is_ipv6_valid $iptables_query
-	then
-		local ipv6_rules_num=`$IP6T_SAVE | grep "$iptables_query" | wc -l`
-		if [ $ipv6_rules_num -gt 0 ]
-		then
-			message "I: IPv6 rules: $ipv6_rules_num"
-			$IP6T_SAVE -c | grep $iptables_query
-			flag_data_shown=true
-		fi
-	else
-		ipv6_rules_num=0
+		source_ipv6_vars || return 1
 	fi
 
+	eval "TEMP=$`echo $var`"
+	echo $TEMP # the string return
 
-	total_rules=$(( rules_num_ipv4_nat + total_rules ))
-	total_rules=$(( total_rules + ipv4_rules_num ))
-	total_rules=$(( total_rules + ipv6_rules_num ))
-	[ "$total_rules" -gt 0 ] && message "I: ${C_BOLD}${total_rules}${C_NORMAL} related rules found"
-
-	echo -n "" > $AUX_FILE
-
-	if [ ! -z "$list_of_matching_sets" ]
-	then
-		oldIFS=$IFS ; IFS=$' '
-		for i in $list_of_matching_sets
-		do
-			$IPT_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE && flag_data_shown=true
-			$IP6T_SAVE -c | grep "match\-set" | grep "$i" >> $AUX_FILE && flag_data_shown=true
-		done
-		IFS=$oldIFS
-		local total_rules=$( wc -l $AUX_FILE )
-		if [ $total_rules -gt 0 ]
-		then
-			message "I: Rules regarding related sets:"
-			cat $AUX_FILE | sort -u | uniq
-		fi
-	fi
-
-
-	if [ "$flag_data_shown" != "true" ]
-	then
-		message "W: No data found"
-		get_information_retval=1
-	else
-		get_information_retval=0
-	fi
-	return $get_information_retval
+	return 0
 }
 
 # boolean search_datafiles(string data, string result_return_file)
@@ -732,7 +583,7 @@ search_datafiles()
 		for datafile in $VARS_IPV4 $VARS_IPV6 $VARS_IPSETV4 $VARS_IPSETV6
 		do
 			oldIFS=$IFS ; IFS=$'\n' # control over IFS
-			for line in $( egrep -i ="$data"[[:space:]]\|"#""$data"\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $datafile 2>/dev/null )
+			for line in $( egrep -i ="$data"[[:space:]]\|"#""$data "\|"$data"[[:space:]]*"="\|"$aux_data"[[:space:]]*"=" $datafile 2>/dev/null )
 			do
 				search_datafiles_retval=0
 				# WARNING! If you change this message, you must change also the function get_information()

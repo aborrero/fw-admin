@@ -2,7 +2,7 @@
 
 # Arturo Borrero <aborrero@cica.es>
 #
-# Copyright (c) 2012 Arturo Borrero
+# Copyright (c) 2013 Arturo Borrero
 # This file is released under the GPLv3 license.
 #
 # Can obtain a complete copy of the license at: http://www.gnu.org/licenses/gpl-3.0.html
@@ -94,10 +94,10 @@ start_controlled_exit()
 # Check&start rules on given vlan/filename
 start_in_script_format()
 {
+	[ "$SHOW_OP_TIME" == "yes" ] && local initial_time=$( date +%s )
 	local start_retval=0
 	local filename=$( get_absolute_path $1 )
 
-	[ "$SHOW_OP_TIME" == "yes" ] && local initial_time=$( date +%s )
 
 	if [ -z "$filename" ] ; then
 		message "E: File not found $1"
@@ -545,8 +545,7 @@ delete_nat_from_ruleset()
 # boolean start_in_restore_format(string filename)
 start_in_restore_format()
 {
-
-	[ "$SHOW_OP_TIME" == "yes" ] && local initial_time=`date +%s`
+	[ "$SHOW_OP_TIME" == "yes" ] && local initial_time=$(date +%s)
 
 	local start_in_restore_format_retval=0
 	local filename=$( get_absolute_path $1 )

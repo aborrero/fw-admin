@@ -2,7 +2,7 @@
 
 # Arturo Borrero <aborrero@cica.es>
 #
-# Copyright (c) 2012 Arturo Borrero
+# Copyright (c) 2013 Arturo Borrero
 # This file is released under the GPLv3 license.
 #
 # Can obtain a complete copy of the license at: http://www.gnu.org/licenses/gpl-3.0.html
@@ -26,32 +26,18 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-VERSION="1.0.rc1"
+VERSION="1.0~rc2"
 
 CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
 LIB="/usr/lib/fw-admin.d/libfw-admin"
 PID_FILE="/var/run/fw-admin.pid"
 
-C_BIN="tput"
-C_SETAF="$C_BIN setaf"
-C_BOLD="$($C_BIN bold)"
-C_RESET="$C_BIN sgr0"
-C_RED="$($C_SETAF 1)"
-C_GREEN="$($C_SETAF 2)"
-C_YELLOW="$($C_SETAF 3)"
-C_BLUE="$($C_SETAF 4)"
-C_REDBOLD="${C_BOLD}${C_RED}"
-C_GREENBOLD="${C_BOLD}${C_GREEN}"
-C_YELLOWBOLD="${C_BOLD}${C_YELLOW}"
-C_BLUEBOLD="${C_BOLD}${C_BLUE}"
-C_NORMAL="$($C_RESET)"
-
 help()
 {
 	echo -e "${C_BOLD}fw-admin v${VERSION}${C_NORMAL}"
 	echo -e " ${C_BOLD}-s${C_NORMAL}				Show some stats."
-	echo -e " ${C_BOLD}-a${C_NORMAL} [ipv4|ipv6|fqdn]		Add an IP or FQDN variable to datafiles."
-	echo -e " ${C_BOLD}-as${C_NORMAL} [setname]			Add an IPSET variable to datafiles."
+	echo -e " ${C_BOLD}-a${C_NORMAL} [data]			Add a variable to datafiles."
+	echo -e " ${C_BOLD}-as${C_NORMAL} [data]			Same as -a"
 	echo -e " ${C_BOLD}-d${C_NORMAL} [ipv4|ipv6|fqdn|var]	Delete given argument from datafiles."
 	echo -e " ${C_BOLD}-r${C_NORMAL}				Reload the value of all IP or FQDN variables in datafiles."
 	echo -e " ${C_BOLD}-i${C_NORMAL} [ipv4|ipv6|fqdn|var]	Get information about IP, FQDN, IPSET or variable."
@@ -81,7 +67,7 @@ nofound()
 
 loadlibrary()
 {
-	if ! source $LIB 2>/dev/null ; then
+	if ! source $LIB ; then
 		echo "E: Unable to load library $LIB" >&2
 		exit 1
 	fi
@@ -106,6 +92,7 @@ if ! source $CONF_FILE 2>/dev/null ; then
 	exit 1
 fi
 
+
 # Use default values for config
 FORMAT=${FORMAT:-"script"}
 DOMAIN=${DOMAIN:-"example.com"}
@@ -126,6 +113,22 @@ FLUSH_WHEN_ABORT_START=${FLUSH_WHEN_ABORT_START:-"yes"}
 FLUSH_WHEN_ERROR_START=${FLUSH_WHEN_ERROR_START:-"no"}
 PERMISSIVE_TRAFFIC_WHEN_STOP=${PERMISSIVE_TRAFFIC_WHEN_STOP:-"no"}
 
+if [ "$USE_COLORS" = "yes" ] ; then
+	C_BIN="$( which tput )"
+	C_SETAF="$C_BIN setaf"
+	C_BOLD="$($C_BIN bold)"
+	C_RESET="$C_BIN sgr0"
+	C_RED="$($C_SETAF 1)"
+	C_GREEN="$($C_SETAF 2)"
+	C_YELLOW="$($C_SETAF 3)"
+	C_BLUE="$($C_SETAF 4)"
+	C_REDBOLD="${C_BOLD}${C_RED}"
+	C_GREENBOLD="${C_BOLD}${C_GREEN}"
+	C_YELLOWBOLD="${C_BOLD}${C_YELLOW}"
+	C_BLUEBOLD="${C_BOLD}${C_BLUE}"
+	C_NORMAL="$($C_RESET)"
+fi
+
 # Consider input argument
 
 case "$1" in
@@ -135,22 +138,24 @@ case "$1" in
 		do_exit $?
 		;;
 
-	"-a" )
+	"-a"|"-as" )
 		loadlibrary
 		validate_execution
-		add_ip_variable $2 # data as a parameter
-		do_exit $?
-		;;
-	"-as" )
-		loadlibrary
-		validate_execution
-		add_set_variable $2 # data as a parameter
-		do_exit $?
+		for i in "$@" ; do
+			[ "$i" = "-a" ] && continue
+			add_variable $i
+			rc=$?
+		done
+		do_exit $rc
 		;;
 	"-d" )
 		loadlibrary
 		validate_execution
-		delete_data $2 # data as a parameter
+		# Iterate deleting
+		for i in "$@" ; do
+			[ "$i" = "-d" ] && continue
+			delete_data $i # data as a parameter
+		done
 		do_exit $?
 		;;
 	"-r" )
