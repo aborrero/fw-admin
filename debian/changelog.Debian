@@ -1,3 +1,23 @@
+fw-admin (1.0~rc2-1) stable; urgency=low
+
+  * Better service implementation (see git commit history).
+
+  * Rewrite `fw-admin -i` as it was useful.
+
+  * Rewrite `fw-admin -d` as it was useful as well.
+
+  * Rewrite of `fw-admin -a` as it was stupid and useful.
+
+  * Deprecation of `fw-admin -as`. Use `fw-admin -a` instead.
+
+  * Avoid core file being syntax checked.
+
+  * Deleted unused functions in libs.
+
+  * Small tiny fixes, please see git commit history.
+
+ -- Arturo Borrero <aborrero@cica.es>  Tue, 7 Mar 2013 16:56:00 +0001
+
 fw-admin (1.0~rc1-1) stable; urgency=low
 
   * Better service implementation.
