@@ -340,6 +340,8 @@ store_register() {
 	echo "${varname}=${value_v6} $comment" >> $VARS_IPV6 || return 1
 
 	message "I: Stored $varname"
+	echo " $VARS_IPV4: ${varname}=${value_v4} $comment"
+	echo " $VARS_IPV6: ${varname}=${value_v6} $comment"
 
 	return 0
 }
