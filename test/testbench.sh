@@ -114,6 +114,9 @@ done
 echo -n "."
 fw-admin --check-datafiles >&2 || { fail=1 ; echo "*!*" ; }
 
+echo "."
+fw-admin -r || { fail=1 ; echo "*!*" ; }
+
 if [ $fail -ne 0 ]
 then
 	echo ""

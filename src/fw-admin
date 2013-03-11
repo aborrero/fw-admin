@@ -92,7 +92,6 @@ if ! source $CONF_FILE 2>/dev/null ; then
 	exit 1
 fi
 
-
 # Use default values for config
 FORMAT=${FORMAT:-"script"}
 DOMAIN=${DOMAIN:-"example.com"}
