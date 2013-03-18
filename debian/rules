@@ -12,3 +12,5 @@
 %:
 	dh $@
 
+override_dh_auto_install:
+	$(MAKE) PREFIX=$(CURDIR)/debian/fw-admin install

@@ -1,7 +1,7 @@
 Source: fw-admin
-Section: Network
+Section: net
 Priority: extra
-Maintainer: Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com
+Maintainer: Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>
 Build-Depends: debhelper (>= 8.0.0)
 Standards-Version: 3.9.3
 Homepage: https://github.com/aborrero/fw-admin
@@ -9,7 +9,7 @@ Vcs-Git: git://github.com/aborrero/fw-admin.git
 
 Package: fw-admin
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends} iptables ( >= 1.4 ) , ipset ( >= 6.12.1 ), dnsutils , bash ( >= 4 )
+Depends: iptables ( >= 1.4 ) , ipset ( >= 6.12.1 ), dnsutils , bash ( >= 4 )
 Description: Dual stack netfilter firewall
  This package provides a dual stack (IPv4 & IPv6) implementation of
  a firewall based on netfilter.
