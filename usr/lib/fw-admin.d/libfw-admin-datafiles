@@ -1,0 +1,480 @@
+#!/bin/bash
+
+# Arturo Borrero <aborrero@cica.es>
+#
+# Copyright (c) 2013 Arturo Borrero
+# This file is released under the GPLv3 license.
+#
+# Can obtain a complete copy of the license at: http://www.gnu.org/licenses/gpl-3.0.html
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+################################################################
+################################################################
+# Datafile functions
+
+# boolean is_ipv4_valid(string ipv4)
+# Check if an ipv4 is a valid ipv4
+is_ipv4_valid()
+{
+	local retval=1
+	if [ ! -z $1 ]
+	then
+		egrep '^(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[0-9]{1,2})){3}$' <<< $1 > /dev/null
+		if [ $? -eq 0 ]
+		then
+			retval=0
+		fi
+	fi
+	return $retval
+}
+
+# boolean is_ipv6_valid(string ipv6)
+# Check if an ipv6 is a valid ipv6
+is_ipv6_valid()
+{
+	local retval=1
+	if [ ! -z $1 ]
+	then
+		egrep -E '^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}))|:)))(%.+)?\s*$' <<< $1 > /dev/null
+		if [ $? -eq 0 ]
+		then
+			retval=0
+		fi
+	fi
+	return $retval
+}
+
+# boolean is_fqdn_valid(string fqdn)
+# Check if an fqdn is a valid fqdn
+is_fqdn_valid()
+{
+	local retval=1
+	local fqdn=$1
+	if [ ! -z $fqdn ]
+	then
+		# resolve it to know if it's valid
+		local resolution=$( $DIG +short $fqdn 2>/dev/null | egrep -v ^";"\|^$ | wc -l 2>/dev/null )
+		if [ ! -z "$resolution" ] && [[ $resolution =~ ^[0-9]+$ ]] && [ $resolution -ne 0 ]
+		then
+			retval=0
+		fi
+	fi
+	return $retval
+}
+
+# boolean is_ip_fqdn_valid(string ip_or_fqdn)
+# Check if an address is valid (ip or fqdn)
+is_ip_fqdn_valid()
+{
+	local retval=1
+	if [ ! -z $1 ]
+	then
+		is_ipv6_valid $1 && retval=0
+		is_ipv4_valid $1 && retval=0
+		is_fqdn_valid $1 && retval=0
+	fi
+	return $retval
+}
+
+# boolean is_domain_fqdn(string fqdn)
+# Funcion que valora si un fqdn es del dominio cica.es
+is_domain_fqdn()
+{
+	grep "$DOMAIN"$ <<< $1 > /dev/null && return 0
+	return 1
+}
+
+
+
+# boolean reload_variable_values()
+# Iterates over all variables in datafiles, updating the value
+reload_variable_values()
+{
+	local reload_variable_values_retval=0
+	local list_of_variables=$( { cat $VARS_IPV4 ; cat $VARS_IPV6 ; } \
+		| egrep -v "##ignore##"\|"@"\|^[[:space:]]*# \
+		| awk -F'#' '{print $2}' | sort -u | uniq \
+		| grep -v ^[[:space:]]*$ )
+
+	message "I: Variables containing the tag \"##ignore##\" are ignored."
+	echo -n "" > $AUX_FILE
+
+	# Evaluating if calcules regarding progress bar are neccesary
+	if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
+		local total=$( wc -w <<< $list_of_variables )
+		local cont=0
+	fi
+
+	oldIFS=$IFS ; IFS=$' \t\n' #control over IFS
+	for variable in $list_of_variables ; do
+		# Evaluating if calcules regarding progress bar are neccesary
+		if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
+			((cont++)) ; libprogressbar $cont $total
+		fi
+
+		# If a IPv4 or IPv6, dont reload the variable
+		# This is faster than writting the same values to datafiles
+		is_ipv4_valid $variable && continue
+		is_ipv6_valid $variable && continue
+
+		# Error messages will be shown later
+		add_ip_fqdn_variable $variable >> $AUX_FILE 2>&1
+	done
+	IFS=$oldIFS
+
+	# Print error messages, if neccesary
+	local checklist=$( egrep "E:"\|"W:" $AUX_FILE )
+	if [ ! -z "$checklist" ]
+	then
+		echo -e "$checklist"
+	fi
+	return $reload_variable_values_retval
+}
+
+# string string_to_varname(string data)
+# Transform a string to var name: lower case to upper case,  - to _, : to _  and so
+string_to_varname()
+{
+	local data=$1
+	echo $( tr [:lower:] [:upper:] <<< $data | tr '-' '_' | tr ':' '_' | tr '.' '_' ) && return 0 # the string return
+	return 1 # error if this is reached
+}
+
+# string get_variable_name(string data)
+# Used to know what variable name correspond to the given data
+get_variable_name()
+{
+	local data=$1
+
+	# Check for empty argument
+	if [ -z "$data" ]
+	then
+		message "E: empty argument in function get_variable_name()"
+		do_exit 1
+	fi
+
+	# If start with a number, mandatory change it and start with 'V'
+	# so it ends $V123123
+	[[ $data =~ ^[0-9] ]] && data="V${data}"
+
+	# if is from $DOMAIN, delete $DOMAIN
+	is_domain_fqdn $data && data=`echo $data | awk -F".$DOMAIN" '{print $1}'`
+
+	echo $( string_to_varname $data ) && return 0 # the string return
+	return 1 # error if this is reached
+}
+
+# ip get_ip_from_fqdn(string type, string fqdn, int recursivityLevel)
+# recursive function. Used to know the final IP asociated with a FQDN.
+get_ip_from_fqdn()
+{
+        local type=$1
+        local fqdn=$2
+	local recursivityLevel=$3
+
+	[ -z "$type" ] && { message "E: Function get_ip_from_fqdn() called with empty parameter (type)" ; do_exit 1 ; }
+	[ -z "$fqdn" ] && { message "E: Function get_ip_from_fqdn() called with empty parameter (fqdn)" ; do_exit 1 ; }
+
+	[ -z "$recursivityLevel" ] && recursivityLevel=0
+	if [ "$recursivityLevel" -gt 100 ] ; then
+		message "E: Max recursion level reached in function get_ip_from_fqdn()"
+		do_exit 1
+	fi
+
+	((recursivityLevel++))
+
+        local resolution=$( $DIG +short $fqdn $type )
+        if is_ipv6_valid $resolution
+        then
+                echo "$resolution" # return point
+        else
+		if is_ipv4_valid $resolution
+		then
+			echo "$resolution" # return point
+		else
+			oldIFS=$IFS
+			IFS=$' \t\n'
+	                for line in $resolution
+	                do
+	                        local resolution2="$resolution2 $(get_ip_from_fqdn $type $line $recursivityLevel)"
+	                done
+			IFS=$oldIFS
+	                local resolution3=$( tr [[:space:]] '\n' <<< "$resolution2" | grep -v ^[[:space:]]*$ | sort -u | uniq )
+	                echo "$resolution3" # return point
+		fi
+        fi
+	return 0
+}
+
+# boolean add_ip_fqdn_variable(string data_to_add)
+# Used to add a IP/FQDN variable to datafiles.
+add_ip_fqdn_variable() {
+	local data_to_add=$1
+	local varname=$( get_variable_name $data_to_add )
+
+	if [ -z "$data_to_add" ]
+	then
+		# No input data, use prompt
+		read -p "-> Please define data: " data_to_add
+	fi
+
+
+	if is_ip_fqdn_valid $data_to_add ; then
+		if is_ipv4_valid $data_to_add ; then
+			local value_v4=$data_to_add
+			local value_v6="\$VOID"
+		else
+			if is_ipv6_valid $data_to_add ; then
+				local value_v6=$data_to_add
+				local value_v4="\$VOID"
+			else
+				if is_fqdn_valid $data_to_add ; then
+					local resolution_v4=$( get_ip_from_fqdn A $data_to_add )
+					if [ -z "$resolution_v4" ] ; then
+						local value_v4="\$VOID"
+					else
+						case $( wc -l <<< "$resolution_v4" ) in
+							"1")
+								local value_v4=$resolution_v4 ;;
+							*)
+								local value_v4=$data_to_add ;;
+						esac
+					fi
+					local resolution_v6=$( get_ip_from_fqdn AAAA $data_to_add )
+					if [ -z "$resolution_v6" ] ; then
+						local value_v6="\$VOID"
+					else
+						case $( wc -l <<< "$resolution_v6" ) in
+							"1")
+								local value_v6=$resolution_v6 ;;
+							*)
+								local value_v6=$data_to_add ;;
+						esac
+					fi
+				else
+					message "E: Unable to determine type of data $data_to_add"
+					do_exit 1
+				fi
+			fi
+		fi
+	else
+		message "W: Data is not a valid IP/FQDN $data_to_add"
+		return 1
+	fi
+
+	local comment="#$data_to_add"
+
+	# Store now
+	if ! store_register "$varname" "$value_v4" "$value_v6" "$comment" ; then
+		message "E: Unable to store \"${varname}=$value_v4 $comment\" in datafiles"
+		do_exit 1
+	fi
+
+	return 0
+}
+
+# boolean add_other_variable(string data_to_add, boolean default {yes|no})
+# Add a non ip/fqdn variable to datafiles, asking for values if not default.
+add_other_variable() {
+
+	# cancelation trap
+	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
+	local data_to_add=$1
+	local default=$2
+	local varname=$( get_variable_name $data_to_add )
+
+	if [ -z "$data_to_add" ]
+	then
+		# No input data, use prompt
+		read -p "-> Please define data: " data_to_add
+	fi
+
+	unset REPLY
+
+	[ "$default" != "yes" ] && read -p " Value in IPv4 datafile? [${data_to_add}_ipv4]: "
+	if [ ! -z "$REPLY" ] ; then
+		local value_v4="$REPLY"
+	else
+		local value_v4="${data_to_add}_ipv4"
+	fi
+	[ "$default" != "yes" ] && read -p " Value in IPv6 datafile? [${data_to_add}_ipv6]: "
+	if [ ! -z "$REPLY" ] ; then
+		local value_v6="$REPLY"
+	else
+		local value_v6="${data_to_add}_ipv6"
+	fi
+
+	local comment="##ignore##"
+
+	# Store now
+	if ! store_register "$varname" "$value_v4" "$value_v6" "$comment" ; then
+		message "E: Unable to store \"${varname}=$value_v4 $comment\" in datafiles"
+		do_exit 1
+	fi
+	return 0
+}
+
+# boolean add_variable(string data_to_add, boolean default)
+# Generic interface for adding a variable to datafiles
+add_variable() {
+	# cancelation trap
+	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
+	local data_to_add=$1
+	local default=$2
+	local varname=$( get_variable_name $data_to_add )
+
+	if [ -z "$data_to_add" ]
+	then
+		# No input data, use prompt
+		read -p "-> Please define data: " data_to_add
+	fi
+
+	add_ip_fqdn_variable $data_to_add 2>/dev/null || add_other_variable $data_to_add $default
+	return $?
+}
+
+# boolean store_register(string varname, string value_v4, string value_v6, string comment)
+# store a register in datafiles, updating values if necessary
+store_register() {
+	local varname=$1
+	local value_v4=$2
+	local value_v6=$3
+	local comment=$4
+
+	# Minimal validation
+	if [ -z "$varname" ] || [ -z "$value_v4" ] || [ -z "$value_v6" ] || \
+		[ -z "$comment" ] ; then
+		return 1
+	fi
+
+	# if updating
+	if grep ^[[:space:]]*${varname}[[:space:]]*= $VARS_IPV4 >/dev/null || \
+		grep ^[[:space:]]*${varname}[[:space:]]*= $VARS_IPV6 >/dev/null ; then
+		message "I: Updating the value of $varname"
+
+		# store datafile in RAM, check this in future versions of fw-admin
+		local v4_datafile=$( grep -v ^[[:space:]]*${varname}[[:space:]]*= $VARS_IPV4 )
+		local v6_datafile=$( grep -v ^[[:space:]]*${varname}[[:space:]]*= $VARS_IPV6 )
+		echo "$v4_datafile" > $VARS_IPV4 || return 1
+		echo "$v6_datafile" > $VARS_IPV6 || return 1
+	fi
+
+	# Store
+	echo "${varname}=${value_v4} $comment" >> $VARS_IPV4 || return 1
+	echo "${varname}=${value_v6} $comment" >> $VARS_IPV6 || return 1
+
+	message "I: Stored $varname"
+	echo " $VARS_IPV4: ${varname}=${value_v4} $comment"
+	echo " $VARS_IPV6: ${varname}=${value_v6} $comment"
+
+	return 0
+}
+
+
+# boolean delete_data(string data_to_delete)
+# Validate the given data and delete it from datafiles
+delete_data()
+{
+	# Trap now
+	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
+	local delete_data_retval=0
+	local data_to_delete=$1
+	local flag_something_deleted=0
+
+	if [ -z "$data_to_delete" ] ; then
+		message "W: Enter some data"
+		return 1
+	fi
+
+	# Check if this exist in datafiles
+	local reg4_list=$( egrep -i ^[[:space:]]*$data_to_delete[[:space:]]*=\|=[[:space:]]*$data_to_delete[[:space:]]*#\|#[[:space:]]*$data_to_delete[[:space:]]*$ $VARS_IPV4 )
+	local reg6_list=$( egrep -i ^[[:space:]]*$data_to_delete[[:space:]]*=\|=[[:space:]]*$data_to_delete[[:space:]]*#\|#[[:space:]]*$data_to_delete[[:space:]]*$ $VARS_IPV6 )
+
+	if [ -z "$reg4_list" ] && [ -z "$reg6_list" ] ; then
+		message "W: Not found for deleting $data_to_delete"
+		return 1
+	fi
+
+	local unified_var_list=$( { echo "$reg4_list" ; echo  "$reg6_list" ; } \
+				| awk -F'=' '{print $1}' | sort -u \
+				| uniq | grep -v ^$ )
+
+	# Iterate deleting vars
+	for var in $unified_var_list ; do
+		# Ask user
+		message "W: Deleting $var"
+		echo -n "${VARS_IPV4}: " ; grep ^[[:space:]]*$var[[:space:]]*= $VARS_IPV4
+		echo -n "${VARS_IPV6}: " ; grep ^[[:space:]]*$var[[:space:]]*= $VARS_IPV6
+		read -p "Are you sure? [y/N] "
+
+		if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] ; then
+			local flag_something_deleted=yes
+			# Delete now
+			delete_from_datafile $var $VARS_IPV4 || return $?
+			delete_from_datafile $var $VARS_IPV6 || return $?
+
+			message "W: Deleted $var"
+		else
+			message "W: Nothing deleted $var"
+		fi
+	done
+
+	# Check datafiles
+	if [ "$flag_something_deleted" = "yes" ] ; then
+		message "I: Automatically checking datafiles because of the delete"
+		check_datafiles || return $?
+	fi
+
+	return 0
+}
+
+# boolean delete_from_datafile(string variable_name, string datafile)
+# Delete the variable_name from the given datafile
+delete_from_datafile()
+{
+	local delete_from_dafatile_retval=1
+
+	local variable_name=$1
+	local datafile=$2
+	local hash=""
+
+	cp $datafile ${datafile}~ || { message "E: Unable to copy the datafile $datafile to operate" ; do_exit 1 ; }
+	local tmpfile=$( grep -v ^[[:space:]]*${variable_name}[[:space:]]*= ${datafile}~ 2>/dev/null )
+
+	hash=$( sha512sum <<< "$tmpfile" )
+	echo "$tmpfile" > ${datafile}~
+
+	if [ "$hash" == "$( sha512sum < ${datafile}~ )" ]
+	then
+		mv ${datafile}~ $datafile 2>/dev/null || { message "E: Unable to copy back $datafile" ; do_exit 1 ; }
+		delete_from_datafile_retval=0
+	else
+		message "E: Unable to operate. Bad integrity $datafile"
+		do_exit 1
+	fi
+
+	return $delete_from_datafile_retval
+}
+

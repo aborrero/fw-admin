@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# This is the core file of fw-admin if you are using FORMAT=script in fw-admin.conf
+
+# In big firewalls, is intended to hold all netfilter structure declaration
+# such chains, logs, default policy and so on.
+# For small firewalls, you could just have here your ruleset
+$IPT -X
+$IPT -F
+$IPT -P INPUT ACCEPT
+$IPT -P OUTPUT ACCEPT
+$IPT -P FORWARD ACCEPT
