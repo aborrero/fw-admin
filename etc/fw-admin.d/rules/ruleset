@@ -1,0 +1,15 @@
+# If you are using FORMAT=restore, this is where you set the firewall.
+# Remember that you can use variables like $MY_NETWORK or $GITHUB_COM
+# previously declared using fw-admin -a or editing raw datafiles
+
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+COMMIT
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT ACCEPT [0:0]
+COMMIT

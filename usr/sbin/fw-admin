@@ -1,0 +1,256 @@
+#!/bin/bash
+
+# Arturo Borrero <aborrero@cica.es>
+#
+# Copyright (c) 2013 Arturo Borrero
+# This file is released under the GPLv3 license.
+#
+# Can obtain a complete copy of the license at: http://www.gnu.org/licenses/gpl-3.0.html
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+VERSION="1.0~rc2"
+
+CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
+LIB="/usr/lib/fw-admin.d/libfw-admin"
+PID_FILE="/var/run/fw-admin.pid"
+
+help()
+{
+	echo -e "${C_BOLD}fw-admin v${VERSION}${C_NORMAL}"
+	echo -e " ${C_BOLD}-s${C_NORMAL}				Show some stats."
+	echo -e " ${C_BOLD}-a${C_NORMAL} [data]			Add a variable to datafiles."
+	echo -e " ${C_BOLD}-as${C_NORMAL} [data]			Same as -a"
+	echo -e " ${C_BOLD}-d${C_NORMAL} [ipv4|ipv6|fqdn|var]	Delete given argument from datafiles."
+	echo -e " ${C_BOLD}-r${C_NORMAL}				Reload the value of all IP or FQDN variables in datafiles."
+	echo -e " ${C_BOLD}-i${C_NORMAL} [ipv4|ipv6|fqdn|var]	Get information about IP, FQDN, IPSET or variable."
+	echo -e " ${C_BOLD}-c${C_NORMAL} file			Check rule-file."
+	echo -e " ${C_BOLD}--start${C_NORMAL} [arg] [--nocheck]"
+	echo -e "	if FORMAT=restore	Start the selected ruleset"
+	echo -e "	--start ruleset [--nocheck]"
+	echo -e "	if FORMAT=script	Start the selected rulefile/vlan/nat or all files in \$START_ORDER"
+	echo -e "	--start [{core|nat|vlan_name}] [--nocheck]"
+	echo -e " ${C_BOLD}--stop${C_NORMAL} [chainName]"
+	echo -e "	if FORMAT=restore	No arguments. Flush all the ruleset."
+	echo -e "	if FORMAT=script	chainName is the chain you would like to flush."
+	echo -e "				Using without arguments, flush entire ruleset."
+	echo -e " ${C_BOLD}--check-datafiles${C_NORMAL} [--install]	Check datafiles for errors."
+	echo -e "				Using --install will produce a basic datafile installation."
+	echo -e " ${C_BOLD}--help${C_NORMAL}				Show this message."
+	return 0
+}
+
+
+nofound()
+{
+	echo "fw-admin: invalid option. Try \`fw-admin --help' or see man page fw-admin(8)" >&2
+	return 1
+}
+
+
+loadlibrary()
+{
+	if ! source $LIB ; then
+		echo "E: Unable to load library $LIB" >&2
+		exit 1
+	fi
+
+	if ! check_root ; then
+		message "W: Not root!"
+	fi
+
+	if ! check_files ; then
+		do_exit 1
+	fi
+
+	return 0
+}
+
+
+################################################################
+# Program
+################################################################
+if ! source $CONF_FILE 2>/dev/null ; then
+	echo "E: Unable to load config file $CONF_FILE" >&2
+	exit 1
+fi
+
+# Use default values for config
+FORMAT=${FORMAT:-"script"}
+DOMAIN=${DOMAIN:-"example.com"}
+MINIMAL_AMOUNT_OF_RULES=${MINIMAL_AMOUNT_OF_RULES:-"0"}
+CONF_DIR=${CONF_DIR:-"/etc/fw-admin.d/rules"}
+IPSET_CONF=${IPSET_CONF:-"$CONF_DIR/sets"}
+DATA_DIR=${DATA_DIR:-"/var/lib/fw-admin"}
+VARS_IPV6=${VARS_IPV6:-"$DATA_DIR/iptables_vars_ipv6.bash"}
+VARS_IPV4=${VARS_IPV4:-"$DATA_DIR/iptables_vars_ipv4.bash"}
+VARS_IPSETV4=${VARS_IPSETV4:-"$DATA_DIR/ipset_vars_ipv4.bash"}
+VARS_IPSETV6=${VARS_IPSETV6:-"$DATA_DIR/ipset_vars_ipv6.bash"}
+LOG_ERROR_MESSAGES=${LOG_ERROR_MESSAGES:-"yes"}
+LOG_WARN_MESSAGES=${LOG_WARN_MESSAGES:-"yes"}
+USE_COLORS=${USE_COLORS:-"yes"}
+USE_PROGRESS_BAR=${USE_PROGRESS_BAR:-"yes"}
+SHOW_OP_TIME=${SHOW_OP_TIME:-"yes"}
+FLUSH_WHEN_ABORT_START=${FLUSH_WHEN_ABORT_START:-"yes"}
+FLUSH_WHEN_ERROR_START=${FLUSH_WHEN_ERROR_START:-"no"}
+PERMISSIVE_TRAFFIC_WHEN_STOP=${PERMISSIVE_TRAFFIC_WHEN_STOP:-"no"}
+
+if [ "$USE_COLORS" = "yes" ] ; then
+	C_BIN="$( which tput )"
+	C_SETAF="$C_BIN setaf"
+	C_BOLD="$($C_BIN bold)"
+	C_RESET="$C_BIN sgr0"
+	C_RED="$($C_SETAF 1)"
+	C_GREEN="$($C_SETAF 2)"
+	C_YELLOW="$($C_SETAF 3)"
+	C_BLUE="$($C_SETAF 4)"
+	C_REDBOLD="${C_BOLD}${C_RED}"
+	C_GREENBOLD="${C_BOLD}${C_GREEN}"
+	C_YELLOWBOLD="${C_BOLD}${C_YELLOW}"
+	C_BLUEBOLD="${C_BOLD}${C_BLUE}"
+	C_NORMAL="$($C_RESET)"
+fi
+
+# Consider input argument
+
+case "$1" in
+	"-s" )
+		loadlibrary
+		stats
+		do_exit $?
+		;;
+
+	"-a"|"-as" )
+		loadlibrary
+		validate_execution
+		for i in "$@" ; do
+			[ "$i" = "-a" ] && continue
+			add_variable $i
+			rc=$?
+		done
+		do_exit $rc
+		;;
+	"-d" )
+		loadlibrary
+		validate_execution
+		# Iterate deleting
+		for i in "$@" ; do
+			[ "$i" = "-d" ] && continue
+			delete_data $i # data as a parameter
+		done
+		do_exit $?
+		;;
+	"-r" )
+		loadlibrary
+		validate_execution
+		reload_variable_values
+		do_exit $?
+		;;
+	"-i" )
+		loadlibrary
+		get_information $2 # data as a parameter
+		do_exit $?
+		;;
+	"-c" )
+		loadlibrary
+		check_rulefile $2 # file as a parameter
+		do_exit $?
+		;;
+	"--start" )
+		loadlibrary
+		validate_execution
+
+		[ "$3" = "--nocheck" ] && flag_no_check=1
+		[ "$2" = "--nocheck" ] && flag_no_check=1
+
+		if [ "$FORMAT" == "restore" ]
+		then
+			if [ -z "$2" ] ; then
+				message "E: No file specified"
+				do_exit 1
+			fi
+			start_in_restore_format $2 || rc=$?
+		else
+			if [ "$2" = "--nocheck" ] || [ -z "$2" ] ; then
+				oldIFS=$IFS ; IFS=' '
+				for file in $START_ORDER
+				do
+					start_in_script_format $file || rc=$?
+				done
+				IFS=$oldIFS
+			else
+				start_in_script_format $2 || rc=$?
+			fi
+		fi
+
+		do_exit $rc
+		;;
+	"--stop" )
+		loadlibrary
+		validate_execution
+		if [ "$FORMAT" == "restore" ]
+		then
+			stop_in_restore_format # no arguments
+		else
+			if [ ! -z "$2" ]
+			then
+				stop_in_script_format $2 # chain name as a parameter
+			else
+				stop_in_restore_format # no arguments
+			fi
+		fi
+		do_exit $?
+		;;
+	"--ipset-reload" )
+		echo "E: Deprecated option. Use --start instead" >&2
+		exit 1
+		;;
+	"--check-datafiles" )
+		if [ ! -z "$2" ]
+		then
+			# If called: fw-admin --check-datafiles --install
+			if [ "$2" == "--install" ]
+			then
+				[ ! -d $DATA_DIR ] && mkdir -p $DATA_DIR
+				[ ! -d $CONF_DIR ] && mkdir -p $CONF_DIR
+				[ ! -e $VARS_IPV6 ] && echo "#!/bin/bash" > $VARS_IPV6 && echo "VOID=ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ##ignore##" >> $VARS_IPV6
+				[ ! -e $VARS_IPV4 ] && echo "#!/bin/bash" > $VARS_IPV4 && echo "VOID=255.255.255.255 ##ignore##" >> $VARS_IPV4
+				[ ! -e $VARS_IPSETV4 ] && echo "#!/bin/bash" > $VARS_IPSETV4
+				[ ! -e $VARS_IPSETV6 ] && echo "#!/bin/bash" > $VARS_IPSETV6
+			else
+				# If called with unknow argument
+				echo "W: Unknow argument $2" >&2
+			fi
+		fi
+		loadlibrary
+		check_datafiles
+		do_exit $?
+		;;
+	"--help" )
+		help
+		exit $?
+		;;
+	* )
+		nofound
+		exit $?
+		;;
+esac
+
+exit 1

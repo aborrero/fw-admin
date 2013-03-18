@@ -1,0 +1,255 @@
+#!/bin/bash
+
+# Arturo Borrero <aborrero@cica.es>
+#
+# Copyright (c) 2013 Arturo Borrero
+# This file is released under the GPLv3 license.
+#
+# Can obtain a complete copy of the license at: http://www.gnu.org/licenses/gpl-3.0.html
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+# boolean check_iptables_syntax_loop(string file_being_checked, int protocol)
+# Loop over a file checking iptables syntax. Protocol: 4|6
+check_iptables_syntax_loop()
+{
+
+	local check_iptables_syntax_loop_retval=0
+	echo -n "" > $AUX_FILE
+
+	# Using a more legible name
+	local file_being_checked=$1
+	local protocol=$2
+
+	# Store all lines in a variable, to avoid double disk read in:
+	# calculating the amount of lines and iterate.
+	local list_of_lines=$( cat $file_being_checked | nl -b a \
+	| egrep -v ^[[:space:]]*[0-9]*[[:space:]]*"#"\|^[[:space:]]*[0-9]*[[:space:]]$\|"IPSET" \
+	| egrep "IPT -A "\|"IPT -I " )
+
+	# Evaluating if we need calcules regarding progress bar
+	if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
+		local amount_of_lines=$( wc -l <<< "$list_of_lines" )
+		local cont=0
+	fi
+
+	oldIFS=$IFS ; IFS=$'\n' # Control over IFS
+	for line in $list_of_lines
+	do
+		# Evaluating if we need calcules regarding progress bar
+		if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
+			((cont++)) ; libprogressbar $cont $amount_of_lines
+		fi
+
+		# Dont check if the line contains a $VOID variable
+		line_contains_void $line && continue
+
+		# Preparing the line to be evaluated.
+		# 1º Delete the number of the line
+		local ejec=$( awk -F' ' '{$1=""}1' <<< ${line} )
+		# 2º Change -I to -C
+		ejec=${ejec/"IPT -I "/"IPT -C "}
+		# 3º Change -A to -C
+		ejec=${ejec/"IPT -A "/"IPT -C "}
+
+		# Evaluating now
+		error_msg=$( eval "${ejec} 2>&1" 2>&1 ) # error_msg must be a global variable for this trick to work
+		if [ $? -eq 2 ]
+		then
+			message "W: The rule in line \"$( awk -F' ' '{print $1}' <<< $line )\" failed the check in IPv${protocol}." >> $AUX_FILE 2>&1
+			echo "Details:" >> $AUX_FILE
+			# add a space to improve reading by the admin
+			for error_line in $error_msg
+			do
+				# add a space to improve reading by the admin
+				echo " $error_line" >> $AUX_FILE
+			done
+			check_iptables_syntax_loop_retval=1
+		fi
+	done
+	IFS=$oldIFS
+
+	grep -v ^[[:space:]]*$ $AUX_FILE >&2
+
+	return $check_iptables_syntax_loop_retval
+}
+
+# boolean check_iptables_syntax(string filename)
+# Source datafiles and launch loop over rules in a given file
+check_iptables_syntax()
+{
+	# Doing nothing if format restore
+	[ "$FORMAT" == "restore" ] && return 0
+
+	local check_iptables_syntax_retval=0
+	local filename=$1
+
+	# Clean the aux file
+	echo "" > $AUX_FILE
+
+	# If using progress bar, print a message so user know what means.
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Checking iptables syntax $filename"
+
+	source_ipv4_vars && IPT=$IP4T \
+	|| { message "E: Unable to load datafiles in IPv4." ; do_exit 1 ; } # EXIT POINT
+
+	check_iptables_syntax_loop $filename 4 || check_iptables_syntax_retval=1
+
+	# Aboid IPv6 checks if NAT
+	if [[ $filename =~ "nat"$ ]]
+	then
+		: "DEBUG: No IPv6 syntax check because NAT."
+	else
+		message "I: Checking ip6tables syntax $filename"
+		source_ipv6_vars && IPT=$IP6T \
+		|| { message "E: Unable to load datafiles in IPv6." ; do_exit 1 ; } # EXIT POINT
+
+		check_iptables_syntax_loop $filename 6 || check_iptables_syntax_retval=1
+	fi
+	return $check_iptables_syntax_retval
+}
+
+# boolean check_rulefile(string file_to_check)
+# To check that variables of a rulefile are in datafiles and ip[6]?tables syntax
+check_rulefile()
+{
+	[ "$flag_no_check" = "1" ] && return 0
+
+	local flag_wrong_variables=0
+	local flag_wrong_iptables=0
+	local file_to_check=$( get_absolute_path $1 )
+
+	if [ "$file_to_check" == "" ] ; then
+		message "E: File not found $1"
+		do_exit 1
+	fi
+
+	# Clear aux file
+	echo "" > $AUX_FILE
+
+	if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
+		message "I: Checking variables $file_to_check"
+		local amount=$( grep -v ^[[:space:]]*# $file_to_check \
+				| tr [[:space:]] '\n' | fgrep \$ \
+				| egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ \
+				| sort -u | wc -l )
+		local cont=0
+	fi
+
+	# Doing the check now
+	check_rulefile_variables_loop $file_to_check 4
+	check_rulefile_variables_loop $file_to_check 6
+
+	# Showing warnings now
+	oldIFS=$IFS ; IFS=$'\n'
+	for line in $( sort -u $AUX_FILE )
+	do
+		[[ $line =~ ^"W:" ]] && flag_wrong_variables=1
+		message "$line"
+	done
+	IFS=$oldIFS
+
+	[ $flag_wrong_variables -ne 0 ] && return 1 # return point
+
+	# Check iptables syntax if all variables are fine
+	if ! [[ $file_to_check =~ /core ]] ; then
+		check_iptables_syntax $file_to_check || flag_wrong_iptables=$?
+	fi
+
+	if [ "$flag_wrong_variables" -ne 0 ] \
+		|| [ "$flag_wrong_iptables" -ne 0 ] ; then
+		return 1
+	fi
+	return 0
+}
+
+# void check_rulefile_variables_loop(string file_to_check, protocol {IPv4|IPv6})
+# Loop over the list of parsed variables doing the check and store error in AUX_FILE
+check_rulefile_variables_loop()
+{
+	local file_to_check=$1
+	local protocol=$2
+
+
+	# Using a subshell!, so IPv4 and IPv6 variables doesn't override
+	(
+	if [ "$protocol" == "4" ] ; then
+		source_ipv4_vars
+	else
+		source_ipv6_vars
+	fi
+
+	set -u
+	oldIFS=$IFS ; IFS=$' \t\n' # control over IFS
+	for word in $( grep -v ^[[:space:]]*# $file_to_check \
+			| tr [[:space:]] '\n' | fgrep \$ \
+			| egrep -v "IPT"$\|"IPSET"$\|^[[:space:]]*$ | sort -u )
+	do
+		# Do we need to do calcules related to progress bar?
+		if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
+	                ((cont++)) ; libprogressbar $cont $amount
+		fi
+
+		error_msg=$( eval "TMP=$word" 2>&1 )
+		if [ $? -eq 1 ] ; then
+			# Different locales compatibility?
+			echo "W:$( awk -F':' '{print $3":"$4}' <<< $error_msg )" >> $AUX_FILE
+		fi
+	done
+	IFS=$oldIFS
+	set +u
+	) # End subshell
+}
+
+# boolean check_filter_chain_exist(string chainname)
+# Check if a chain exists in iptables/6tables (filter)
+# Return 0 if exist
+check_filter_chain_exist()
+{
+	local chainname=$1
+
+	# validating
+	[ -z "$chainname" ] && return 1
+
+	if $IPT_SAVE | grep "^:${1} " >/dev/null 2>/dev/null || \
+		$IP6T_SAVE | grep "^:${1} " >/dev/null 2>/dev/null ; then
+		return 0
+	fi
+
+	return 1
+}
+
+# boolean check_nat_chain_exist(string chainname)
+# Check if a chain exists in iptables (nat)
+# Return 0 if exist
+check_nat_chain_exist()
+{
+	local chainname=$1
+
+	# validating
+	[ -z "$chainname" ] && return 1
+
+	# No IPv6 check by now
+	if $IPT_SAVE -t nat| grep "^:${1} " >/dev/null 2>/dev/null ; then
+		return 0
+	fi
+
+	return 1
+}
