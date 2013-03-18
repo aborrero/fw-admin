@@ -49,12 +49,7 @@ fi
 ###########################################################
 echo ""
 echo "I: Testing datafiles"
-<<<<<<< HEAD
-cd ../test
-VALID="r2d2.cica.es www.google.es www.facebook.com github.com 2a00:9ac0:c1ca:27::150 150.214.4.150 192.168.1.1 fe00::1 ::1 127.0.0.1"
-=======
 VALID="www.google.es www.facebook.com github.com 2a00:9ac0:c1ca:27::150 150.214.4.150 192.168.1.1 fe00::1 ::1 127.0.0.1"
->>>>>>> master
 # Those are valid
 for i in $VALID
 do
