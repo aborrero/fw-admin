@@ -1,7 +1,6 @@
 TAR := fw-admin_last.tar.gz
 INSTALL_PREFIX := /$(PREFIX)
-ROOT := build/$(PREFIX)
-
+ROOT := build
 
 .PHONY : clean install
 
