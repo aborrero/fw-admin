@@ -29,61 +29,15 @@ fail=0
 echo "I: Testing building and installation"
 
 echo -n "."
-debMakeVersion=$( grep ^"SOURCE_VERSION :=" ../debian/Makefile | awk -F'=' '{print $2}' | tr -d [:space:] )
-srcMakeVersion=$( grep ^"VERSION :=" ../src/Makefile | awk -F'=' '{print $2}' | tr -d [:space:] )
-codeVersion=$( grep -R "VERSION=" ../src/* | awk -F'=' '{print $2}' | tr -d \" | tr -d [:space:] )
-debPkgVersion=$( grep ^fw-admin ../debian/changelog.Debian | head -1 | awk -F'(' '{print $2}' | awk -F')' '{print $1}' | tr -d [:space:] )
-debControlVersion=$( grep ^Version: ../debian/control | awk -F' ' '{print $2}' | tr -d [:space:] )
-
-echo debMakeVersion $debMakeVersion >&2
-echo srcMakeVersion $srcMakeVersion >&2
-echo codeVersion $codeVersion >&2
-echo debPkgVersion $debPkgVersion >&2
-echo debControlVersion $debControlVersion >&2
-
-if [ "$codeVersion" != "$srcMakeVersion" ] || [ "$codeVersion" != "$debMakeVersion" ] || [ "$debPkgVersion" != "$debControlVersion" ]
-then
-	echo ""
-	echo "E: Version mismatch!"
-	fail=1
-fi
-
-echo -n "."
-cd ../src
-make >&2
+cd ..
+make install >&2
 if [ $? -ne 0 ]
 then
 	echo ""
-	echo "E: Error building tar.gz package." >&2
+	echo "E: Error building and installing tar.gz package." >&2
 	fail=1
 fi
-
-echo -n "."
-tar xvzf fw-admin_${codeVersion}.tar.gz -C / >&2
-if [ $? -ne 0 ]
-then
-	echo ""
-	echo "E: Error installing tar.gz package." >&2
-	fail=1
-fi
-
-echo -n "."
-cd ../debian
-make >&2
-if [ $? -ne 0 ]
-then
-	echo ""
-	echo "E: Error building deb package." >&2
-	fail=1
-fi
-echo -n "."
-dpkg -i fw-admin_${debPkgVersion}_all.deb >&2
-if [ $? -ne 0 ]
-then
-	echo ""
-	echo "E: Error installing deb package." >&2
-	fail=1
-fi
+cd test
 
 if [ $fail -ne 0 ] ; then
 	echo ""
@@ -95,8 +49,12 @@ fi
 ###########################################################
 echo ""
 echo "I: Testing datafiles"
+<<<<<<< HEAD
 cd ../test
 VALID="r2d2.cica.es www.google.es www.facebook.com github.com 2a00:9ac0:c1ca:27::150 150.214.4.150 192.168.1.1 fe00::1 ::1 127.0.0.1"
+=======
+VALID="www.google.es www.facebook.com github.com 2a00:9ac0:c1ca:27::150 150.214.4.150 192.168.1.1 fe00::1 ::1 127.0.0.1"
+>>>>>>> master
 # Those are valid
 for i in $VALID
 do
