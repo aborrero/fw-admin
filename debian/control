@@ -9,7 +9,7 @@ Vcs-Git: git://github.com/aborrero/fw-admin.git
 
 Package: fw-admin
 Architecture: all
-Depends: iptables ( >= 1.4 ) , ipset ( >= 6.12.1 ), dnsutils , bash ( >= 4 )
+Depends: ${misc:Depends}, iptables ( >= 1.4 ) , ipset ( >= 6.12.1 ), dnsutils , bash ( >= 4 )
 Description: Dual stack netfilter firewall
  This package provides a dual stack (IPv4 & IPv6) implementation of
  a firewall based on netfilter.

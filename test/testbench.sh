@@ -29,6 +29,8 @@ fail=0
 echo "I: Testing building and installation"
 
 echo -n "."
+
+echo -n "."
 cd ..
 make install >&2
 if [ $? -ne 0 ]
