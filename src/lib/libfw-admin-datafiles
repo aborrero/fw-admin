@@ -131,6 +131,11 @@ reload_variable_values()
 			((cont++)) ; libprogressbar $cont $total
 		fi
 
+		# If a IPv4 or IPv6, dont reload the variable
+		# This is faster than writting the same values to datafiles
+		is_ipv4_valid $variable && continue
+		is_ipv6_valid $variable && continue
+
 		# Error messages will be shown later
 		add_ip_fqdn_variable $variable >> $AUX_FILE 2>&1
 	done
