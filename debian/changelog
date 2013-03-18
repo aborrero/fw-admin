@@ -1,0 +1,5 @@
+fw-admin (1.0~rc2-1) unstable; urgency=low
+
+  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+
+ -- root <root@pica.cica.es>  Mon, 18 Mar 2013 11:03:17 +0100
