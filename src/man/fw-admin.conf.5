@@ -1,0 +1,105 @@
+.TH fw-admin.conf 5 "17 Dec 2012"
+.SH NAME
+fw-admin.conf \- Main config file for the tool fw-admin
+.SH DESCRIPTION
+\fBfw-admin.conf\fP is the main config file for the tool \fBfw-admin\fP.
+.SH CONFIGURATION
+The directives are global variables used across all the code of \fBfw-admin\fP.
+.TP
+\fB$FORMAT\fP
+There are two ways \fBfw-admin\fP can handle the firewall: script or restore.
+
+Script is about standar bash files with rules.
+
+Restore is for \fBiptables-save\fP format, using bash variables from datafiles to abstract the difference between IPv4 and IPv6.
+
+Values: {restore|script} Default: script
+.TP
+\fB$DOMAIN\fP
+The main domain you are using. For example, in CICA we use: \fBDOMAIN="cica.es"\fP.
+
+This directive is mandatory to be set. Unexpected behaviour of \fBfw-admin\fP if unset.
+
+Values: string Default: example.com
+.TP
+\fB$MINIMAL_AMOUNT_OF_RULES\fP
+How many rules are needed to be in kernel to consider the firewall running.
+
+When calling \fBfw-admin -s\fP it will show a message ([fw-up] or [fw-down]) from this number.
+
+Also, that message is used by the init.d script.
+
+Values: integer >= 0 Default: 0
+.TP
+\fB$CONF_DIR\fP
+The directory for rules.
+
+Values: absolute dirname Default: /etc/fw-admin.d/rules
+.TP
+\fB$DATA_DIR\fP
+Where datafiles are stored.
+
+Values: absolute dirname Default: /var/lib/fw-admin
+.TP
+\fB$PID_FILE\fP
+The pid file used by \fBfw-admin\fP. Some operations are critical (i.e. \fB--start\fP or \fB-r\fP) so in such cases there should be no more than one instance at time.
+
+Values: absolute pahtname Default: /var/run/fw-admin.pid
+.TP
+\fB$LOG_ERROR_MESSAGES\fP
+If error messages should be logged using \fBlogger(1)\fP.
+
+Values: {yes|no} Default: yes
+.TP
+\fB$LOG_WARN_MESSAGES\fP
+If warning messages should be logged using \fBlogger(1)\fP.
+
+Values: {yes|no} Default: yes
+.TP
+\fB$USE_COLORS\fP
+If \fBfw-admin\fP should print messages with colours in stdout and stderr.
+
+Values: {yes|no} Default: yes
+.TP
+\fB$USE_PROGRESS_BAR\fP
+There are some slow operations. The progress bar can make you less bored.
+
+Values: {yes|no} Default: yes
+.TP
+\fB$SHOW_OP_TIME\fP
+Show operation times.
+
+Values: {yes|no} Default: yes
+.TP
+\fB$FLUSH_WHEN_ABORT_START\fP
+If \fBfw-admin\fP should flush rules when a \fB--start\fP action is aborted (i.e. using ^C or \fBkill(1)\fP).
+
+Values: {yes|no} Default: yes
+.TP
+\fB$FLUSH_WHEN_ERROR_START\fP
+If \fBfw-admin\fP should flush rules when a \fB--start\fP action fails.
+
+Values: {yes|no} Default: no
+.TP
+\fB$PERMISSIVE_TRAFFIC_WHEN_STOP\fP
+If configured to 'yes', \fBfw-admin\fP will add permissive rules when a stop operation occurs, i.e. \fB--stop\fP or those 
+derived from \fB$FLUSH_WHEN_ABORT_START\fP and/or \fP$FLUSH_WHEN_ERROR_START\fP.
+
+Values: {yes|no} Default: no
+.SH HINTS
+· Differences between \fB$FORMAT=restore\fP and \fB$FORMAT=script\fP are hard. Most of your netfilter configuration migth not work
+from one config to other.
+
+· To have the clearest stdout, set \fB$SHOW_OP_TIME\fP, \fB$USE_PROGRESS_BAR\fP and \fB$USE_COLORS\fP to \fB"no"\fP.
+
+· If you want the faster execution time, set \fB$USE_PROGRESS_BAR\fP to \fB"no"\fP.
+
+.SH AUTHOR, BUGS, COMENTS Y CODE
+Code is at \fBhttps://github.com/aborrero/fw-admin\fP (also a wiki page).
+
+You should go there for reporting bugs, make comments, contribute or whatever.
+
+The original author of this tool and system (and the man page) is \fBArturo Borrero González <aborrero@cica.es>\fP.
+
+During the early development and tests, \fBMarina Moreda Rodrigez <marina.moreda@cica.es>\fP, \fBPedro Gallego Torrecillas <pgallego@cica.es>\fP 
+and \fBYassine Mohamed Ahram <yahram@cica.es>\fP also participated.
