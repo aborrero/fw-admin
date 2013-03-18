@@ -1,2 +1,2 @@
-src/usr/share/man/man8/fw-admin.8.gz
-src/usr/share/man/man5/fw-admin.conf.5.gz
+src/man/fw-admin.8
+src/man/fw-admin.conf.5

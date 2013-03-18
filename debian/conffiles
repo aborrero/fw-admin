@@ -1,6 +1,6 @@
-etc/fw-admin.d/fw-admin.conf
-etc/fw-admin.d/rules/core
-etc/fw-admin.d/rules/sets
-etc/fw-admin.d/rules/ruleset
-etc/init.d/fw
-etc/default/fw
+/etc/fw-admin.d/fw-admin.conf
+/etc/fw-admin.d/rules/core
+/etc/fw-admin.d/rules/sets
+/etc/fw-admin.d/rules/ruleset
+/etc/init.d/fw
+/etc/default/fw
