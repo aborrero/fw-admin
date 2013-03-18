@@ -1,0 +1,163 @@
+fw-admin (1.0~rc2-1) stable; urgency=low
+
+  * Better service implementation (see git commit history).
+
+  * Rewrite `fw-admin -i` as it was useful.
+
+  * Rewrite `fw-admin -d` as it was useful as well.
+
+  * Rewrite of `fw-admin -a` as it was stupid and useful.
+
+  * Deprecation of `fw-admin -as`. Use `fw-admin -a` instead.
+
+  * Avoid core file being syntax checked.
+
+  * Deleted unused functions in libs.
+
+  * Small tiny fixes, please see git commit history.
+
+ -- Arturo Borrero <aborrero@cica.es>  Tue, 7 Mar 2013 16:56:00 +0001
+
+fw-admin (1.0~rc1-1) stable; urgency=low
+
+  * Better service implementation.
+
+  * Deprecated --ipset-reload options. Use --start instead.
+
+  * Using --start without any file will result in executing all files
+  in ORDER_START variable.
+
+  * Progressbar optimiced.
+
+  * Improved stats printing. Including conntrack and other system info.
+
+  * Fixed several bugs.
+
+  * Small tiny fixes, please see git commit history.
+
+ -- Arturo Borrero <aborrero@cica.es>  Mon, 4 Mar 2013 20:00:00 +0001
+
+fw-admin (0.9-1) stable; urgency=low
+
+  * Changed init.d script name to `fw'
+
+  * Added fw-admin --check-datafiles --install option, that will install
+  basic datafiles if not found.
+
+  * MINIMAL_AMOUNT_OF_RULES default is set to 0.
+
+  * Small tiny fixes, please see git commit history.
+
+ -- Arturo Borrero <aborrero@cica.es>  Mon, 17 Dec 2012 20:00:00 +0001
+
+fw-admin (0.8-1) stable; urgency=low
+
+  * Deleted obsolete check.
+
+  * lib separed in several files.
+
+  * Fixed fw-admin -i operation.
+
+ -- Arturo Borrero <aborrero@cica.es>  Fri, 14 Dec 2012 13:16:00 +0001
+
+fw-admin (0.7.1-1) stable; urgency=low
+
+  * Fixed typo bug in [fw up] message.
+
+ -- Arturo Borrero <aborrero@cica.es>  Fri, 30 Nov 2012 13:54:00 +0001
+
+fw-admin (0.7-1) stable; urgency=low
+
+  * Added duplicates variable check for --check-datafiles function.
+
+  * Ipset data is not being destroyed when stop core.
+
+  * Fixed -i option.
+
+  * Show a warning message when flushing the entire ruleset.
+
+  * Some fixed strings and other minor changes.
+
+  * Added overrides check for --check-datafiles function.
+
+  * Added support for delete operations over datafiles (fw-admin -d foo).
+  Also, updated man page.
+
+  * Deleted support for iptables-cluster.
+
+ -- Arturo Borrero <aborrero@cica.es>  Fri, 30 Nov 2012 12:31:00 +0001
+
+fw-admin (0.6-1) stable; urgency=low
+
+  * Package following upstream release.
+
+  * Config file has moved to /etc/fw-admin.d/fw-admin.conf
+
+  * Rule has moved to /etc/fw-admin.d/rules/
+
+  * Datafiles now in /var/lib/fw-admin/
+
+  * Added iptables-restore support
+
+  * Edited mantainer scripts.
+
+ -- Arturo Borrero <aborrero@cica.es>  Thu, 27 Sep 2012 15:50:00 +0001
+
+fw-admin (0.5-1) stable; urgency=low
+
+  * Package following upstream release.
+
+  * Several bugfixes and several improvements. 
+  Also some new conf options added to /etc/fw-admin.conf
+
+ -- Arturo Borrero <aborrero@cica.es>  Tue, 28 Aug 2012 12:48:00 +0001
+
+fw-admin (0.4-1) stable; urgency=low
+
+  * Package following upstream release.
+
+ -- Arturo Borrero <aborrero@cica.es>  Mon, 20 Aug 2012 09:19:00 +0001
+
+fw-admin (0.3.3-1) stable; urgency=low
+
+  * Package following upstream release.
+
+ -- Arturo Borrero <aborrero@cica.es>  Thu, 16 Aug 2012 10:02:00 +0001
+
+fw-admin (0.3.2-1) stable; urgency=low
+
+  * Some tiny improvements as well as bug fixes.
+
+ -- Arturo Borrero <aborrero@cica.es>  Mon, 13 Aug 2012 10:03:00 +0001
+
+fw-admin (0.3.1-1) stable; urgency=low
+
+  * Fixed some bugs in this version.
+
+ -- Arturo Borrero <aborrero@cica.es>  Thu, 31 Jul 2012 14:42:00 +0001
+
+fw-admin (0.3-1) stable; urgency=low
+
+  * New upstream release.
+
+ -- Arturo Borrero <aborrero@cica.es>  Thu, 31 Jul 2012 12:50:00 +0001
+
+fw-admin (0.2-1) stable; urgency=low
+
+  * Updated package following upstream release.
+
+  * Some dependecies have been fixed.
+
+ -- Arturo Borrero <aborrero@cica.es>  Thu, 31 Jul 2012 10:48:00 +0001
+
+fw-admin (0.1-2) stable; urgency=low
+
+  * Added all /etc/ files, missing in previous package.
+
+ -- Arturo Borrero <aborrero@cica.es>  Mon, 30 Jul 2012 12:58:00 +0001
+
+fw-admin (0.1-1) stable; urgency=low
+
+  * First package of upstream release.
+
+ -- Arturo Borrero <aborrero@cica.es>  Mon, 30 Jul 2012 12:28:00 +0001

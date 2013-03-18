@@ -18,16 +18,20 @@ set -e
 
 
 case "$1" in
-    remove|upgrade|deconfigure)
-    ;;
+	remove)
+		invoke-rc.d fw stop
+	;;
 
-    failed-upgrade)
-    ;;
+	upgrade|deconfigure)
+	;;
 
-    *)
-        echo "prerm called with unknown argument \`$1'" >&2
-        exit 1
-    ;;
+	failed-upgrade)
+	;;
+
+	*)
+		echo "prerm called with unknown argument \`$1'" >&2
+		exit 1
+	;;
 esac
 
 # dh_installdeb will replace this with shell code automatically
