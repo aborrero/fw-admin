@@ -1,9 +1,0 @@
-#!/bin/bash
-
-set -e
-
-# Only when removing
-if [ "$1" == "remove" ]
-then
-	invoke-rc.d fw stop
-fi

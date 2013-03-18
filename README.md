@@ -14,16 +14,14 @@ Install
 git-clone the repository and do make:
 
 	$ git clone git://github.com/aborrero/fw-admin.git
-	$ cd fw-admin/src
-	$ make # this makes the tar.gz package
-	# make install # this deploy in the system
+	$ cd fw-admin
+	# make install
 
 If you are using a Debian-based system, you can build a `.deb` package, and then install it:
 
 	$ git clone git://github.com/aborrero/fw-admin.git
-	$ cd fw-admin/debian
-	# make
-	# dpkg -i fw-admin_version_all.deb
+	$ git checkout debian
+	# git-buildpackage
 
 Features
 ========

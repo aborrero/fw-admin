@@ -114,11 +114,9 @@ reload_variable_values()
 		| egrep -v "##ignore##"\|"@"\|^[[:space:]]*# \
 		| awk -F'#' '{print $2}' | sort -u | uniq \
 		| grep -v ^[[:space:]]*$ )
-	echo -n "" > $AUX_FILE
-
 
 	message "I: Variables containing the tag \"##ignore##\" are ignored."
-
+	echo -n "" > $AUX_FILE
 
 	# Evaluating if calcules regarding progress bar are neccesary
 	if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
@@ -127,21 +125,24 @@ reload_variable_values()
 	fi
 
 	oldIFS=$IFS ; IFS=$' \t\n' #control over IFS
-	for variable in $list_of_variables
-	do
+	for variable in $list_of_variables ; do
 		# Evaluating if calcules regarding progress bar are neccesary
 		if [ "$USE_PROGRESS_BAR" == "yes" ] ; then
-			((cont++))
-			libprogressbar $cont $total
+			((cont++)) ; libprogressbar $cont $total
 		fi
 
+		# If a IPv4 or IPv6, dont reload the variable
+		# This is faster than writting the same values to datafiles
+		is_ipv4_valid $variable && continue
+		is_ipv6_valid $variable && continue
+
 		# Error messages will be shown later
-		add_variable $variable >> $AUX_FILE 2>&1 || reload_variable_values_retval=1
+		add_ip_fqdn_variable $variable >> $AUX_FILE 2>&1
 	done
 	IFS=$oldIFS
 
 	# Print error messages, if neccesary
-	local checklist=$( grep "E:" $AUX_FILE )
+	local checklist=$( egrep "E:"\|"W:" $AUX_FILE )
 	if [ ! -z "$checklist" ]
 	then
 		echo -e "$checklist"
@@ -224,14 +225,11 @@ get_ip_from_fqdn()
 	return 0
 }
 
-# boolean add_variable(string data)
-# Used to add a variable to datafiles
-add_variable() {
-
-	# cancelation trap
-	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
-
+# boolean add_ip_fqdn_variable(string data_to_add)
+# Used to add a IP/FQDN variable to datafiles.
+add_ip_fqdn_variable() {
 	local data_to_add=$1
+	local varname=$( get_variable_name $data_to_add )
 
 	if [ -z "$data_to_add" ]
 	then
@@ -239,17 +237,14 @@ add_variable() {
 		read -p "-> Please define data: " data_to_add
 	fi
 
-	local varname=$( get_variable_name $data_to_add )
 
 	if is_ip_fqdn_valid $data_to_add ; then
 		if is_ipv4_valid $data_to_add ; then
 			local value_v4=$data_to_add
-			local comment="#$data_to_add"
 			local value_v6="\$VOID"
 		else
 			if is_ipv6_valid $data_to_add ; then
 				local value_v6=$data_to_add
-				local comment="#$data_to_add"
 				local value_v4="\$VOID"
 			else
 				if is_fqdn_valid $data_to_add ; then
@@ -275,7 +270,6 @@ add_variable() {
 								local value_v6=$data_to_add ;;
 						esac
 					fi
-					local comment="#$data_to_add"
 				else
 					message "E: Unable to determine type of data $data_to_add"
 					do_exit 1
@@ -283,22 +277,11 @@ add_variable() {
 			fi
 		fi
 	else
-		message "I: Adding variable $varname"
-		read -p " Value in IPv4 datafile? [${data_to_add}_ipv4]: "
-		if [ ! -z "$REPLY" ] ; then
-			local value_v4="$REPLY"
-		else
-			local value_v4="${data_to_add}_ipv4"
-		fi
-		read -p " Value in IPv6 datafile? [${data_to_add}_ipv6]: "
-		if [ ! -z "$REPLY" ] ; then
-			local value_v6="$REPLY"
-		else
-			local value_v6="${data_to_add}_ipv6"
-		fi
-
-		local comment="##ignore##"
+		message "W: Data is not a valid IP/FQDN $data_to_add"
+		return 1
 	fi
+
+	local comment="#$data_to_add"
 
 	# Store now
 	if ! store_register "$varname" "$value_v4" "$value_v6" "$comment" ; then
@@ -307,6 +290,68 @@ add_variable() {
 	fi
 
 	return 0
+}
+
+# boolean add_other_variable(string data_to_add, boolean default {yes|no})
+# Add a non ip/fqdn variable to datafiles, asking for values if not default.
+add_other_variable() {
+
+	# cancelation trap
+	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
+	local data_to_add=$1
+	local default=$2
+	local varname=$( get_variable_name $data_to_add )
+
+	if [ -z "$data_to_add" ]
+	then
+		# No input data, use prompt
+		read -p "-> Please define data: " data_to_add
+	fi
+
+	unset REPLY
+
+	[ "$default" != "yes" ] && read -p " Value in IPv4 datafile? [${data_to_add}_ipv4]: "
+	if [ ! -z "$REPLY" ] ; then
+		local value_v4="$REPLY"
+	else
+		local value_v4="${data_to_add}_ipv4"
+	fi
+	[ "$default" != "yes" ] && read -p " Value in IPv6 datafile? [${data_to_add}_ipv6]: "
+	if [ ! -z "$REPLY" ] ; then
+		local value_v6="$REPLY"
+	else
+		local value_v6="${data_to_add}_ipv6"
+	fi
+
+	local comment="##ignore##"
+
+	# Store now
+	if ! store_register "$varname" "$value_v4" "$value_v6" "$comment" ; then
+		message "E: Unable to store \"${varname}=$value_v4 $comment\" in datafiles"
+		do_exit 1
+	fi
+	return 0
+}
+
+# boolean add_variable(string data_to_add, boolean default)
+# Generic interface for adding a variable to datafiles
+add_variable() {
+	# cancelation trap
+	trap " echo "" && message \"W: Interrupt...\" && do_exit 1 " SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
+	local data_to_add=$1
+	local default=$2
+	local varname=$( get_variable_name $data_to_add )
+
+	if [ -z "$data_to_add" ]
+	then
+		# No input data, use prompt
+		read -p "-> Please define data: " data_to_add
+	fi
+
+	add_ip_fqdn_variable $data_to_add 2>/dev/null || add_other_variable $data_to_add $default
+	return $?
 }
 
 # boolean store_register(string varname, string value_v4, string value_v6, string comment)
@@ -326,7 +371,7 @@ store_register() {
 	# if updating
 	if grep ^[[:space:]]*${varname}[[:space:]]*= $VARS_IPV4 >/dev/null || \
 		grep ^[[:space:]]*${varname}[[:space:]]*= $VARS_IPV6 >/dev/null ; then
-		message "W: Updating the value of $varname"
+		message "I: Updating the value of $varname"
 
 		# store datafile in RAM, check this in future versions of fw-admin
 		local v4_datafile=$( grep -v ^[[:space:]]*${varname}[[:space:]]*= $VARS_IPV4 )

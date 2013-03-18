@@ -26,7 +26,7 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-VERSION="1.0~rc2"
+VERSION="1.0"
 
 CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
 LIB="/usr/lib/fw-admin.d/libfw-admin"
@@ -91,7 +91,6 @@ if ! source $CONF_FILE 2>/dev/null ; then
 	echo "E: Unable to load config file $CONF_FILE" >&2
 	exit 1
 fi
-
 
 # Use default values for config
 FORMAT=${FORMAT:-"script"}
