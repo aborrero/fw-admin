@@ -40,10 +40,6 @@ source_ipv4_vars() {
 			message "E: Unable to load $VARS_IPV4"
 			do_exit 1
 		fi
-		if ! source $VARS_IPSETV4 2>/dev/null >/dev/null ; then
-			message "E: Unable to load $VARS_IPSETV4"
-			do_exit 1
-		fi
 	fi
 	# never local
 	IPV6_SOURCED=no
@@ -59,10 +55,6 @@ source_ipv6_vars() {
 	if [ "$IPV6_SOURCED" != "yes" ] ; then
 		if ! source $VARS_IPV6 2>/dev/null >/dev/null ; then
 			message "E: Unable to load $VARS_IPV6"
-			do_exit 1
-		fi
-		if ! source $VARS_IPSETV6 2>/dev/null >/dev/null ; then
-			message "E: Unable to load $VARS_IPSETV6"
 			do_exit 1
 		fi
 	fi
