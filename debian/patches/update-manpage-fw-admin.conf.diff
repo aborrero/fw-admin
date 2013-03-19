@@ -1,0 +1,56 @@
+--- a/src/man/fw-admin.conf.5
++++ b/src/man/fw-admin.conf.5
+@@ -1,4 +1,4 @@
+-.TH fw-admin.conf 5 "17 Dec 2012"
++.TH fw-admin.conf 5 "19 Mar 2013"
+ .SH NAME
+ fw-admin.conf \- Main config file for the tool fw-admin
+ .SH DESCRIPTION
+@@ -41,10 +41,15 @@
+ 
+ Values: absolute dirname Default: /var/lib/fw-admin
+ .TP
+-\fB$PID_FILE\fP
+-The pid file used by \fBfw-admin\fP. Some operations are critical (i.e. \fB--start\fP or \fB-r\fP) so in such cases there should be no more than one instance at time.
++\fB$VARS_IPV4\fP
++The v4 datafile.
+ 
+-Values: absolute pahtname Default: /var/run/fw-admin.pid
++Values: absolute pathname to file Default: $DATA_DIR/datafile_v4.sh
++.TP
++\fB$VARS_IPV6\fP
++The v6 datafile.
++
++Values: absolute pathname to file Default: $DATA_DIR/datafile_v6.sh
+ .TP
+ \fB$LOG_ERROR_MESSAGES\fP
+ If error messages should be logged using \fBlogger(1)\fP.
+@@ -86,6 +91,18 @@
+ derived from \fB$FLUSH_WHEN_ABORT_START\fP and/or \fP$FLUSH_WHEN_ERROR_START\fP.
+ 
+ Values: {yes|no} Default: no
++.TP
++\fB$START_ORDER\fP
++When doing a start operation, which ruleset to load (secuencially).
++
++It is a space separated list of files, being absolute path to file or filenames if \fB$CONF_DIR\fP as described in this document.
++
++Values: /absolute/path/to/file AND OR file_in_CONF_DIR Default: "sets core"
++.TP
++\fB$STOP_ORDER\fP
++The inverse of \fB$START_ORDER\fP. Please, note that \fPIPset(8)\fP files are ignored here.
++
++Values: /absolute/path/to/file AND OR file_in_CONF_DIR Default: "core"
+ .SH HINTS
+ · Differences between \fB$FORMAT=restore\fP and \fB$FORMAT=script\fP are hard. Most of your netfilter configuration migth not work
+ from one config to other.
+@@ -99,7 +116,6 @@
+ 
+ You should go there for reporting bugs, make comments, contribute or whatever.
+ 
+-The original author of this tool and system (and the man page) is \fBArturo Borrero González <aborrero@cica.es>\fP.
++The original author of this tool and system (and the man page) is \fBArturo Borrero González <arturo.borrero.glez@gmail.com>\fP.
+ 
+-During the early development and tests, \fBMarina Moreda Rodrigez <marina.moreda@cica.es>\fP, \fBPedro Gallego Torrecillas <pgallego@cica.es>\fP 
+-and \fBYassine Mohamed Ahram <yahram@cica.es>\fP also participated.
++Thanks for testing and helping: CICA staff and IES GN (spain) students.
