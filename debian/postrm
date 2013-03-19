@@ -21,9 +21,8 @@ set -e
 
 case "$1" in
 	purge|remove)
-		update-rc.d -f fw remove
+		update-rc.d -f fw remove >/dev/null
 	;;
-
 
 	upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
 	;;

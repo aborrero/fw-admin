@@ -13,3 +13,5 @@ Depends: ${misc:Depends}, iptables ( >= 1.4 ) , ipset ( >= 6.12.1 ), dnsutils , 
 Description: Dual stack netfilter firewall
  This package provides a dual stack (IPv4 & IPv6) implementation of
  a firewall based on netfilter.
+ Provides a abstraction layer so the admin just need to write the firewall
+ policy once, and its valid for IPv4 and IPv6.
