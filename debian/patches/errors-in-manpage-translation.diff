@@ -1,0 +1,33 @@
+Description: Fixed usefull <-> useful
+Author: Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>
+Index: fw-admin/src/man/fw-admin.8
+===================================================================
+--- fw-admin.orig/src/man/fw-admin.8	2013-03-19 21:55:47.000000000 +0100
++++ fw-admin/src/man/fw-admin.8	2013-03-19 21:55:47.000000000 +0100
+@@ -65,7 +65,7 @@
+ \fB-a [ipv4|ipv6|fqdn|var]\fP
+ Adds a variable to datafiles. 
+ 
+-If the variable already exist, update the value in datafiles (usefull for updating a FQDN variable wich his A or AAAA register changed).
++If the variable already exist, update the value in datafiles (useful for updating a FQDN variable wich his A or AAAA register changed).
+ 
+ The variable name you should use in your rulefiles will be printed.
+ 
+@@ -84,7 +84,7 @@
+ \fB-r\fP
+ Reload FQDN variables values against your DNS server. This is possible thanks to the trailing comment in datafiles.
+ 
+-Lines in datafiles that contains '##ignore##' are ignorer. This usefull to
++Lines in datafiles that contains '##ignore##' are ignorer. This useful to
+ declare variables like 'IF=eth0 ##ignore##' that does not need to be reloaded agains a DNS.
+ .TP
+ \fB-i [ipv4|ipv6|fqdn|var]\fP
+@@ -138,7 +138,7 @@
+ 
+ Check datafiles for errors.
+ 
+-If called with \fB--install\fP argument then \fBfw-admin\fP will make a basic datafiles deploy (usefull at first use/installation). 
++If called with \fB--install\fP argument then \fBfw-admin\fP will make a basic datafiles deploy (useful at first use/installation). 
+ 
+ .TP
+ \fB--help\fP
