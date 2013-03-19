@@ -1,12 +1,10 @@
-.TH FW-ADMIN 8 "27 Feb 2013"
+.TH FW-ADMIN 8 "19 Mar 2013"
 .SH NAME
-fw-admin \- Herramienta para manejar un firewall basado en iptables.
+fw-admin \- Tool for managing a dual stack (IPv4 and IPv6) Netfilter firewall
 .SH SYNOPSIS
 \fBfw-admin -s\fP
 
-\fBfw-admin -a\fP [\fIipv4|ipv6|fqdn\fP]
-
-\fBfw-admin -as\fP [\fInombreset\fP]
+\fBfw-admin -a\fP [\fIipv4|ipv6|fqdn|var\fP]
 
 \fBfw-admin -d\fP [\fIipv4|ipv6|fqdn|var\fP]
 
@@ -14,344 +12,221 @@ fw-admin \- Herramienta para manejar un firewall basado en iptables.
 
 \fBfw-admin -i\fP [\fIipv4|ipv6|fqdn|var\fP]
 
-\fBfw-admin -c\fP \fIfichero\fP
+\fBfw-admin -c\fP \fIfile\fP
 
 \fBfw-admin --check-datafiles\fP [--install]
 
 \fBfw-admin --help\fP
 
-\fBfw-admin --start\fP [\fIfichero\fP] [--nocheck]
+\fBfw-admin --start\fP [\fIfile\fP] [--nocheck]
 
 \fBfw-admin --stop\fP [\fIchainname\fP]
 
-	fichero = Fichero en $CONF_DIR o con ruta absoluta.
+	file = A file in $CONF_DIR or with absolute pathname.
 
-	ipv4 ipv6 fqdn = Una IPv4, IPv6 o un FQDN válido.
+	ipv4 ipv6 fqdn = An IPv4, IPv6 or a valid FQDN.
 
-	var nombreset = Una variable de IP o Set en los ficheros de datos.
+	var = A custom variable.
 
-	chainname = Nombre de una cadena de la tabla filter.
+	chainname = A netfilter chain.
 
-.SH DESCRIPCION
-\fBfw-admin\fP es una herramienta diseñada por y para CICA, que es el nucleo del firewall perimetral general de la red.
-Es un script escrito en \fBBash(1)\fP, que implementa controles y procedimientos para facilitar la administracion de un firewall de tecnología netfilter.
-.SH FUNCIONALIDADES
-Algunas características y funcionalidades de \fBfw-admin\fP son:
+.SH DESCRIPTION
+\fBfw-admin\fP is a tool for managing a dual stack (IPv4 and IPv6) Netfilter firewall.
+
+Is a complex \fBBash(1)\fP script on top of \fBiptables(8)\fP, \fBip6tables(8)\fP and \fBipset(8)\fP.
+.SH FUNCTIONALITIES
+Some characteristics and functionalities of \fBfw-admin\fP:
 .TP
-· Abstracción de \fBip{tables|6tables}\fP mediante el uso de variables que se sustituyen alternativamente por el valor IPv4 e IPv6. 
-Esto permite escribir una única regla y que valga para ambos protocolos (doble stack).
+· Abstracction of \fBip{tables|6tables}\fP using variables with values in IPv4 and IPv6.
+This allows you to write one rule and be valid for IPv4 and IPv6 (dual stack).
 .TP
-· Checkeo de las variables y la sintaxis usada en las reglas. Se evitan la mayoría de errores cometidos por el administrador.
+· Checks for variables and syntax, avoiding most human errors.
 .TP
-· Cierta transaccionalidad, que permite dejar reglas de tráfico permisivo cuando hay algun fallo en el funcionamiento de \fBfw-admin\fP y durante las operaciones.
+· Transactional-like mechanisms. \fBfw-admin\fP will act when detect errors and/or inconsistencies at policy deploy.
 .TP
-· Integración con \fBipset(8)\fP, para el uso de conjuntos de datos.
+· Integration with \fBipset(8)\fP for using Netfilter's data sets.
 .TP
-· Facilidad de integracion en entornos de alta disponibilidad, con \fBPacemaker(8)\fP.
+· Easy to integrate in HA environments, with \fPPacemaker(8)\fP as a standar LSB resource.
 .TP
-· Ahorro de miles de consultas al DNS mediante el cacheo estático de los datos del DNS en ficheros de datos (las variables).
+· Avoid thousand of DNS queries by locally caching DNS data (actually, the variables).
 .TP
-· Preparado para trabajar en entornos de grandes rulesets. Se ha diseñado para soportar entornos lentos con cientos de miles de variables y reglas.
-.SH OPCIONES
+· Able to handle big rulesets. Thousand of rules, thousand of variables.
+.SH OPTIONS
 .TP 
 \fB-s\fP
-Muestra estadisticas del firewall. 
+Show firewall stats
 
-Al final de la lista de estadisticas, se calcula si el firewall está o no en funcionamiento según el número de reglas en el Kernel.
+At the end of the stats, a message "\fB[fw up]\fP" or "\fB[fw down]\fP" will be shown.
 
-Se mostrará un mensaje de tipo "\fB[fw up]\fP" o "\fB[fw down]\fP". Este mensaje es usado por otros scripts (por \fB/etc/init.d/firewall\fP y quizás por \fBPacemaker(8)\fP) 
-para calcular si el firewall esta en funcionamiento localmente.
+You will see "\fB[fw up]\fP" if there are more than \fB$MINIMAL_AMOUNT_OF_RULES\fP in kernel (see \fBfw-admin.conf(5)\fP).
 
-Puede editarse el numero de reglas necesarias para considerar el firewall corriendo en el fichero \fBfw-admin.conf(5)\fP en la variable \fB$MINIMAL_AMOUNT_OF_RULES\fP.
+Note: This message is used by /etc/init.d/fw to know if the firewall is up.
 .TP 
-\fB-a [ipv4|ipv6|fqdn]\fP
-Añade una variable al sistema de variables. Puede ser una IPv4, una IPv6 o un FQDN.
-Se mostrará en pantalla el nombre de la variable que debe usarse en los ficheros de reglas. 
-Si la variable ya estubiera guardada, se actualizará su contenido, consultando al DNS o lo que proceda.
-Esta opcion puede llamarse con o sin parámetro de entrada. 
+\fB-a [ipv4|ipv6|fqdn|var]\fP
+Adds a variable to datafiles. 
 
-En caso de usar un FQDN, si este pertenece a \fBDOMAIN\fP (véase \fB/etc/fw-admin.conf\fP más abajo), el nombre de variable que se usará no contendrá el dominio.
+If the variable already exist, update the value in datafiles (usefull for updating a FQDN variable wich his A or AAAA register changed).
 
-Si es necesario usar una variable especial, que no pueda validarse correctamente por los métodos implementados en \fBfw-admin\fP,
-deben escribirse a mano en los ficheros de datos, usando la etiquera \fB##ignorar##\fP.
+The variable name you should use in your rulefiles will be printed.
 
-.TP
-\fB-as [nombreset]\fP
-Para guardar en el sistema un nombre de set. Debido al funcionamiento de \fBipset(8)\fP, es necesario llamar con distinto nombre a un set con datos IPv4 y a un set con datos IPv6. 
+You may set the \fB$DOMAIN\fP directive in \fBfw-admin.conf(5)\fP to get all your own domain FQDNs variables shortened.
 
-El nombre de variable resultante siempre será en mayúsculas.
-
-El nombre del set se guardara como: "NOMBRE=nombre_ipv4" y "NOMBRE=nombre_ipv6" en los ficheros de datos IPv4 e IPv6 respectivamente.
-
+This options accepts multiple input arguments, like: `fw-admin -a ::1 192.168.0.1 www.example.com 2a00:9ac0::2`
 .TP
 \fB-d [ipv4|ipv6|fqdn|var]\fP
-Se eliminarán de los ficheros de datos las variables correspondientes al argumento de entrada. Se admiten varios argumentos de entrada simultaneos.
+Delete a variable in datafiles.
 
-\fBfw-admin\fP lo hará lo mejor que pueda para que tus ficheros de datos nos sufran. 
-Para ello, hará comprobaciones de hash antes y después del borrado del dato,
-trabajará con una copia del fichero de datos y al terminar, forzará un checkeo completo de los datafiles (lo mismo que se implementa en la opción \fB--check-datafiles\fP).
+This will not delete any rule containing the variable you deleted, so maybe you should check your ruleset before and after deleting
+to avoid reference variables that does not exists.
 
+This options accepts multiple input arguments, like: `fw-admin -d ::1 192.168.0.1 www.example.com 2a00:9ac0::2`
 .TP
 \fB-r\fP
-Todas las variables de IPv4, IPv6 y FQDN (no de sets) se recargarán. Por cada variable encontrada en los ficheros datos, se volverá a ejecutar el algoritmo que calcula el 
-guardado (el algoritmo de la opción \fB-a\fP).
-Es posible que se ignoren ciertas variables que hayan podido meterse a mano en los ficheros de datos, como en las lineas que se encuentre la cadena "\fB##ignorar##\fP".
+Reload FQDN variables values against your DNS server. This is possible thanks to the trailing comment in datafiles.
 
-Nótese que para recargar los valores, se usa el comentario del final de linea, que contiene el dato original.
+Lines in datafiles that contains '##ignore##' are ignorer. This usefull to
+declare variables like 'IF=eth0 ##ignore##' that does not need to be reloaded agains a DNS.
 .TP
 \fB-i [ipv4|ipv6|fqdn|var]\fP
-Usando esta opcion es posible realizar una busqueda automatizada entre datos, variables y reglas en el kernel.
-Se facilita que buscando por un nombre se muestren las reglas de \fBip{tables|6tables}\fP que contienen la IPv4|IPv6 de ese nombre, además de otros datos.
+Get information about the data.
+
+Search datafiles and iptables for the input data.
 .TP
-\fB-c fichero\fP
-Se checkearan las variables de \fBfichero\fP y, si procece, la sintaxis de iptables.
-Las variables del fichero se compararan con las guardadas en los ficheros de datos y se mostrará un mensaje por cada una que falte.
-
-La sintaxis de iptables se checkeará sustituyendo -A por -C en cada instrudccion de regla y valorando el resultado del código de retorno de iptables (mas info 
-en \fBiptables(8)\fP).
-La opción \fB-A\fP es la más común a la hora de añadir reglas de \fBiptables(8)\fP y por esto se ha implementado así.
-
-Este es el mismo algoritmo que se usa como paso previo de checkeo al usar la opcion \fB--start\fP.
+\fB-c file\fP
+Check the given file for undeclared variables and iptables syntax.
 .TP
-\fB--start [fichero] [--nocheck]\fP
-Se checkea que \fIfichero\fP existe en la ruta especificada en la variable \fB$CONF_DIR\fP (generalmente \fB/etc/fw-admin.d/rules/\fP).
+\fB--start [file] [--nocheck]\fP
+Start a rulefile (AKA deploy policy).
 
-La orden \fB--start\fP sirve como reload. 
-
-Si en el fichero de configuración (\fBfw-admin.conf\fP) se seleccionó \fBFORMAT=restore\fP:
+If in \fBfw-admin.conf\fP is set \fBFORMAT=restore\fP:
 .nf
-	· Checkeo de variables usadas en \fBfichero\fP.
-	· Se sustituyen las variables por el valor IPv4 y se ejecuta \fBiptables-restore(8)\fP.
-	· Se eliminan las reglas de NAT del ruleset.
-	· Se sustituyen las variables por el valor IPv6 y se ejecuta \fBip6tables-restore(8)\fP.
+	· Check variables in \fIfile\fP.
+	· Expand IPv4 variable value and run \fBiptables-restore(8)\fP.
+	· Ignore NAT rules for IPv6.
+	· Expand IPv6 variable value and run \fBip6tables-restore(8)\fP.
 .fi
 
-Si en el fichero de configuración (\fBfw-admin.conf\fP) se seleccionó \fBFORMAT=script\fP:
+If in \fBfw-admin.conf\fP is set \fBFORMAT=script\fP:
 .nf
-
-	Se diferencian fichero de reglas standar (vlan), ficheros de nat y el fichero core, debido a las características concretas de cada tipo de regla.
-	Por ejemplo, en el fichero de core no se checkeará la sintaxis (aunque si las variables), y por ejemplo, los ficheros de nat no se ejecutarán en IPv6.
-
-	· Se checkean las variables usadas en \fBfichero\fP.
-	· Si procede, se hace un checkeo de sintaxis. (Solo si \fBfichero\fP no se llama 'core')
-	· Se hace un `source' de los ficheros de datos en IPv4.
-	· Se recorre \fBfichero\fP linea a linea ejecutando cada instrucción.
-	· Se hace un `source' de los ficheros de datos en IPv6.
-	· Se recorre \fBfichero\fP linea a linea ejecutando cada instrucción.
+	· Check variables in \fIfile\fP.
+	· Check iptables syntax (only if the name of \fIfile\fP is not `core')
+	· Source v4 datafiles.
+	· Iterate over \fIfile\fP evaluating each line (deploy IPv4 policy).
+	· Source v6 datafiles.
+	· Iterate over \fIfile\fP evaluating each line (deploy IPv6 policy).
 .fi
 
-Antes de empezar a ejecutar las reglas descritas en los ficheros, se borraran todas, dejando una regla de tráfico permisivo. Si cuando se acaben de introducir las nuevas
-reglas, no hay ningun error, la regla de trafico permisivo es eliminada. 
-Esta regla esta identificada con un comentario y suele poner algo asi como "transaccional_rule_fw-admin"
-para su fácil identificación en caso de error.
+Before deploying the policy, a permissive rule is added. If the deploy of the new policy doesn't fail, the permissive rule is deleted.
 
-Para versiones de \fBfw-admin\fP > 0.9, la opción \fB--start\fP también sirve para los ficheros de reglas de \fBipset(8)\fP.
+This rule is identified with a comment "transaccional_rule_fw-admin".
 
-La opción \fB--nocheck\fP evade los checkeos de sintaxis y variables. Esta pensada para casos donde es necesario hacer un start rápido.
+The option \fB--nocheck\fP avoids all checks. Use this if you want a fast deployment of the new policy.
 
-Si se omite el argumento \fBfichero\fP, se arrancarán los ficheros de reglas especificados en $START_ORDER
+If no \fBfile\fP argument is provided, \fBfw-admin\fP will start the files as configured in \fB$START_ORDER\fP (see \fBfw-admin.conf(5)\fP).
 .TP
 \fB--stop [chainname]\fP
 
-Si \fBFORMAT=restore\fP, la orden \fB--stop\fP no toma argumentos. Se eliminan todas las reglas de iptables, y si \fBPERMISSIVE_TRAFFIC_WHEN_STOP="yes"\fP, se insertarán
-reglas de tráfico permisivo con el comentario "transaccional_rule_fw-admin".
+If \fBFORMAT=restore\fP is set, \fB--stop\fP will just flush the firewall. If \fB$PERMISSIVE_TRAFFIC_WHEN_STOP="yes"\fP, permissive rules with the comment
+"transaccional_rule_fw-admin" will be added to the kernel.
 
-Si \fBFORMAT=script\fP, la orden \fB--stop\fP puede o no tomar argumentos. Si no hay ningún argumento, el comportamiento es similar a cuando \fBFORMAT=restore\fP.
+If \fBFORMAT=script\fP is set and you call \fB--stop\fP without additional arguments, the behaviour is equal to \fBFORMAT=restore\fP.
 
-Si \fIchainname\fP es el nombre de una cadena de la tabla filter, se borrará solo esa cadena. Si \fBPERMISSIVE_TRAFFIC_WHEN_STOP="yes"\fP, entonces además se insertarán 
-reglas de tráfico permisivo con el comentario "transaccional_rule_fw-admin" únicamente en esa cadena.
-.TP
-\fB--ipset-reload [--nocheck]\fP
-
-\fBDEPRECATED AND NO LONGER ACCEPTABLE\fP. To start a \fBipset(8)\fP rulefile, use \fB--start\fP instead.
-
+If \fBFORMAT=script\fP and \fIchainname\fP is the name of a chain in the filter table, \fBfw-admin\fP will flush just that chain. If \fB$PERMISSIVE_TRAFFIC_WHEN_STOP=yes\fP
+then a permissive rule with the comment "transaccional_rule_fw-admin" will be added in that chain.
 .TP
 \fB--check-datafiles [--install]\fP
 
-Cuando esta opción es llamada con el parámetro adicional --install, se hará un despligue rápido de los datafiles: sin contenido, solo se crearán los ficheros.
+Check datafiles for errors.
 
-Se realizarán checkeos de integridad sobre los ficheros de datos, buscando lineas inválidas y diferencias entre el numero de variables guardadas.
-
-Si no hay ningún error no se mostrará ningún mensaje.
+If called with \fB--install\fP argument then \fBfw-admin\fP will make a basic datafiles deploy (usefull at first use/installation). 
 
 .TP
 \fB--help\fP
-Muestra la ayuda, de rápida referencia.
+Show basic help.
 
-.SH ESTRUCTURA DE FICHEROS
-Ficheros importantes para \fBfw-admin\fP:
+.SH IMPORTANT FILES
 .TP
-\fB/etc/fw-admin.d/fw-admin.conf\fR
-Fichero principal de configuración. Ver \fBfw-admin.conf(5)\fP.
+\fB/etc/fw-admin.d/fw-admin.conf\fR 
+Main config file. See \fBfw-admin.conf(5)\fP. 
 .TP
-\fB/etc/init.d/fw\fR
-Usando este script, se integra definitivamente \fBfw-admin\fP como servicio en el sistema.
+\fB/etc/init.d/fw\fR 
+System service integration for \fBfw-admin\fP.
+.nf
+· By default at start it will do `fw-admin --start --nocheck`.
+· At stop it will call `fw-admin --stop`.
+· When checking the status, something like `fw-admin -s | grep "\\[fw up\\]"`
+.fi
 .TP
 \fB/etc/default/fw\fR
-Default configuration file for the init.d script.
+Default configuration file for the init.d script. 
 .TP
-\fB/usr/sbin/fw-admin\fR
-El binario principal de \fBfw-admin\fP.
+\fB/usr/sbin/fw-admin\fR 
+\fBfw-admin\fP main binary/script.
 .TP
-\fB/usr/lib/fw-admin.d/\fR
-Las librerias de funciones de \fBfw-admin\fP. Aqui se encuentra la mayor parte del contenido del software.
-Esta es la ruta estandar que se usó al desarrollar el software y es posible que el administrador la cambie.
+\fB/usr/lib/fw-admin.d/\fR 
+Standar dir for libs used by \fBfw-admin\fP.
 .TP
-\fB$DATA_DIR\fR
-Donde se almacenan los ficheros de datos. Por defecto es /var/lib/fw-admin
-.TP
-\fB$PID_FILE\fR
-En operaciones críticas (todas salvo las de consultas y estadísticas) se guarda un PID de la instancia de \fBfw-admin\fP en el fichero
-al que apunte esta directiva. Por defecto es /var/run/fw-admin.pid
+\fB$DATA_DIR\fR 
+Where datafiles are stored. Default is /var/lib/fw-admin
 
-.SH LOS FICHEROS DE DATOS
-Para cachear las consultas al DNS y para abstraer la diferencia entre protocolos IPv4 e IPv6 se usan los ficheros de datos.
+.SH DATAFILES
+All variables are in \fBbash(1)\fP format.
 
-Los datos no son más que variables en formato \fBbash(1)\fP. Antes de ejecutar cada fichero de reglas, se hará un source de cada fichero de datos correspondiente.
+The variables you use in rulefiles must be declared in both datafiles (v4 and v6),
 
-Por lo cual, todas las variables que haya en el fichero de reglas deben estar reflejadas en los ficheros de datos.
+You  may add variables by hand (not using \fBfw-admin -a\fP). In this case is strongly recommend to use \fBfw-admin --check-datafiles\fP when done.
 
-Pueden añadirse datos a mano, pero se recomienda hacer uso de la herramienta \fBfw-admin\fP. Es necesario usar la opción \fB--check-datafiles\fP de vez en cuando
-para detectar posibles errores y corregirlos.
-
-Un ejemplo de formato de fichero de datos simple para IPv4 puede ser:
+This is a example format for the v4 datafile:
 
 .RS
 .TP
-\fBVARS_IPV4="$DATA_DIR/iptables_vars_ipv4.bash"\fP
+\fBVARS_IPV4="$DATA_DIR/datafile_v4.sh"\fP
 .nf
-IPT=/sbin/iptables ##ignorar##
-FICTICIA=255.255.255.255 ##ignorar##
-# comentario
-NIC1=eth0 ##ignorar##
-NIC2=eth1 ##ignorar##
-NETWORK=192.168.0.0/24 ##ignorar##
+VOID=255.255.255.255 ##ignore##
+# comment
+NIC1=eth0 ##ignore##
+NIC2=eth1 ##ignore##
+NETWORK=192.168.0.0/24 ##ignore##
 R2D2=150.214.4.150 #r2d2.cica.es
-C3PO=$FICTICIA #c3po.cica.es
+C3PO=$VOID #c3po.cica.es
 v192_168_2_2=192.168.2.2 #192.168.2.2
-v2a00_9ac0_c1ca__1=$FICTICIA #2a00:9ac0:c1ca::1
+v2a00_9ac0_c1ca__1=$VOID #2a00:9ac0:c1ca::1
 [...]
 .fi
 .RE
 
-Y en IPv6:
+And for IPv6:
 .RS
 .TP
-\fBVARS_IPV6="$DATA_DIR/iptables_vars_ipv6.bash"\fP 
+\fBVARS_IPV6="$DATA_DIR/datafile_v6.sh"\fP 
 .nf
-IPT=/sbin/ip6tables ##ignorar##
-FICTICIA=ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ##ignorar##
-#comentario
-NIC1=eth0 ##ignorar##
-NIC2=eth1 ##ignorar##
-NETWORK=$FICTICIA ##ignorar##
+VOID=ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ##ignore##
+#comment
+NIC1=eth0 ##ignore##
+NIC2=eth1 ##ignore##
+NETWORK=$VOID ##ignore##
 R2D2=2a00:9ac0:c1ca:27::150 #r2d2.cica.es
 C3PO=2a00:9ac0:c1ca:27::170 #c3po.cica.es
-v192_168_2_2=$FICTICIA #192.168.2.2
+v192_168_2_2=$VOID #192.168.2.2
 v2a00_9ac0_c1ca__1=2a00:9ac0:c1ca::1 #2a00:9ac0:c1ca::1
 [...]
 .fi
 .RE
 
-Recuerde que usando la etiqueta \fB##ignorar##\fP las variables no se recargaran automaticamente con la opcion \fB-r\fP.
+When a variable doesn't have a value in a datafile, set it to \fB$VOID\fP. Rules using a variable with \fB$VOID\fP value will be ignored.
 
-El formato de los ficheros de datos de sets es similar, pero no se exije el comentario a final de linea.
-
-Ejemplo en IPv4:
-.RS
-.TP
-\fBVARS_IPSETV4="$DATA_DIR/ipset_vars_ipv4.bash"\fB
-.nf
-# Variable necesaria para abstraer IPSET
-inet=inet
-# servidores de sistemas
-S_SIS=s_sis_ipv4
-# workstations de sistemas
-W_SIS=w_sis_ipv4
-# repositorios
-REPOS=repos_ipv4
-[...]
-.fi
-.RE
-Con el equivalente en IPv6:
-.RS
-.TP
-\fBVARS_IPSETV6="$DATA_DIR/ipset_vars_ipv6.bash"\fB
-.nf
-# Variable necesaria para abstraer IPSET
-inet=inet6
-S_SIS=s_sis_ipv6
-W_SIS=w_sis_ipv6
-REPOS=repos_ipv6
-[...]
-.fi
-.RE
+The trailing comment is used to reload the values of FQDN variables (whe DNS records change).
 
 .SH CONFIGURATION
 
-La configuración se describe en la página de manual \fBfw-admin.conf(5)\fP.
+See \fBfw-admin.conf(5)\fP.
 
-.SH DEPENDENCIAS
-Este script necesita distintos binarios y herramientas en el sistema durante diferentes momentos de la ejecucion. 
-Si cambiaran de ruta, puede editarse el fichero \fB/usr/lib/libfw-admin\fP y sustituir la correspondiente variable.
+.SH SEE ALSO
+\fBfw-admin.conf(5)\fP, \fBiptables-save(8)\fP, \fBip6tables-save(8)\fP, \fBiptables(8)\fP, \fPip6tables(8)\fP, \fBipset(8)\fP
 
-Se detallan algunas variables y binarios:
-.RS
-.TP
-\fBIPSET="/usr/sbin/ipset"\fP binario principal de \fBipset(8)\fP.
-.TP
-\fBIPT="/sbin/iptables"\fP binario principal de \fBiptables(8)\fP.
-.TP
-\fBIP6T="/sbin/ip6tables"\fP binario principal de \fBip6tables(8)\fP.
-.TP
-\fBIPT_SAVE="/sbin/iptables-save"\fP binario principal de \fBiptables-save(8)\fP.
-.TP
-\fBIP6T_SAVE="/sbin/ip6tables-save"\fP binario principal de \fBip6tables-save(8)\fP.
-.TP
-\fBDIG="/usr/bin/dig"\fP binario principal de la herramienta \fBdig(1)\fP.
-.RE
+.SH ABOUT
+The source code of \fBfw-admin\fP can be found in \fBhttps://github.com/aborrero/fw-admin\fP. There is also a wiki with more info, use cases, etc..
 
-.SH DEBUGEANDO ERRORES
-Es posible debugear el funcionamiento completo de \fBfw-admin\fP usándo los métodos tradicionales de \fBBash(1)\fP.
+The author of \fBfw-admin\fP (and this man page) is \fBArturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>\fP.
 
-En este ejemplo se vuelca al fichero \fI/root/debug\fP el funcionamiento interno de la orden \fB-r\fP:
-.RS
-.TP
-root@debian:~# bash -x /usr/sbin/fw-admin -r 2> debug
-.RE
-
-Para debugear posibles fallos en los ficheros de reglas (cuando \fBFORMAT=script\fP, se recomienda seguir el siguiente procedimiento:
-.RS
-.TP
-1º Forzar la carga de las variables al inicio del fichero de reglas.
-
-.RS
-.nf
-#!/bin/bash
-source /var/lib/fw-admin/iptables_vars_ipv4.bash
-source /var/lib/fw-admin/ipset_vars_ipv4.bash
-$IPT -A INPUT -m set --match-set $W_SIS src -p tcp --dport 22 -m state --state NEw -j ACCEPT
-[...]
-.fi
-.RE
-
-.TP
-2º Ejecutar el fichero de reglas manualmente y con bash en modo debug:
-
-En este ejemplo se vuelca al fichero \fI/root/debug\fP el comportamiento de la shell con las reglas del fichero \fBINPUT\fP:
-.RS
-.TP
-root@debian:~# bash -x /etc/fw-admin.d/rules/INPUT 2> debug
-.RE
-
-.SH VÉASE TAMBIÉN
-\fBfw-admin.conf(5)\fP, \fBiptables-save(8)\fP
-
-.SH AUTOR, BUGS, COMENTARIOS Y CÓDIGO
-El código del sistema \fBfw-admin\fP es público y puede encontrarse en \fBhttps://github.com/aborrero/fw-admin\fP. También hay una wiki con más información.
-
-Debe visitar ese sitio para reportar bugs, contribuir y/o hacer comentarios.
-
-El autor original de esta herramienta y sistema (y página de manual) fue \fBArturo Borrero Gonzalez <aborrero@cica.es>\fP.
-
-Durante el desarrollo y testeo ha participado mucha gente: CICA staff and IES GN students.
+Thanks for testing and bug reporting: CICA staff and IES GN (Spain) students.
