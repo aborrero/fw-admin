@@ -1,3 +1,5 @@
+Description: Translated to english.
+Author: Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>
 --- a/src/man/fw-admin.8
 +++ b/src/man/fw-admin.8
 @@ -1,12 +1,10 @@

@@ -1,3 +1,5 @@
+Description: Updated man page.
+Author: Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com
 --- a/src/man/fw-admin.conf.5
 +++ b/src/man/fw-admin.conf.5
 @@ -1,4 +1,4 @@
