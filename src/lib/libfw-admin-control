@@ -132,8 +132,6 @@ check_files()
 	[ -d $DATA_DIR ] || { message "E: Dir not found $DATA_DIR" ; check_files_retval=1 ; }
 	[ -w $VARS_IPV6 ] || { message "E: File not found $VARS_IPV6" ; check_files_retval=1 ; }
 	[ -w $VARS_IPV4 ] || { message "E: File not found $VARS_IPV4" ; check_files_retval=1 ; }
-	[ -w $VARS_IPSETV6 ] || { message "E: File not found $VARS_IPSETV6" ; check_files_retval=1 ; }
-	[ -w $VARS_IPSETV4 ] || { message "E: File not found $VARS_IPSETV4" ; check_files_retval=1 ; }
 	[ -x $IP4T ] || { message "E: Binary not found $IP4T" ; check_files_retval=1 ; }
 	[ -x $IP6T ] || { message "E: Binary not found $IP6T" ; check_files_retval=1 ; }
 	[ -x $IPSET ] || { message "E: Binary not found $IPSET" ; check_files_retval=1 ; }
