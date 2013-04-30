@@ -97,7 +97,6 @@ FORMAT=${FORMAT:-"script"}
 DOMAIN=${DOMAIN:-"example.com"}
 MINIMAL_AMOUNT_OF_RULES=${MINIMAL_AMOUNT_OF_RULES:-"0"}
 CONF_DIR=${CONF_DIR:-"/etc/fw-admin.d/rules"}
-IPSET_CONF=${IPSET_CONF:-"$CONF_DIR/sets"}
 DATA_DIR=${DATA_DIR:-"/var/lib/fw-admin"}
 VARS_IPV6=${VARS_IPV6:-"$DATA_DIR/datafile_v6.sh"}
 VARS_IPV4=${VARS_IPV4:-"$DATA_DIR/datafile_v4.sh"}
@@ -230,8 +229,6 @@ case "$1" in
 				[ ! -d $CONF_DIR ] && mkdir -p $CONF_DIR
 				[ ! -e $VARS_IPV6 ] && echo "#!/bin/bash" > $VARS_IPV6 && echo "VOID=ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ##ignore##" >> $VARS_IPV6
 				[ ! -e $VARS_IPV4 ] && echo "#!/bin/bash" > $VARS_IPV4 && echo "VOID=255.255.255.255 ##ignore##" >> $VARS_IPV4
-				[ ! -e $VARS_IPSETV4 ] && echo "#!/bin/bash" > $VARS_IPSETV4
-				[ ! -e $VARS_IPSETV6 ] && echo "#!/bin/bash" > $VARS_IPSETV6
 			else
 				# If called with unknow argument
 				echo "W: Unknow argument $2" >&2
