@@ -174,29 +174,41 @@ case "$1" in
 		loadlibrary
 		validate_execution
 
-		[ "$3" = "--nocheck" ] && flag_no_check=1
-		[ "$2" = "--nocheck" ] && flag_no_check=1
+		# --nocheck can be one of those three:
+		# if using: fw-admin --start vlan --nocheck
+		# if using: fw-admin --start --nocheck
+		# if using: fw-admin --start vlan1 vlan2 vlanN --nocheck
+		# In all cases, --nocheck is the last argument
+		eval last=\${$#}
+		[ "$last" == "--nocheck" ] && flag_no_check=1
 
-		if [ "$FORMAT" == "restore" ]
-		then
-			if [ -z "$2" ] ; then
-				message "E: No file specified"
-				do_exit 1
+		for i in "$@" ; do
+			[ "$i" = "--nocheck" ] && continue
+			[ "$i" = "--start" ] && continue
+
+			if [ "$FORMAT" == "restore" ]
+			then
+				start_in_restore_format $i || rc=$?
+				flag_started=1
+			else
+				start_in_script_format $i || rc=$?
+				flag_started=1
 			fi
-			start_in_restore_format $2 || rc=$?
-		else
-			if [ "$2" = "--nocheck" ] || [ -z "$2" ] ; then
+		done
+
+		if [ "$flag_started" != "1" ] ; then
+			if [ "$FORMAT" == "restore" ] ; then
+				message "E: No file specified."
+				do_exit 1
+			else
 				oldIFS=$IFS ; IFS=' '
 				for file in $START_ORDER
 				do
 					start_in_script_format $file || rc=$?
 				done
 				IFS=$oldIFS
-			else
-				start_in_script_format $2 || rc=$?
 			fi
 		fi
-
 		do_exit $rc
 		;;
 	"--stop" )
