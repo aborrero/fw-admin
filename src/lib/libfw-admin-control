@@ -137,16 +137,6 @@ check_files()
 	[ -x $IPSET ] || { message "E: Binary not found $IPSET" ; check_files_retval=1 ; }
 	[ -x $DIG ] || { message "E: Binary not found $DIG" ; check_files_retval=1 ; }
 
-	# Optional, for stats
-	[ ! -x $FREE ] && message "W: Binary not found $FREE"
-	[ ! -x $LSMOD ] && message "W: Binary not found $LSMOD"
-	[ ! -x $GETCONF ] && message "W: Binary not found $GETCONF"
-	[ ! -r $VMALLOCINFO ] && message "W: File not found $VMALLOCINFO"
-	[ ! -r $SLABINFO ] && message "W: File not found $SLABINFO"
-	[ ! -r $CONNTRACK_MAX ] && message "W: File not found $CONNTRACK_MAX"
-	[ ! -r $CONNTRACK_COUNT ] && message "W: File not found $CONNTRACK_COUNT"
-	[ ! -r $CONNTRACK_HASHSIZE ] && message "W: File not found $CONNTRACK_HASHSIZE"
-
 	return $check_files_retval
 }
 

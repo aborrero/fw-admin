@@ -173,6 +173,16 @@ stats()
 {
 	local retval=0
 
+	# Check some bins and files
+	[ ! -x $FREE ] && message "W: Binary not found $FREE"
+	[ ! -x $LSMOD ] && message "W: Binary not found $LSMOD"
+	[ ! -x $GETCONF ] && message "W: Binary not found $GETCONF"
+	[ ! -r $VMALLOCINFO ] && message "W: File not found $VMALLOCINFO"
+	[ ! -r $SLABINFO ] && message "W: File not found $SLABINFO"
+	[ ! -r $CONNTRACK_MAX ] && message "W: File not found $CONNTRACK_MAX"
+	[ ! -r $CONNTRACK_COUNT ] && message "W: File not found $CONNTRACK_COUNT"
+	[ ! -r $CONNTRACK_HASHSIZE ] && message "W: File not found $CONNTRACK_HASHSIZE"
+
 	# Info iptables
 	echo -e "### About iptables  \tIPv4\tIPv6\ttotal"
 	local num_of_ipv4_rules=$( get_iptables_number_of_rules )
@@ -277,7 +287,6 @@ stats()
 	local vars_ipv6=`grep \= $VARS_IPV6 2>/dev/null | wc -l`
 	echo -e " Declared iptables variables:\t $vars_ipv4 \t $vars_ipv6"
 	echo ""
-
 
 	if [ $num_of_ipv4_rules -ge $MINIMAL_AMOUNT_OF_RULES ] || [ $num_of_ipv6_rules -ge $MINIMAL_AMOUNT_OF_RULES ] \
 	|| [ $total_num_of_rules -ge $MINIMAL_AMOUNT_OF_RULES ] ; then
