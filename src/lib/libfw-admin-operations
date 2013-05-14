@@ -86,6 +86,9 @@ start_controlled_exit()
 # Check&start rules on given vlan/filename
 start_in_script_format()
 {
+	# Basic exit trap
+	trap "{ echo "" ; do_exit 1 ; }" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
 	[ "$SHOW_OP_TIME" == "yes" ] && local initial_time=$( date +%s )
 	local start_retval=0
 	local filename=$( get_absolute_path $1 )
@@ -99,14 +102,14 @@ start_in_script_format()
 	# Obtain vlan/chain name
 	local vlan=$( awk -F'/' '{print $NF}' <<< $filename )
 
-	# Exit trap
-	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
-
 	# Checking rulefile.
 	if ! check_rulefile $filename ; then
 		message "E: Check failed. Don't starting $filename"
 		do_exit 1
 	fi
+
+	# Complete exit trap
+	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	# Delete previous rules, if neccesary
 	flush_chain $vlan || message "W: Don't flushing $vlan"
