@@ -132,7 +132,7 @@ start()
 			if is_running
 			then
 				# post-start hook
-				[ "$rc" -eq 0 ] && [ ! -z "$POST_START" ] && eval "$POST_START 2>/dev/null >/dev/null" &
+				[ "$cont" -eq 0 ] && [ ! -z "$POST_START" ] && eval "$POST_START 2>/dev/null >/dev/null" &
 				return 0
 			else
 				sleep 1
