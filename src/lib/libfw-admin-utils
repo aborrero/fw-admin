@@ -215,7 +215,6 @@ stats()
 	do
 		echo -e "\t$linea"
 	done
-	echo " Hash of the ruleset: `( { $IPT_SAVE 2>/dev/null ; $IP6T_SAVE 2>/dev/null; } | grep ^"-" | md5sum | awk -F' ' '{print $1}' ) || echo error! `"
 
 	echo ""
 
