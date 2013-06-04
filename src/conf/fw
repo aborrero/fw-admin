@@ -57,27 +57,36 @@
 # Variables
 #
 
-MAIN_BIN="/usr/sbin/fw-admin"
 PID=$$
-LOGGER_BIN="/usr/bin/logger"
+MAIN_BIN="$( which fw-admin)"
+LOGGER_BIN="$( which logger)"
 ARGS_LOGGER="-t fw[$PID] --"
 
 # Setting defaults
-ENABLED=${ENABLED:-"no"}
-START_TIMEOUT=${START_TIMEOUT:-"5"}
-CONF_FILE=${CONF_FILE:-"/etc/fw-admin.d/fw-admin.conf"}
-START_ORDER=${START_ORDER:-"core sets"}
-STOP_ORDER=${STOP_ORDER:-"core"}
-#PRE_START
-#POST_START
-#PRE_STOP
-#POST_STOP
+#
 
 # Check if enabled NOW
+ENABLED=${ENABLED:-"no"}
 if [ "$ENABLED" != "yes" ] ; then
 	echo "W: Service disabled in /etc/default/fw" >&2
 	exit 3
 fi
+
+START_TIMEOUT=${START_TIMEOUT:-"5"}
+
+# Check main config file
+CONF_FILE=${CONF_FILE:-"/etc/fw-admin.d/fw-admin.conf"}
+if [ -e "$CONF_FILE" ] ; then
+	if ! source $CONF_FILE ; then
+		echo "W: Unable to source main fw-admin config file $CONF_FILE" >&2
+	fi
+else
+	echo "W: Unable to read main fw-admin config file $CONF_FILE" >&2
+fi
+
+START_ORDER=${START_ORDER:-"core sets"}
+STOP_ORDER=${STOP_ORDER:-"core"}
+
 
 # Some functions
 #
@@ -90,9 +99,8 @@ message()
 
 check_required_files()
 {
-	[ ! -x $MAIN_BIN ] && { echo "E: Binary not found: $MAIN_BIN" >&2 ; return 1 ; }
-	[ ! -x $LOGGER_BIN ] && { echo "E: Binary not found: $LOGGER_BIN" >&2 ; return 1 ; }
-	[ ! -r $CONF_FILE ] && { echo "E: Config file not found: $CONF_FILE" >&2 ; return 1 ; }
+	[ ! -x "$MAIN_BIN" ] && { echo "E: Binary not found: $MAIN_BIN" >&2 ; return 1 ; }
+	[ ! -x "$LOGGER_BIN" ] && { echo "E: Binary not found: $LOGGER_BIN" >&2 ; return 1 ; }
 	return 0
 }
 
@@ -122,7 +130,9 @@ start()
 		# pre-start hook
 		[ ! -z "$PRE_START" ] && eval "$PRE_START 2>/dev/null >/dev/null" &
 
-		$MAIN_BIN --start $file --nocheck >/dev/null 2>/dev/null &
+		for i in $START_ORDER ; do
+			$MAIN_BIN --start $i --nocheck >/dev/null 2>/dev/null
+		done
 
 		# waiting for start timeout
 		local cont=0
@@ -138,6 +148,7 @@ start()
 				sleep 1
 			fi
 		done
+		message "E: Unable to start"
 		return 1
 	fi
 	return 0
@@ -150,7 +161,9 @@ stop()
 
 	kill_all # kill previous attemps
 
-	$MAIN_BIN --stop $file >/dev/null 2>/dev/null || return $?
+	for i in $STOP_ORDER ; do
+		$MAIN_BIN --stop $i >/dev/null 2>/dev/null
+	done
 
 	# post-stop hook
 	[ ! -z "$POST_STOP" ] && eval "$POST_STOP 2>/dev/null >/dev/null" &
