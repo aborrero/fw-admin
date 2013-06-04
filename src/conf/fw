@@ -111,7 +111,7 @@ kill_all()
 {
 	for i in $( ps aux | grep "$MAIN_BIN --start" | grep -v grep | awk -F' ' '{print $2}' )
 	do
-		[ ! -z "$i" ] && kill $1
+		[ ! -z "$i" ] && kill $i
 	done
 }
 
