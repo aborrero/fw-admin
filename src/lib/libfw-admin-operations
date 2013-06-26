@@ -112,7 +112,7 @@ start_in_script_format()
 	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
 
 	# Delete previous rules, if neccesary
-	flush_chain $vlan || message "W: Don't flushing $vlan"
+	flush_chain $vlan
 
 	# Starting IPv4 rules. Show the msg if USE_PROGRESS_BAR == yes because when showing the bar, you need to know what it stands for.
 	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Loading IPv4"
@@ -123,7 +123,7 @@ start_in_script_format()
 		start_in_script_format_loop $filename 4 || start_retval=$?
 	else
 		message "E: Error loading datafiles in IPv4"
-		[ "$FLUSH_WHEN_ERROR_START" == "yes" ] && { flush_chain $vlan || message "W: Don't flushing $vlan" ; }
+		[ "$FLUSH_WHEN_ERROR_START" == "yes" ] && flush_chain $vlan
 		do_exit 1 # EXIT POINT
 	fi
 
@@ -139,7 +139,7 @@ start_in_script_format()
 			start_in_script_format_loop $filename 6 || start_retval=$?
 		else
 			message "E: Error loading datafiles in IPv6"
-			[ "$FLUSH_WHEN_ERROR_START" == "yes" ] && { flush_chain $vlan || message "W: Don't flushing $vlan" ; }
+			[ "$FLUSH_WHEN_ERROR_START" == "yes" ] && flush_chain $vlan
 			do_exit 1 # EXIT POINT
 		fi
 
