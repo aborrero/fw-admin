@@ -284,7 +284,7 @@ stats()
 	echo -e "### About datafiles\t\tIPv4\tIPv6"
 	local vars_ipv4=`grep \= $VARS_IPV4 2>/dev/null | wc -l`
 	local vars_ipv6=`grep \= $VARS_IPV6 2>/dev/null | wc -l`
-	echo -e " Declared iptables variables:\t $vars_ipv4 \t $vars_ipv6"
+	echo -e " Declared variables:\t\t$vars_ipv4\t$vars_ipv6"
 	echo ""
 
 	if [ $num_of_ipv4_rules -ge $MINIMAL_AMOUNT_OF_RULES ] || [ $num_of_ipv6_rules -ge $MINIMAL_AMOUNT_OF_RULES ] \
