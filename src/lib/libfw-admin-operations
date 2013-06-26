@@ -115,7 +115,7 @@ start_in_script_format()
 	flush_chain $vlan
 
 	# Starting IPv4 rules. Show the msg if USE_PROGRESS_BAR == yes because when showing the bar, you need to know what it stands for.
-	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Loading IPv4"
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Loading IPv4 $vlan"
 
 	# Start the for loop only if success loading datafiles
 	if source_ipv4_vars && IPT=$IP4T
@@ -132,7 +132,7 @@ start_in_script_format()
 	# No nat in IPv6 yet
 	if ! [[ $vlan =~ ^"nat" ]] ; then
 		# Starting IPv6 rules. Show the msg if USE_PROGRESS_BAR == yes because when showing the bar, you need to know what it stands for.
-		[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Loading IPv6"
+		[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Loading IPv6 $vlan"
 
 		# Start the for loop only if success loading datafiles
 		if source_ipv6_vars && IPT=$IP6T ; then
