@@ -86,7 +86,7 @@ fi
 echo ""
 echo "I: Testing stats"
 echo -n "."
-fw-admin -s | grep  "Declared iptables variables:" >&2 || { fail=1 ; echo "*!*" ; }
+fw-admin -s | grep  "Declared variables:" >&2 || { fail=1 ; echo "*!*" ; }
 echo -n "."
 fw-admin -s | egrep "\[fw up\]"\|"\[fw down\]" >&2 || { fail=1 ; echo "*!*" ; }
 
