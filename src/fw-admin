@@ -26,7 +26,7 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-VERSION="1.0"
+VERSION="1.0.1"
 
 CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
 LIB="/usr/lib/fw-admin.d/libfw-admin"
@@ -97,12 +97,9 @@ FORMAT=${FORMAT:-"script"}
 DOMAIN=${DOMAIN:-"example.com"}
 MINIMAL_AMOUNT_OF_RULES=${MINIMAL_AMOUNT_OF_RULES:-"0"}
 CONF_DIR=${CONF_DIR:-"/etc/fw-admin.d/rules"}
-IPSET_CONF=${IPSET_CONF:-"$CONF_DIR/sets"}
 DATA_DIR=${DATA_DIR:-"/var/lib/fw-admin"}
-VARS_IPV6=${VARS_IPV6:-"$DATA_DIR/iptables_vars_ipv6.bash"}
-VARS_IPV4=${VARS_IPV4:-"$DATA_DIR/iptables_vars_ipv4.bash"}
-VARS_IPSETV4=${VARS_IPSETV4:-"$DATA_DIR/ipset_vars_ipv4.bash"}
-VARS_IPSETV6=${VARS_IPSETV6:-"$DATA_DIR/ipset_vars_ipv6.bash"}
+VARS_IPV6=${VARS_IPV6:-"$DATA_DIR/datafile_v6.sh"}
+VARS_IPV4=${VARS_IPV4:-"$DATA_DIR/datafile_v4.sh"}
 LOG_ERROR_MESSAGES=${LOG_ERROR_MESSAGES:-"yes"}
 LOG_WARN_MESSAGES=${LOG_WARN_MESSAGES:-"yes"}
 USE_COLORS=${USE_COLORS:-"yes"}
@@ -177,29 +174,41 @@ case "$1" in
 		loadlibrary
 		validate_execution
 
-		[ "$3" = "--nocheck" ] && flag_no_check=1
-		[ "$2" = "--nocheck" ] && flag_no_check=1
+		# --nocheck can be one of those three:
+		# if using: fw-admin --start vlan --nocheck
+		# if using: fw-admin --start --nocheck
+		# if using: fw-admin --start vlan1 vlan2 vlanN --nocheck
+		# In all cases, --nocheck is the last argument
+		eval last=\${$#}
+		[ "$last" == "--nocheck" ] && flag_no_check=1
 
-		if [ "$FORMAT" == "restore" ]
-		then
-			if [ -z "$2" ] ; then
-				message "E: No file specified"
-				do_exit 1
+		for i in "$@" ; do
+			[ "$i" = "--nocheck" ] && continue
+			[ "$i" = "--start" ] && continue
+
+			if [ "$FORMAT" == "restore" ]
+			then
+				start_in_restore_format $i || rc=$?
+				flag_started=1
+			else
+				start_in_script_format $i || rc=$?
+				flag_started=1
 			fi
-			start_in_restore_format $2 || rc=$?
-		else
-			if [ "$2" = "--nocheck" ] || [ -z "$2" ] ; then
+		done
+
+		if [ "$flag_started" != "1" ] ; then
+			if [ "$FORMAT" == "restore" ] ; then
+				message "E: No file specified."
+				do_exit 1
+			else
 				oldIFS=$IFS ; IFS=' '
 				for file in $START_ORDER
 				do
 					start_in_script_format $file || rc=$?
 				done
 				IFS=$oldIFS
-			else
-				start_in_script_format $2 || rc=$?
 			fi
 		fi
-
 		do_exit $rc
 		;;
 	"--stop" )
@@ -232,8 +241,6 @@ case "$1" in
 				[ ! -d $CONF_DIR ] && mkdir -p $CONF_DIR
 				[ ! -e $VARS_IPV6 ] && echo "#!/bin/bash" > $VARS_IPV6 && echo "VOID=ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff ##ignore##" >> $VARS_IPV6
 				[ ! -e $VARS_IPV4 ] && echo "#!/bin/bash" > $VARS_IPV4 && echo "VOID=255.255.255.255 ##ignore##" >> $VARS_IPV4
-				[ ! -e $VARS_IPSETV4 ] && echo "#!/bin/bash" > $VARS_IPSETV4
-				[ ! -e $VARS_IPSETV6 ] && echo "#!/bin/bash" > $VARS_IPSETV6
 			else
 				# If called with unknow argument
 				echo "W: Unknow argument $2" >&2

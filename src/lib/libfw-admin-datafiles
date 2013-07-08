@@ -231,13 +231,6 @@ add_ip_fqdn_variable() {
 	local data_to_add=$1
 	local varname=$( get_variable_name $data_to_add )
 
-	if [ -z "$data_to_add" ]
-	then
-		# No input data, use prompt
-		read -p "-> Please define data: " data_to_add
-	fi
-
-
 	if is_ip_fqdn_valid $data_to_add ; then
 		if is_ipv4_valid $data_to_add ; then
 			local value_v4=$data_to_add
@@ -303,12 +296,6 @@ add_other_variable() {
 	local default=$2
 	local varname=$( get_variable_name $data_to_add )
 
-	if [ -z "$data_to_add" ]
-	then
-		# No input data, use prompt
-		read -p "-> Please define data: " data_to_add
-	fi
-
 	unset REPLY
 
 	[ "$default" != "yes" ] && read -p " Value in IPv4 datafile? [${data_to_add}_ipv4]: "
@@ -342,7 +329,6 @@ add_variable() {
 
 	local data_to_add=$1
 	local default=$2
-	local varname=$( get_variable_name $data_to_add )
 
 	if [ -z "$data_to_add" ]
 	then

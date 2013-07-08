@@ -30,27 +30,27 @@
 ################################################################
 # Variables
 PID=$$
-THIS="`uname -n`"
+THIS="$( uname -n )"
 
-IPSET="/usr/sbin/ipset"
-IPT="/sbin/iptables"
+IPSET="$( which ipset )"
+IPT="$( which iptables )"
 IP4T=$IPT
-IP6T="/sbin/ip6tables"
-IPT_SAVE="/sbin/iptables-save"
-IPT_RESTORE="/sbin/iptables-restore"
-IP6T_SAVE="/sbin/ip6tables-save"
-IP6T_RESTORE="/sbin/ip6tables-restore"
-DIG="/usr/bin/dig"
+IP6T="$( which ip6tables )"
+IPT_SAVE="$( which iptables-save )"
+IPT_RESTORE="$( which iptables-restore )"
+IP6T_SAVE="$( which ip6tables-save )"
+IP6T_RESTORE="$( which ip6tables-restore )"
+DIG="$( which dig )"
 
-AUX_FILE="`mktemp`"
+AUX_FILE="$( mktemp )"
 
-LOGGER_BIN="/usr/bin/logger"
+LOGGER_BIN="$( which logger)"
 ARGS_LOGGER="-t fw-admin[$PID] --"
 
 # For stats
-LSMOD="/sbin/lsmod"
-FREE="/usr/bin/free"
-GETCONF="/usr/bin/getconf"
+LSMOD="$( which lsmod )"
+FREE="$( which free )"
+GETCONF="$( which getconf )"
 # Files
 VMALLOCINFO="/proc/vmallocinfo"
 SLABINFO="/proc/slabinfo"

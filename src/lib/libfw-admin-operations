@@ -40,10 +40,6 @@ source_ipv4_vars() {
 			message "E: Unable to load $VARS_IPV4"
 			do_exit 1
 		fi
-		if ! source $VARS_IPSETV4 2>/dev/null >/dev/null ; then
-			message "E: Unable to load $VARS_IPSETV4"
-			do_exit 1
-		fi
 	fi
 	# never local
 	IPV6_SOURCED=no
@@ -59,10 +55,6 @@ source_ipv6_vars() {
 	if [ "$IPV6_SOURCED" != "yes" ] ; then
 		if ! source $VARS_IPV6 2>/dev/null >/dev/null ; then
 			message "E: Unable to load $VARS_IPV6"
-			do_exit 1
-		fi
-		if ! source $VARS_IPSETV6 2>/dev/null >/dev/null ; then
-			message "E: Unable to load $VARS_IPSETV6"
 			do_exit 1
 		fi
 	fi
@@ -94,6 +86,9 @@ start_controlled_exit()
 # Check&start rules on given vlan/filename
 start_in_script_format()
 {
+	# Basic exit trap
+	trap "{ echo "" ; do_exit 1 ; }" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
 	[ "$SHOW_OP_TIME" == "yes" ] && local initial_time=$( date +%s )
 	local start_retval=0
 	local filename=$( get_absolute_path $1 )
@@ -107,20 +102,20 @@ start_in_script_format()
 	# Obtain vlan/chain name
 	local vlan=$( awk -F'/' '{print $NF}' <<< $filename )
 
-	# Exit trap
-	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
-
 	# Checking rulefile.
 	if ! check_rulefile $filename ; then
 		message "E: Check failed. Don't starting $filename"
 		do_exit 1
 	fi
 
+	# Complete exit trap
+	trap "start_controlled_exit $vlan" SIGHUP SIGINT SIGTERM SIGKILL SIGTSTP SIGQUIT SIGCONT
+
 	# Delete previous rules, if neccesary
-	flush_chain $vlan || message "W: Don't flushing $vlan"
+	flush_chain $vlan
 
 	# Starting IPv4 rules. Show the msg if USE_PROGRESS_BAR == yes because when showing the bar, you need to know what it stands for.
-	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Loading IPv4"
+	[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Loading IPv4 $vlan"
 
 	# Start the for loop only if success loading datafiles
 	if source_ipv4_vars && IPT=$IP4T
@@ -128,7 +123,7 @@ start_in_script_format()
 		start_in_script_format_loop $filename 4 || start_retval=$?
 	else
 		message "E: Error loading datafiles in IPv4"
-		[ "$FLUSH_WHEN_ERROR_START" == "yes" ] && { flush_chain $vlan || message "W: Don't flushing $vlan" ; }
+		[ "$FLUSH_WHEN_ERROR_START" == "yes" ] && flush_chain $vlan
 		do_exit 1 # EXIT POINT
 	fi
 
@@ -137,14 +132,14 @@ start_in_script_format()
 	# No nat in IPv6 yet
 	if ! [[ $vlan =~ ^"nat" ]] ; then
 		# Starting IPv6 rules. Show the msg if USE_PROGRESS_BAR == yes because when showing the bar, you need to know what it stands for.
-		[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Loading IPv6"
+		[ "$USE_PROGRESS_BAR" == "yes" ] && message "I: Loading IPv6 $vlan"
 
 		# Start the for loop only if success loading datafiles
 		if source_ipv6_vars && IPT=$IP6T ; then
 			start_in_script_format_loop $filename 6 || start_retval=$?
 		else
 			message "E: Error loading datafiles in IPv6"
-			[ "$FLUSH_WHEN_ERROR_START" == "yes" ] && { flush_chain $vlan || message "W: Don't flushing $vlan" ; }
+			[ "$FLUSH_WHEN_ERROR_START" == "yes" ] && flush_chain $vlan
 			do_exit 1 # EXIT POINT
 		fi
 
