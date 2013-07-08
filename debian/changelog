@@ -1,3 +1,9 @@
+fw-admin (1.0.1-1) unstable; urgency=low
+
+  * Release of 1.0.1
+
+ -- Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>  Mon, 8 Jul 2013 10:44:17 +0100
+
 fw-admin (1.0-1) unstable; urgency=low
 
   * Initial release (Closes: #703318)
