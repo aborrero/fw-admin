@@ -425,7 +425,7 @@ check_duplicate_variables()
 	local check_duplicate_variables_retval=1
 	local filename=$1
 
-	local result=$( grep -v '^[[:space:]]*#|^[[:space:]]*$' $filename 2>/dev/null | awk -F'=' '{print $1}' | sort -n | uniq -D )
+	local result=$( grep -v ^[[:space:]]*#\|^[[:space:]]*$ $filename 2>/dev/null | awk -F'=' '{print $1}' | sort -n | uniq -D )
 	if [ -z "$result" ]
 	then
 		check_duplicate_variables_retval=0
