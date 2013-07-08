@@ -1,4 +1,4 @@
-.TH FW-ADMIN 8 "19 Mar 2013"
+.TH FW-ADMIN 8 "8 Jul 2013"
 .SH NAME
 fw-admin \- Tool for managing a dual stack (IPv4 and IPv6) Netfilter firewall
 .SH SYNOPSIS
@@ -65,7 +65,7 @@ Note: This message is used by /etc/init.d/fw to know if the firewall is up.
 \fB-a [ipv4|ipv6|fqdn|var]\fP
 Adds a variable to datafiles. 
 
-If the variable already exist, update the value in datafiles (usefull for updating a FQDN variable wich his A or AAAA register changed).
+If the variable already exist, update the value in datafiles (useful for updating a FQDN variable which his A or AAAA register changed).
 
 The variable name you should use in your rulefiles will be printed.
 
@@ -84,7 +84,7 @@ This options accepts multiple input arguments, like: `fw-admin -d ::1 192.168.0.
 \fB-r\fP
 Reload FQDN variables values against your DNS server. This is possible thanks to the trailing comment in datafiles.
 
-Lines in datafiles that contains '##ignore##' are ignorer. This usefull to
+Lines in datafiles that contains '##ignore##' are ignored. This useful to
 declare variables like 'IF=eth0 ##ignore##' that does not need to be reloaded agains a DNS.
 .TP
 \fB-i [ipv4|ipv6|fqdn|var]\fP
@@ -138,7 +138,7 @@ then a permissive rule with the comment "transaccional_rule_fw-admin" will be ad
 
 Check datafiles for errors.
 
-If called with \fB--install\fP argument then \fBfw-admin\fP will make a basic datafiles deploy (usefull at first use/installation). 
+If called with \fB--install\fP argument then \fBfw-admin\fP will make a basic datafiles deploy (useful at first use/installation). 
 
 .TP
 \fB--help\fP
@@ -189,8 +189,8 @@ NIC2=eth1 ##ignore##
 NETWORK=192.168.0.0/24 ##ignore##
 R2D2=150.214.4.150 #r2d2.cica.es
 C3PO=$VOID #c3po.cica.es
-v192_168_2_2=192.168.2.2 #192.168.2.2
-v2a00_9ac0_c1ca__1=$VOID #2a00:9ac0:c1ca::1
+V192_168_2_2=192.168.2.2 #192.168.2.2
+V2a00_9ac0_c1ca__1=$VOID #2a00:9ac0:c1ca::1
 [...]
 .fi
 .RE
@@ -207,8 +207,8 @@ NIC2=eth1 ##ignore##
 NETWORK=$VOID ##ignore##
 R2D2=2a00:9ac0:c1ca:27::150 #r2d2.cica.es
 C3PO=2a00:9ac0:c1ca:27::170 #c3po.cica.es
-v192_168_2_2=$VOID #192.168.2.2
-v2a00_9ac0_c1ca__1=2a00:9ac0:c1ca::1 #2a00:9ac0:c1ca::1
+V192_168_2_2=$VOID #192.168.2.2
+V2a00_9ac0_c1ca__1=2a00:9ac0:c1ca::1 #2a00:9ac0:c1ca::1
 [...]
 .fi
 .RE
