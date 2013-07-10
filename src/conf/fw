@@ -130,9 +130,7 @@ start()
 		# pre-start hook
 		[ ! -z "$PRE_START" ] && eval "$PRE_START 2>/dev/null >/dev/null" &
 
-		for i in $START_ORDER ; do
-			$MAIN_BIN --start $i --nocheck >/dev/null 2>/dev/null
-		done
+		$MAIN_BIN --start --nocheck >/dev/null 2>/dev/null &
 
 		# waiting for start timeout
 		local cont=0
