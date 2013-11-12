@@ -6,6 +6,18 @@ then
 	exit 0
 fi
 
+MKTEMP=$( which mktemp )
+if [ ! -x "$MKTEMP" ] ; then
+	echo "E: No mktemp found."
+	exit 1
+fi
+
+TMPFILE=$( $MKTEMP )
+if [ ! -w "$TMPFILE" ] ; then
+	echo "E: Unable to create tmp file with mktemp."
+	exit 1
+fi
+
 echo "##################################################################"
 echo "W: Running this testbench will break your current fw-admin system!!"
 echo "W: It is intended to run while developing the code of fw-admin."
@@ -216,6 +228,111 @@ sed -i s/ENABLED=yes/ENABLED=no/ /etc/default/fw
 
 sed -i s/ENABLED=no/ENABLED=yes/ /etc/default/fw
 
+# test start/stop HOOKs
+INST="PRE_STOP=\"{ echo pre_stop1 > $TMPFILE ; echo pre_stop2 >> $TMPFILE ; }\""
+sed -i s/PRE_STOP=\"\"// /etc/default/fw
+echo "$INST" >> /etc/default/fw
+if ! grep "$INST" /etc/default/fw >&2 ; then
+	fail=1
+	echo "*!*"
+else
+	echo -n "."
+fi
+
+INST="POST_STOP=\"{ echo post_stop1 >> $TMPFILE ; echo post_stop2 >> $TMPFILE ; }\""
+sed -i s/POST_STOP=\"\"// /etc/default/fw
+echo "$INST" >> /etc/default/fw
+if ! grep "$INST" /etc/default/fw >&2 ; then
+	fail=1
+	echo "*!*"
+else
+	echo -n "."
+fi
+
+echo -n "."
+/etc/init.d/fw stop >&2
+[ "$?" != "0" ] && { fail=1 ; echo  "*!*" ; }
+
+if grep "pre_stop1" $TMPFILE >&2 ; then
+	echo -n "."
+else
+	echo "*!*"
+	fail=1
+fi
+
+if grep "pre_stop2" $TMPFILE >&2 ; then
+	echo -n "."
+else
+	echo "*!*"
+	fail=1
+fi
+
+if grep "post_stop1" $TMPFILE >&2 ; then
+	echo -n "."
+else
+	echo "*!*"
+	fail=1
+fi
+
+if grep "post_stop2" $TMPFILE >&2 ; then
+	echo -n "."
+else
+	echo "*!*"
+	fail=1
+fi
+
+INST="PRE_START=\"{ echo pre_start1 > $TMPFILE ; echo pre_start2 >> $TMPFILE ; }\""
+sed -i s/PRE_START=\"\"// /etc/default/fw
+echo "$INST" >> /etc/default/fw
+if ! grep "$INST" /etc/default/fw >&2 ; then
+	fail=1
+	echo "*!*"
+else
+	echo -n "."
+fi
+
+
+INST="POST_START=\"{ echo post_start1 >> $TMPFILE ; echo post_start2 >> $TMPFILE ; }\""
+sed -i s/POST_START=\"\"// /etc/default/fw
+echo "$INST" >> /etc/default/fw
+if ! grep "$INST" /etc/default/fw >&2 ; then
+	fail=1
+	echo "*!*"
+else
+	echo -n "."
+fi
+
+echo -n "."
+/etc/init.d/fw start >&2
+[ "$?" != "0" ] && { fail=1 ; echo  "*!*" ; }
+
+if grep "pre_start1" $TMPFILE >&2 ; then
+	echo -n "."
+else
+	echo "*!*"
+	fail=1
+fi
+
+if grep "pre_start2" $TMPFILE >&2 ; then
+	echo -n "."
+else
+	echo "*!*"
+	fail=1
+fi
+
+if grep "post_start1" $TMPFILE >&2 ; then
+	echo -n "."
+else
+	echo "*!*"
+	fail=1
+fi
+
+if grep "post_start2" $TMPFILE >&2 ; then
+	echo -n "."
+else
+	echo "*!*"
+	fail=1
+fi
 
 if [ $fail -ne 0 ]
 then
@@ -225,4 +342,5 @@ then
 fi
 
 echo ""
+rm -f $TMPFILE 2>/dev/null >/dev/null
 exit 0

@@ -128,11 +128,11 @@ start()
 	is_running
 	if [ $? -ne 0 ] ; then
 		# pre-start hook
-		[ ! -z "$PRE_START" ] && eval "$PRE_START 2>/dev/null >/dev/null" &
+		if [ ! -z "$PRE_START" ] ; then
+			eval "$PRE_START 2>/dev/null >/dev/null" &
+		fi
 
-		for i in $START_ORDER ; do
-			$MAIN_BIN --start $i --nocheck >/dev/null 2>/dev/null
-		done
+		$MAIN_BIN --start --nocheck >/dev/null 2>/dev/null &
 
 		# waiting for start timeout
 		local cont=0
@@ -142,7 +142,10 @@ start()
 			if is_running
 			then
 				# post-start hook
-				[ "$cont" -eq 0 ] && [ ! -z "$POST_START" ] && eval "$POST_START 2>/dev/null >/dev/null" &
+				if [ ! -z "$POST_START" ] ; then
+					eval "$POST_START 2>/dev/null >/dev/null" &
+				fi
+
 				return 0
 			else
 				sleep 1
@@ -157,7 +160,9 @@ start()
 stop()
 {
 	# pre-stop hook
-	[ ! -z "$PRE_STOP" ] && eval "$PRE_STOP 2>/dev/null >/dev/null" &
+	if [ ! -z "$PRE_STOP" ] ; then
+		eval "$PRE_STOP 2>/dev/null >/dev/null" &
+	fi
 
 	kill_all # kill previous attemps
 
@@ -166,7 +171,10 @@ stop()
 	done
 
 	# post-stop hook
-	[ ! -z "$POST_STOP" ] && eval "$POST_STOP 2>/dev/null >/dev/null" &
+	if [ ! -z "$POST_STOP" ] ; then
+		eval "$POST_STOP 2>/dev/null >/dev/null" &
+	fi
+
 	return 0
 }
 

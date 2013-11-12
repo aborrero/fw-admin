@@ -155,7 +155,7 @@ reload_variable_values()
 string_to_varname()
 {
 	local data=$1
-	echo $( tr [:lower:] [:upper:] <<< $data | tr '-' '_' | tr ':' '_' | tr '.' '_' ) && return 0 # the string return
+	echo $( tr [:lower:] [:upper:] <<< $data | tr '-' '_' | tr ':' '_' | tr '.' '_' | tr '\' '_' | tr '*' '_') && return 0 # the string return
 	return 1 # error if this is reached
 }
 
