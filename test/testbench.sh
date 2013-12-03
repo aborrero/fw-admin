@@ -193,38 +193,38 @@ cp -f conf/default_fw /etc/default/fw
 
 # Whatever state, stop now. Should return 0
 /etc/init.d/fw stop >&2
-[ "$?" != "0" ] && { fail=1 : echo "*!*" ; }
+[ "$?" != "0" ] && { fail=1 ;  echo "*/etc/init.d/fw stop fail (stop now)*" ; }
 
 # stop when already stopped should return 0
 echo -n "."
 /etc/init.d/fw stop >&2
-[ "$?" != "0" ] && { fail=1 ; echo  "*!*" ; }
+[ "$?" != "0" ] && { fail=1 ; echo "" ;  echo  "*/etc/init.d/fw stop fail (Stopped)*" ; }
 
 # status -> stopped should return 3
 echo -n "."
 /etc/init.d/fw status >&2
-[ "$?" != "3" ] && { fail=1 ; echo  "*!*" ; }
+[ "$?" != "3" ] && { fail=1 ; echo "" ; echo  "*/etc/init.d/fw status fail (Stopped)*" ; }
 
 # bad argument should return 4
 echo -n "."
 /etc/init.d/fw asdasd >&2
-[ "$?" != "4" ] && { fail=1 ; echo  "*!*" ; }
+[ "$?" != "4" ] && { fail=1 ; echo "" ; echo  "*Bad argument return fail*" ; }
 
 # success start should return 0
 echo -n "."
 /etc/init.d/fw start >&2
-[ "$?" != "0" ] && { fail=1 ; echo  "*!*" ; }
+[ "$?" != "0" ] && { fail=1 ; echo "" ; echo  "*/etc/init.d/fw start fail*" ; }
 
 # status -> started should return 0
 echo -n "."
 /etc/init.d/fw status >&2
-[ "$?" != "0" ] && { fail=1 ; echo  "*!*" ; }
+[ "$?" != "0" ] && { fail=1 ; echo "" ; echo  "*/etc/init.d/fw status fail (Started)/" ; }
 
 # if ENABLED=no, return code should be 3
 echo -n "."
 sed -i s/ENABLED=yes/ENABLED=no/ /etc/default/fw
 /etc/init.d/fw status >&2
-[ "$?" != "3" ] && { fail=1 ; echo  "*!*" ; }
+[ "$?" != "3" ] && { fail=1 ; echo "" ; echo  "*if ENABLED=no $?!=3*" ; }
 
 sed -i s/ENABLED=no/ENABLED=yes/ /etc/default/fw
 
@@ -234,7 +234,8 @@ sed -i s/PRE_STOP=\"\"// /etc/default/fw
 echo "$INST" >> /etc/default/fw
 if ! grep "$INST" /etc/default/fw >&2 ; then
 	fail=1
-	echo "*!*"
+	echo "" 
+	echo "*PRE_STOP fail*"
 else
 	echo -n "."
 fi
@@ -244,7 +245,8 @@ sed -i s/POST_STOP=\"\"// /etc/default/fw
 echo "$INST" >> /etc/default/fw
 if ! grep "$INST" /etc/default/fw >&2 ; then
 	fail=1
-	echo "*!*"
+	echo "" 
+	echo "*POST_STOP fail*"
 else
 	echo -n "."
 fi
@@ -256,28 +258,32 @@ echo -n "."
 if grep "pre_stop1" $TMPFILE >&2 ; then
 	echo -n "."
 else
-	echo "*!*"
+	echo "" 
+	echo "*pre_stop1 fail*"
 	fail=1
 fi
 
 if grep "pre_stop2" $TMPFILE >&2 ; then
 	echo -n "."
 else
-	echo "*!*"
+	echo "" 
+	echo "*pre_stop2 fail*"
 	fail=1
 fi
 
 if grep "post_stop1" $TMPFILE >&2 ; then
 	echo -n "."
 else
-	echo "*!*"
+	echo "" 
+	echo "*pre_stop1 fail*"
 	fail=1
 fi
 
 if grep "post_stop2" $TMPFILE >&2 ; then
 	echo -n "."
 else
-	echo "*!*"
+	echo ""
+	echo "*post_stop2 fail*"
 	fail=1
 fi
 
@@ -286,7 +292,8 @@ sed -i s/PRE_START=\"\"// /etc/default/fw
 echo "$INST" >> /etc/default/fw
 if ! grep "$INST" /etc/default/fw >&2 ; then
 	fail=1
-	echo "*!*"
+	echo "" 
+	echo "*PRE_START fail*"
 else
 	echo -n "."
 fi
@@ -297,7 +304,8 @@ sed -i s/POST_START=\"\"// /etc/default/fw
 echo "$INST" >> /etc/default/fw
 if ! grep "$INST" /etc/default/fw >&2 ; then
 	fail=1
-	echo "*!*"
+	echo "" 
+	echo "*POST_START fail*"
 else
 	echo -n "."
 fi
@@ -309,28 +317,32 @@ echo -n "."
 if grep "pre_start1" $TMPFILE >&2 ; then
 	echo -n "."
 else
-	echo "*!*"
+	echo "" 
+	echo "*fail pre_start1*"
 	fail=1
 fi
 
 if grep "pre_start2" $TMPFILE >&2 ; then
 	echo -n "."
 else
-	echo "*!*"
+	echo "" 
+	echo "*fail pre_start2*"
 	fail=1
 fi
 
 if grep "post_start1" $TMPFILE >&2 ; then
 	echo -n "."
 else
-	echo "*!*"
+	echo "" 
+	echo "*fail post_start1*"
 	fail=1
 fi
 
 if grep "post_start2" $TMPFILE >&2 ; then
 	echo -n "."
 else
-	echo "*!*"
+	echo "" 
+	echo "*fail post_start2*"
 	fail=1
 fi
 
