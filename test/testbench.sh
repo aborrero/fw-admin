@@ -94,7 +94,7 @@ echo "I: Testing operations"
 
 echo -n "."
 cp -f data/* /var/lib/fw-admin/
-cp -f rules/* /etc/fw-admin.d/rules/
+cp -f rules/* /usr/local/etc/fw-admin.d/rules/
 
 echo -n "."
 fw-admin --start core >&2 || { fail=1 ; echo "" ; echo "*Init or reload rules fail*" ; }
@@ -145,7 +145,7 @@ ip6tables-save | grep void5 >&2 && { fail=1 ; echo "" ; echo "*Rule creating ipv
 
 # Testing FORMAT=restore
 echo -n "."
-sed -i s/FORMAT=script/FORMAT=restore/ /etc/fw-admin.d/fw-admin.conf
+sed -i s/FORMAT=script/FORMAT=restore/ /usr/local/etc/fw-admin.d/fw-admin.conf
 fw-admin --start ruleset >&2 || { fail=1 ; echo "" ; echo "*Reload rules fail*" ; }
 
 echo -n "."
@@ -165,7 +165,7 @@ echo ""
 echo "I: Testing service integration"
 echo -n "."
 
-cp -f conf/fw-admin.conf /etc/fw-admin.d/fw-admin.conf
+cp -f conf/fw-admin.conf /usr/local/etc/fw-admin.d/fw-admin.conf
 cp -f conf/default_fw /etc/default/fw
 
 # Whatever state, stop now. Should return 0

@@ -28,8 +28,6 @@
 
 VERSION="1.0.1"
 
-CONF_FILE="/etc/fw-admin.d/fw-admin.conf"
-LIB="/usr/lib/fw-admin.d/libfw-admin"
 PID_FILE="/var/run/fw-admin.pid"
 
 help()
@@ -57,6 +55,41 @@ help()
 	return 0
 }
 
+resolve_paths()
+{
+	CONF_FILE=""
+	local CONF_LOCATIONS="/usr/local/ /"
+	local file="etc/fw-admin.d/fw-admin.conf"
+
+	for loc in $CONF_LOCATIONS ; do
+		if [ -e "${loc}${file}" ] ; then
+			CONF_FILE="${loc}${file}"
+			break;
+		fi
+	done
+
+	if [ "$CONF_FILE" == "" ] ; then
+		echo "W: Unable to locate conf file. Use /etc/fw-admin.d/fw-admin.conf  or /usr/local/etc/fw-admin.d/fw-admin.conf" >&2
+	fi
+
+	LIB=""
+	LIB_DIR=""
+	LIB_LOCATIONS="/usr/local/share/fw-admin.d /usr/local/lib/fw-admin.d /usr/share/fw-admin.d /usr/lib/fw-admin.d"
+	file="libfw-admin"
+
+	for loc in $LIB_LOCATIONS ; do
+		if [ -e "${loc}/${file}" ] ; then
+			LIB="${loc}/${file}"
+			LIB_DIR="${loc}"
+			break;
+		fi
+	done
+
+	if [ "$LIB" == "" ] ; then
+		echo "W: Unable to locate lib file. Check your fw-admin installation." >&2
+	fi
+
+}
 
 nofound()
 {
@@ -87,6 +120,8 @@ loadlibrary()
 ################################################################
 # Program
 ################################################################
+resolve_paths
+
 if ! source $CONF_FILE 2>/dev/null ; then
 	echo "E: Unable to load config file $CONF_FILE" >&2
 	exit 1

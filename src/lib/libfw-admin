@@ -59,15 +59,14 @@ CONNTRACK_COUNT="/proc/sys/net/netfilter/nf_conntrack_count"
 CONNTRACK_HASHSIZE="/sys/module/nf_conntrack/parameters/hashsize"
 
 
-DIR_LIB="/usr/lib/fw-admin.d"
 LIB_CONTROL="libfw-admin-control"
 LIB_DF="libfw-admin-datafiles"
 LIB_UTILS="libfw-admin-utils"
 LIB_CHECK="libfw-admin-check"
 LIB_OPER="libfw-admin-operations"
 
-. $DIR_LIB/$LIB_CONTROL || { echo "E: Unable to load ${DIR_LIB}/${LIB_CONTROL}" >&2 ; return 1 ; }
-. $DIR_LIB/$LIB_DF || { echo "E: Unable to load ${DIR_LIB}/${LIB_DF}" >&2 ; return 1 ; }
-. $DIR_LIB/$LIB_UTILS || { echo "E: Unable to load ${DIR_LIB}/${LIB_UTILS}" >&2 ; return 1 ; }
-. $DIR_LIB/$LIB_CHECK || { echo "E: Unable to load ${DIR_LIB}/${LIB_CHECK}" >&2 ; return 1 ; }
-. $DIR_LIB/$LIB_OPER || { echo "E: Unable to load ${DIR_LIB}/${LIB_OPER}" >&2 ; return 1 ; }
+. $LIB_DIR/$LIB_CONTROL || { echo "E: Unable to load ${LIB_DIR}/${LIB_CONTROL}" >&2 ; return 1 ; }
+. $LIB_DIR/$LIB_DF || { echo "E: Unable to load ${LIB_DIR}/${LIB_DF}" >&2 ; return 1 ; }
+. $LIB_DIR/$LIB_UTILS || { echo "E: Unable to load ${LIB_DIR}/${LIB_UTILS}" >&2 ; return 1 ; }
+. $LIB_DIR/$LIB_CHECK || { echo "E: Unable to load ${LIB_DIR}/${LIB_CHECK}" >&2 ; return 1 ; }
+. $LIB_DIR/$LIB_OPER || { echo "E: Unable to load ${LIB_DIR}/${LIB_OPER}" >&2 ; return 1 ; }
