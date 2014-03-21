@@ -1,6 +1,4 @@
 PREFIX ?= /usr/local
-INSTALL_PREFIX := $(PREFIX)
-
 
 SBIN := $(PREFIX)/sbin/
 LIB := $(PREFIX)/lib/fw-admin.d
