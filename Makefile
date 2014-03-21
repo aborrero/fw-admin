@@ -18,6 +18,6 @@ install :
 
 	# Deal with conffiles
 	install -d $(CONF)
-	install src/conf/fw-admin.conf $(CONF)
+	install -m 0644 src/conf/fw-admin.conf $(CONF)
 	install -d $(CONF)/rules
 	install src/conf/rules/* $(CONF)/rules/
