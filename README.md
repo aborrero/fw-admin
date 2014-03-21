@@ -8,17 +8,12 @@ Please, take a look at the [wiki](https://github.com/aborrero/fw-admin/wiki/).
 Install
 =======
 
-git-clone the repository and do make:
+git-clone the repository and do make install:
 
 	$ git clone git://github.com/aborrero/fw-admin.git
 	$ cd fw-admin
 	# make install
 
-If you are using a Debian-based system, you can build a `.deb` package, and then install it:
-
-	$ git clone git://github.com/aborrero/fw-admin.git
-	$ git checkout debian
-	# git-buildpackage
 
 Features
 ========
