@@ -38,29 +38,6 @@ fail=0
 
 ###########################################################
 ###########################################################
-echo "I: Testing building and installation"
-
-echo -n "."
-
-echo -n "."
-cd ..
-make install >&2
-if [ $? -ne 0 ]
-then
-	echo ""
-	echo "E: Error building and installing tar.gz package." >&2
-	fail=1
-fi
-cd test
-
-if [ $fail -ne 0 ] ; then
-	echo ""
-	echo "E: Error in testing and installation" >&2
-	exit 1
-fi
-
-###########################################################
-###########################################################
 echo ""
 echo "I: Testing datafiles"
 VALID="www.google.es www.facebook.com github.com 2a00:9ac0:c1ca:27::150 150.214.4.150 192.168.1.1 fe00::1 ::1 127.0.0.1"
