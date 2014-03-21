@@ -1,4 +1,5 @@
-PREFIX ?= /usr/local
+DESTDIR ?= /usr/local
+PREFIX ?= $(DESTDIR)
 
 SBIN := $(PREFIX)/sbin/
 LIB := $(PREFIX)/lib/fw-admin.d
