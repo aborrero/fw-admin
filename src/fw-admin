@@ -167,8 +167,27 @@ case "$1" in
 		;;
 	"-c" )
 		loadlibrary
-		check_rulefile $2 # file as a parameter
-		do_exit $?
+
+		# If no parameters (ie, called `fw-admin -c') check all files
+		# in $START_ORDER.
+		if [ $# -eq 1 ] ; then
+			for i in $START_ORDER ; do
+				check_rulefile $i # file as a parameter
+				ret=$?
+				[ $ret -ne 0 ] && do_exit $ret
+			done
+			do_exit 0
+		fi
+
+
+		# Allow multiple checks in one call
+		for i in "$@" ; do
+			[ "$i" == "-c" ] && continue
+			check_rulefile $i # file as a parameter
+			ret=$?
+			[ $ret -ne 0 ] && do_exit $ret
+		done
+		do_exit 0
 		;;
 	"--start" )
 		loadlibrary
