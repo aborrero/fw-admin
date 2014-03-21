@@ -1,4 +1,3 @@
-TAR := fw-admin_last.tar.gz
 PREFIX ?= /usr/local
 INSTALL_PREFIX := $(PREFIX)
 
