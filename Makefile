@@ -4,7 +4,9 @@ SBIN := $(PREFIX)/sbin/
 LIB := $(PREFIX)/lib/fw-admin.d
 CONF := $(PREFIX)/etc/fw-admin.d
 
-.PHONY : install
+.PHONY: build install
+
+build :
 
 install :
 	# Deal with libs and bins
