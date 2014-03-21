@@ -11,8 +11,9 @@ build :
 
 install :
 	# Deal with libs and bins
-	install -d $(LIB)
+	install -d $(SBIN)
 	install src/fw-admin $(SBIN)
+	install -d $(LIB)
 	install src/lib/libfw-admin* $(LIB)
 
 	# Deal with conffiles
