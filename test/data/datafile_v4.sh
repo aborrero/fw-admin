@@ -81,7 +81,6 @@ vfe00_123_123__dead_beef=$VOID #fe00:123:123::dead:beef
 FTP_DEBIAN_ORG=130.89.148.12 #ftp.debian.org
 FTP_DE_DEBIAN_ORG=141.76.2.4 #ftp.de.debian.org
 FTP_FREE_FR=212.27.60.27 #ftp.free.fr
-FTP_GUI_UVA_ES=157.88.36.34 #ftp.gui.uva.es
 FTP_INTERNIC_NET=192.0.32.9 #ftp.internic.net
 FTP_PRAMBERGER_AT=188.40.36.134 #ftp.pramberger.at
 FTP_REDHAT_COM=209.132.183.61 #ftp.redhat.com
