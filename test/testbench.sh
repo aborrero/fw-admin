@@ -1,5 +1,35 @@
 #!/bin/bash
 
+echo "##################################################################"
+echo "W: Running this testbench will break your current fw-admin system!!"
+echo "W: It is intended to run while developing the code of fw-admin."
+echo "W: This script is fully tested only in a Debian Wheezy system."
+
+help() {
+	echo ""
+	echo "fw-admin testbench. Summary of options:"
+	echo -e "\t-d		turn on debug mode."
+	echo -e "\t-y		run directly, without asking for confirmation."
+	echo -e "\t-h		show this message."
+}
+
+# Option parsing
+DEBUG="n"
+RUN="n"
+OPT=$( getopt -o hdy -n 'testbench.sh' -- "$@" )
+if [ $? != 0 ] ; then echo "E: getopt failed" >&2 ; exit 1 ; fi
+eval set -- "$OPT"
+
+while true ; do
+	case "$1" in
+		-h) help ; exit 0 ;;
+                -d) DEBUG="y" ; shift ;;
+                -y) RUN="y" ; shift ;;
+                --) shift ; break ;;
+                *) echo "W: Invalid option $1" ; exit 1 ;;
+        esac
+done
+
 if [ `id -u` -ne 0 ]
 then
 	echo "W: Not Root!"
@@ -24,19 +54,14 @@ if [ ! -w "$TMPFILE" ] ; then
 	exit 1
 fi
 
-echo "##################################################################"
-echo "W: Running this testbench will break your current fw-admin system!!"
-echo "W: It is intended to run while developing the code of fw-admin."
-echo "W: This script is fully tested only in a Debian Wheezy system."
-read -p "Continue? [N/y] " continue
-if [ -z "$continue" ] || [ $continue != y ]
-then
-	exit 0
+if [ "$RUN" != "y" ] ; then
+	read -p "Continue? [N/y] " RUN
+	if [ "$RUN" != "y" ] ; then
+		exit 0
+	fi
 fi
 
-if [ "$1" != "-d" ]
-then
-	echo "I: Use '-d' to set debug mode."
+if [ "$DEBUG" != "y" ] ; then
 	exec 2>/dev/null
 fi
 
