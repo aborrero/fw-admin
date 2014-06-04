@@ -5,7 +5,7 @@ SBIN := $(PREFIX)/sbin/
 LIB := $(PREFIX)/lib/fw-admin.d
 CONF := $(PREFIX)/etc/fw-admin.d
 
-.PHONY: build install
+.PHONY: build install check
 
 build :
 
@@ -21,3 +21,7 @@ install :
 	install -m 0644 conf/fw-admin.conf $(CONF)
 	install -d $(CONF)/rules
 	install conf/rules/* $(CONF)/rules/
+
+
+check : install
+	sh test/testbench.sh
