@@ -6,6 +6,12 @@ then
 	exit 0
 fi
 
+FW_ADMIN=$( which fw-admin )
+if [ ! -x "$FW_ADMIN" ] ; then
+	echo "E: No fw-admin binary found."
+	exit 1
+fi
+
 MKTEMP=$( which mktemp )
 if [ ! -x "$MKTEMP" ] ; then
 	echo "E: No mktemp found."
