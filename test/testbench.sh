@@ -65,6 +65,8 @@ if [ "$DEBUG" != "y" ] ; then
 	exec 2>/dev/null
 fi
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 fail=0
 
 ###########################################################
@@ -124,8 +126,8 @@ echo ""
 echo "I: Testing operations"
 
 echo -n "."
-cp -f data/* /var/lib/fw-admin/
-cp -f rules/* /usr/local/etc/fw-admin.d/rules/
+cp -f ${DIR}/data/* /var/lib/fw-admin/
+cp -f ${DIR}/rules/* /usr/local/etc/fw-admin.d/rules/
 
 echo -n "."
 fw-admin --start core >&2 || { fail=1 ; echo "" ; echo "*Init or reload rules fail*" ; }
@@ -136,11 +138,11 @@ fw-admin --ipset-reload >&2 && { fail=1 ; echo "" ; echo "*This command not shou
 echo -n "."
 fw-admin --stop core >&2 || { fail=1 ; echo "" ; echo "*Stop rules fail*" ; }
 echo -n "."
-fw-admin --start ./rules/core >&2 || { fail=1 ; echo "" ; echo "*Fail start ./rules/core*" ; }
+fw-admin --start ${DIR}/rules/core >&2 || { fail=1 ; echo "" ; echo "*Fail start ${DIR}/rules/core*" ; }
 echo -n "."
-fw-admin --start ./rules/vlan_1 >&2 || { fail=1 ; echo "" ; echo "*Fail start ./rules/vlan_1*" ; }
+fw-admin --start ${DIR}/rules/vlan_1 >&2 || { fail=1 ; echo "" ; echo "*Fail start ${DIR}/rules/vlan_1*" ; }
 echo -n "."
-fw-admin --start ./rules/sets >&2 || { fail=1 ; echo "" ; echo "*Fail start ./rules/sets*" ; }
+fw-admin --start ${DIR}/rules/sets >&2 || { fail=1 ; echo "" ; echo "*Fail start ${DIR}/rules/sets*" ; }
 
 echo -n "."
 fw-admin --start vlan_2 >&2 || { fail=1 ; echo "" ; echo "*Fail start vlan_2*" ; }
