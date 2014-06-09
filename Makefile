@@ -24,4 +24,4 @@ install :
 
 
 check : install
-	sh test/testbench.sh -y
+	bash tests/runtests.sh -y
