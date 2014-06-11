@@ -63,6 +63,7 @@ fi
 
 if [ "$DEBUG" != "y" ] ; then
 	exec 2>/dev/null
+	set -x
 fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -125,7 +126,11 @@ for test in $( ls ${DIR}/testfiles ) ; do
 	name=$( awk -F'_' '{print $3}' <<< "$test" | awk -F'.' '{print $1}' )
 
 	echo -n "Running test $test ..."
-	${DIR}/testfiles/${test} >&2
+	if [ "$DEBUG" == "y" ] ; then
+		bash -x ${DIR}/testfiles/${test} >&2
+	else
+		bash ${DIR}/testfiles/${test} >&2
+	fi
 	if [ "$?" != "$ret" ] ; then
 		echo -e "\tFAILED"
 	else
